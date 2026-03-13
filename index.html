@@ -34,12 +34,10 @@
         details[open].panel-section summary::after { transform: rotate(180deg); }
         .section-content { padding: 15px; }
 
-        /* CONTROLES UI */
         .radio-group label { display: block; margin-bottom: 8px; cursor: pointer; font-size: 13px; }
         .checkbox-list { max-height: 140px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #fff; margin-bottom: 10px; }
         .checkbox-list label { display: block; margin-bottom: 6px; font-size: 12px; cursor: pointer; }
         
-        /* SLIDERS MIN/MAX */
         .range-control { margin-bottom: 10px; }
         .range-control label { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #444; }
         .range-control input[type=range] { width: 100%; margin: 0; }
@@ -53,46 +51,52 @@
         .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; }
         
         /* GRAPHIQUE FLOTTANT REDIMENSIONNABLE */
-        #chart-modal { display: none; position: absolute; top: 10vh; left: 10vw; width: 450px; height: 300px; background: white; z-index: 9999; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); resize: both; overflow: hidden; flex-direction: column; border: 1px solid #ccc; }
-        #chart-modal-header { background: #2c3e50; color: white; padding: 8px 15px; cursor: move; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: bold; }
-        #chart-modal-body { flex-grow: 1; padding: 10px; position: relative; }
+        #chart-modal { display: none; position: absolute; top: 15%; left: 360px; width: 600px; height: 400px; min-width: 300px; min-height: 200px; background: white; z-index: 9999; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); resize: both; overflow: hidden; flex-direction: column; border: 1px solid #ccc; }
+        #chart-modal-header { background: #2c3e50; color: white; padding: 8px 15px; cursor: move; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: bold; user-select: none;}
+        #chart-modal-body { flex-grow: 1; padding: 10px; position: relative; background: #fff; width: 100%; height: calc(100% - 35px); box-sizing: border-box;}
         
         /* CARTE & MOBILE */
         #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
         #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; z-index: 1; }
         #btn-menu-mobile { position: absolute; top: 15px; left: 15px; z-index: 1000; background: white; border: 2px solid rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; }
 
-        /* MARKER CUSTOM (N° dans le point) */
+        /* MARKER CUSTOM */
         .custom-cannon-icon { background: none; border: none; }
         .cannon-circle { border-radius: 50%; color: white; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-sizing: border-box; box-shadow: 0px 2px 5px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;}
         .cannon-circle:hover { transform: scale(1.15); z-index: 1000 !important; cursor: pointer; }
 
-        /* =========================================
-           BANDEAU DROIT (SELECTION & EDITION) 
-           ========================================= */
-        #right-sidebar { position: absolute; top: 0; right: 0; bottom: 0; width: 340px; background: #fff; z-index: 2001; transform: translateX(100%); transition: transform 0.3s ease; box-shadow: -2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+        /* BANDEAU DROIT (SELECTION & EDITION) */
+        #right-sidebar { position: absolute; top: 0; right: 0; bottom: 0; width: 360px; background: #fff; z-index: 2001; transform: translateX(100%); transition: transform 0.3s ease; box-shadow: -2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
         #right-sidebar.open { transform: translateX(0); }
         
         .right-header { background: #34495e; color: white; padding: 15px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;}
         .right-header.editing { background: #e74c3c; }
         .right-content { padding: 15px; overflow-y: auto; flex-grow: 1; }
         
-        /* Fiches de sélection */
-        .sel-details { background: #f9f9f9; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
-        .sel-details summary { padding: 10px; font-weight: 600; cursor: pointer; outline: none; display: flex; justify-content: space-between; font-size: 13px; background: #fff; border-bottom: 1px solid #eee; }
-        .sel-details > div { padding: 12px; font-size: 12px; color: #444; background: #fafafa; }
+        /* FICHES DE SELECTION ET TICKETS */
+        .sel-details { background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden;}
+        .sel-details-header { padding: 12px; font-weight: 600; font-size: 14px; background: #f8f9fa; border-bottom: 1px solid #eee; color: #2c3e50; display:flex; justify-content:space-between;}
+        .sel-details-body { padding: 12px; font-size: 12px; color: #444; }
+        
+        .ticket-alert { background: #fdf0ed; border-left: 4px solid #e74c3c; padding: 8px; margin: 10px 0; border-radius: 3px; }
+        .ticket-alert strong { color: #c0392b; display: block; margin-bottom: 4px;}
+        .ticket-history { margin-top: 10px; background: #f4f6f7; padding: 8px; border-radius: 4px; border: 1px solid #e1e5e8;}
+        .ticket-history summary { font-size: 12px; font-weight: bold; color: #27ae60; cursor: pointer; outline:none;}
+        .ticket-history ul { padding-left: 20px; margin-top: 8px; margin-bottom: 0; color: #555; font-size: 11px;}
+        .ticket-history li { margin-bottom: 5px; }
+        
         .btn-edit-small { background: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-top: 10px; width: 100%; font-weight: bold;}
         .btn-edit-small:hover { background: #c0392b; }
 
         /* Formulaire Édition */
         .edit-input { width: 100%; box-sizing: border-box; padding: 7px; margin-top: 4px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
         .edit-label { font-size: 12px; font-weight: bold; color: #555; }
-        #edit-instructions { background: #fdf0ed; border-left: 4px solid #e74c3c; padding: 10px; margin-bottom: 15px; font-size: 12px; color: #c0392b; line-height: 1.4; }
 
         @media (max-width: 768px) {
             #sidebar { position: absolute; height: 100%; width: 85%; transform: translateX(-100%); }
             #sidebar.open { transform: translateX(0); }
             #right-sidebar { width: 85%; }
+            #chart-modal { width: 90%; left: 5%; top: 5%; height: 50vh;}
             #btn-menu-mobile { display: block; }
             .close-btn { display: block; }
         }
@@ -102,7 +106,7 @@
     <div id="loading-overlay">
         <div class="spinner"></div>
         <h2 style="color:#0078A8; margin:0;">Connexion à Google Sheets...</h2>
-        <p style="color:#666;">Synchronisation de la base de données</p>
+        <p style="color:#666;">Récupération des canons et des tickets en cours</p>
     </div>
 
     <div id="app-container">
@@ -118,21 +122,17 @@
                 <div class="section-content" style="padding-top: 5px;">
                     <div id="legend-content"></div>
                     <div id="slider-container" style="display:none; margin-top:15px; padding-top: 10px; border-top: 1px dashed #ccc;">
-                        <div class="range-control">
-                            <label>Minimale : <span class="val-badge" id="val-min">0</span></label>
-                            <input type="range" id="slider-min" min="0" max="100" value="0">
-                        </div>
-                        <div class="range-control">
-                            <label>Maximale : <span class="val-badge" id="val-max">100</span></label>
-                            <input type="range" id="slider-max" min="0" max="100" value="100">
-                        </div>
+                        <div class="range-control"><label>Minimale : <span class="val-badge" id="val-min">0</span></label><input type="range" id="slider-min" min="0" max="100" value="0"></div>
+                        <div class="range-control"><label>Maximale : <span class="val-badge" id="val-max">100</span></label><input type="range" id="slider-max" min="0" max="100" value="100"></div>
                     </div>
                 </div>
             </details>
 
-            <details class="panel-section">
+            <details class="panel-section" open>
                 <summary>2. Thème de la carte</summary>
                 <div class="section-content radio-group" style="padding-top: 5px;">
+                    <label><input type="radio" name="layer" value="defauts"> 🚨 <b>Défauts en cours</b></label>
+                    <hr style="margin: 8px 0; border-top: 1px dashed #ccc;">
                     <label><input type="radio" name="layer" value="type" checked> Type de canon</label>
                     <label><input type="radio" name="layer" value="repeteur"> Répéteurs</label>
                     <label><input type="radio" name="layer" value="transfo"> Transformateurs</label>
@@ -147,24 +147,16 @@
                 <summary>3. Filtres de Sélection</summary>
                 <div class="section-content" style="padding-top: 5px;">
                     <b style="font-size:12px;">Par Pistes :</b>
-                    <div class="checkbox-list" id="piste-checkboxes">
-                        <label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes les pistes</b></label>
-                        <hr style="margin: 5px 0; border-top: 1px solid #ddd;">
-                        <div id="individual-pistes"></div>
-                    </div>
-
-                    <b style="font-size:12px;">Par Types de Canon :</b>
-                    <div class="checkbox-list" id="type-checkboxes">
-                        <label><input type="checkbox" id="check-all-types" checked> <b>Tous les types</b></label>
-                        <hr style="margin: 5px 0; border-top: 1px solid #ddd;">
-                        <div id="individual-types"></div>
-                    </div>
+                    <div class="checkbox-list" id="piste-checkboxes"><label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes les pistes</b></label><hr style="margin: 5px 0; border-top: 1px solid #ddd;"><div id="individual-pistes"></div></div>
+                    <b style="font-size:12px;">Par Types :</b>
+                    <div class="checkbox-list" id="type-checkboxes"><label><input type="checkbox" id="check-all-types" checked> <b>Tous les types</b></label><hr style="margin: 5px 0; border-top: 1px solid #ddd;"><div id="individual-types"></div></div>
                 </div>
             </details>
 
             <details class="panel-section" id="chart-section" open>
                 <summary>
-                    4. Analyse <button title="Agrandir / Déplacer le graphique" style="background:none; border:none; cursor:pointer; font-size:16px; padding:0;" onclick="event.preventDefault(); toggleChartModal();">⛶</button>
+                    4. Analyse 
+                    <button title="Détacher et Agrandir le graphique" style="background:none; border:none; cursor:pointer; font-size:16px; padding:0; color:#0078A8;" onclick="event.preventDefault(); toggleFullscreenChart();">⛶</button>
                 </summary>
                 <div class="section-content" id="original-chart-container" style="position: relative; height: 200px; width:100%; padding-top: 5px;">
                     <div id="chart-wrapper" style="position: relative; width: 100%; height: 100%;">
@@ -175,14 +167,14 @@
         </div>
 
         <div id="map-container">
-            <button id="btn-menu-mobile" onclick="toggleLeftSidebar()">☰ Filtres</button>
+            <button id="btn-menu-mobile" onclick="toggleLeftSidebar()">☰ Menu Filtres</button>
             <div id="map"></div>
         </div>
 
         <div id="chart-modal">
             <div id="chart-modal-header">
                 <span>📈 Analyse (Redimensionnable)</span>
-                <button onclick="toggleChartModal()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;">✖</button>
+                <button onclick="toggleFullscreenChart()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;">✖</button>
             </div>
             <div id="chart-modal-body">
                 </div>
@@ -190,70 +182,49 @@
 
         <div id="right-sidebar">
             <div class="right-header" id="right-header">
-                <span id="right-title">📌 Canons Sélectionnés</span>
+                <span id="right-title">📌 Sélection Multiple</span>
                 <button class="close-btn" onclick="closeRightSidebar()" style="display:block; font-size:22px; cursor:pointer;">&times;</button>
             </div>
             
             <div class="right-content">
-                
                 <div id="view-selection">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
                         <span style="font-size:13px; color:#555;"><b id="sel-count">0</b> canon(s) ciblé(s)</span>
                         <button onclick="clearSelection()" style="background:#95a5a6; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:11px;">Vider ✕</button>
                     </div>
-                    <div id="selected-list">
-                        </div>
+                    <div id="selected-list"></div>
                 </div>
 
                 <div id="view-edit" style="display:none;">
-                    <div id="edit-instructions">
-                        <b>Mode Édition activé</b><br>Modifiez les informations ou cliquez n'importe où sur la carte pour déplacer le canon géographique.
+                    <div style="background:#fdf0ed; border-left:4px solid #e74c3c; padding:10px; margin-bottom:15px; font-size:12px; color:#c0392b;">
+                        <b>Mode Édition activé</b><br>Modifiez les informations ou cliquez sur la carte pour replacer le canon géographique.
                     </div>
-
                     <h3 style="margin-top:0; color:#e74c3c;">Édition Canon N°<span id="edit-id-display"></span></h3>
                     <input type="hidden" id="edit-id">
                     
-                    <div style="display:flex; gap:10px;">
-                        <div style="flex:1;"><div class="edit-label">Type de canon</div><input type="text" id="edit-type" class="edit-input"></div>
-                        <div style="flex:1;"><div class="edit-label">Piste</div><input type="text" id="edit-piste" class="edit-input"></div>
-                    </div>
-                    
-                    <div style="display:flex; gap:10px;">
-                        <div style="flex:1;"><div class="edit-label">Eau (m³)</div><input type="number" id="edit-eau" class="edit-input"></div>
-                        <div style="flex:1;"><div class="edit-label">Air</div><input type="number" id="edit-air" class="edit-input"></div>
-                        <div style="flex:1;"><div class="edit-label">Tps (h)</div><input type="number" id="edit-temps" class="edit-input"></div>
-                    </div>
-
-                    <div style="display:flex; gap:10px;">
-                        <div style="flex:1;"><div class="edit-label">Répéteur</div><input type="text" id="edit-rep" class="edit-input"></div>
-                        <div style="flex:1;"><div class="edit-label">Transformateur</div><input type="text" id="edit-transfo" class="edit-input"></div>
-                    </div>
-                    
+                    <div style="display:flex; gap:10px;"><div style="flex:1;"><div class="edit-label">Type de canon</div><input type="text" id="edit-type" class="edit-input"></div><div style="flex:1;"><div class="edit-label">Piste associée</div><input type="text" id="edit-piste" class="edit-input"></div></div>
+                    <div style="display:flex; gap:10px;"><div style="flex:1;"><div class="edit-label">Eau (m³)</div><input type="number" id="edit-eau" class="edit-input"></div><div style="flex:1;"><div class="edit-label">Air</div><input type="number" id="edit-air" class="edit-input"></div><div style="flex:1;"><div class="edit-label">Tps (h)</div><input type="number" id="edit-temps" class="edit-input"></div></div>
+                    <div style="display:flex; gap:10px;"><div style="flex:1;"><div class="edit-label">Répéteur</div><input type="text" id="edit-rep" class="edit-input"></div><div style="flex:1;"><div class="edit-label">Transfo</div><input type="text" id="edit-transfo" class="edit-input"></div></div>
                     <hr style="border:0; border-top:1px solid #eee; margin: 10px 0;">
-                    
-                    <div style="display:flex; gap:10px;">
-                        <div style="flex:1;"><div class="edit-label">Latitude</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input"></div>
-                        <div style="flex:1;"><div class="edit-label">Longitude</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input"></div>
-                    </div>
+                    <div style="display:flex; gap:10px;"><div style="flex:1;"><div class="edit-label">Latitude</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input"></div><div style="flex:1;"><div class="edit-label">Longitude</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input"></div></div>
                     
                     <div style="display:flex; gap:10px; margin-top:15px;">
                         <button onclick="cancelEdit()" style="flex:1; background:#95a5a6; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:13px;">Annuler</button>
                         <button id="btn-save-edit" style="flex:2; background:#27ae60; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:13px;">✅ Sauvegarder</button>
                     </div>
                 </div>
-
             </div>
         </div>
-
     </div>
 
     <script>
         // ==========================================
-        // 1. API GOOGLE SHEETS
+        // API GOOGLE SHEETS
         // ==========================================
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzI2FLqyfjMUkuaH-er98Og7U5Q0WxVUD0ci_7sCZ2ZkQwG_5_V2ei5OHb8mSrkChkOLw/exec";
         
         let rawData = [];
+        let rawTickets = [];
         let snowCannons = { "type": "FeatureCollection", "features": [] };
         
         const map = L.map('map', {zoomControl: false}).setView([42.766, 0.564], 14);
@@ -266,22 +237,34 @@
         async function fetchGoogleSheetsData() {
             try {
                 const response = await fetch(GOOGLE_API_URL);
-                const sheetData = await response.json();
+                const data = await response.json();
                 
-                rawData = sheetData.slice(1).map(row => {
-                    const safeParse = (val) => parseFloat((val||"0").toString().replace(',', '.')) || 0;
-                    return [
-                        row[0] || "", safeParse(row[1]), safeParse(row[2]), safeParse(row[3]), safeParse(row[4]), safeParse(row[5]),
-                        (row[6] || "Inconnu").toString().trim(), (row[7] || "Inconnue").toString().trim().replace(/^./, str => str.toUpperCase()),
-                        (row[8] || "Inconnu").toString().trim(), (row[9] || "Inconnu").toString().trim()
-                    ];
-                });
+                // LECTURE DES CANONS
+                if (data.canons && data.canons.length > 0) {
+                    rawData = data.canons.slice(1).map(row => {
+                        const safeParse = (val) => parseFloat((val||"0").toString().replace(',', '.')) || 0;
+                        return [ row[0] || "", safeParse(row[1]), safeParse(row[2]), safeParse(row[3]), safeParse(row[4]), safeParse(row[5]), (row[6] || "Inconnu").toString().trim(), (row[7] || "Inconnue").toString().trim().replace(/^./, str => str.toUpperCase()), (row[8] || "").toString().trim(), (row[9] || "").toString().trim() ];
+                    });
+                }
+
+                // LECTURE DES TICKETS (LECTURE SEULE)
+                // Ordre défini : 0:id, 1:état, 2:date, 3:n°regard, 4:piste, 5:defaut, 6:Défaut sonde, 7:cause, 8:date_inter, 9:Remarque
+                if (data.tickets && data.tickets.length > 0) {
+                    rawTickets = data.tickets.slice(1).map(row => ({
+                        idTicket: row[0],
+                        statut: (row[1] || "").toString().toLowerCase().trim(),
+                        date: row[2],
+                        idCanon: row[3],
+                        defaut: row[5],
+                        remarque: row[9]
+                    }));
+                }
 
                 document.getElementById('loading-overlay').style.display = 'none';
                 initApp();
 
             } catch (error) {
-                alert("Erreur de connexion à Google Sheets. Le lien Apps Script est-il correct et public ?");
+                alert("Erreur de connexion à Google Sheets. Vérifiez l'URL de l'API Apps Script.");
                 console.error(error);
                 document.getElementById('loading-overlay').innerHTML = "<h2 style='color:red;'>Erreur réseau</h2>";
             }
@@ -290,22 +273,30 @@
         window.onload = fetchGoogleSheetsData;
 
         // ==========================================
-        // 2. CONSTRUCTION DE L'APPLICATION
+        // GESTION DES TICKETS
         // ==========================================
-        let currentLayer = 'type';
-        let currentPistes = ['all'];
-        let currentTypes = ['all'];
-        let selectedCannonsMap = new Map(); 
-        let currentlyEditingId = null; 
+        function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon == idCanon); }
         
-        let absoluteMaxes = { eau: 0, air: 0, temps: 0 };
-        let currentMaxThreshold = { eau: 0, air: 0, temps: 0 };
-        let currentMinThreshold = { eau: 0, air: 0, temps: 0 };
+        function getActiveTickets(idCanon) { 
+            return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); 
+        }
+        
+        function getHistoryTickets(idCanon) { 
+            return getTicketsForCanon(idCanon)
+                .filter(t => !t.statut.includes('faire') && !t.statut.includes('cours') && t.statut !== "")
+                .sort((a, b) => new Date(b.date) - new Date(a.date)); // Trie du plus récent au plus ancien
+        }
 
+        // ==========================================
+        // CONSTRUCTION APP & UI
+        // ==========================================
+        let currentLayer = 'defauts';
+        let currentPistes = ['all']; let currentTypes = ['all'];
+        let selectedCannonsMap = new Map(); let currentlyEditingId = null; 
+        let absoluteMaxes = { eau: 0, air: 0, temps: 0 }; let currentMaxThreshold = {}; let currentMinThreshold = { eau: 0, air: 0, temps: 0 };
         let technoColors = {}, repColors = {}, transfoColors = {}, pisteColors = {};
 
         function initApp() {
-            // Gestion Couleurs
             function hslToHex(h, s, l) {
                 let r, g, b; if (s === 0) { r = g = b = l; } else {
                     const hue2rgb = (p, q, t) => { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; }
@@ -322,28 +313,22 @@
                 if (!["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(t)) tSet.add(t);
                 if (row[8]) rSet.add(row[8]); if (row[9]) trSet.add(row[9]); if (row[7]) pSet.add(row[7]);
             });
-            
             Array.from(tSet).sort().forEach((t, i) => { technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
             repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45);
             transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
             pisteColors = generatePalette(Array.from(pSet).sort(), 0.7, 0.5);
 
-            // GeoJSON
             snowCannons.features = rawData.map(row => {
-                let typeRaw = row[6]; let typeLower = typeRaw.toLowerCase(); let color = "#FFD700";
+                let typeLower = row[6].toLowerCase(); let color = "#FFD700";
                 if (["demak lenko", "demac lenko"].includes(typeLower)) color = "#0000FF";
                 else if (["sufag", "street", "taurus", "taurax", "peak"].includes(typeLower)) color = "#008000";
                 else color = technoColors[typeLower] || "#FFD700";
-                return { "type": "Feature", "geometry": { "type": "Point", "coordinates": [row[2], row[1]] }, "properties": { "id": row[0], "eau": row[3], "air": row[4], "temps": row[5], "type": typeRaw, "piste": row[7], "rep": row[8], "transfo": row[9], "couleur_defaut": color } };
+                return { "type": "Feature", "geometry": { "type": "Point", "coordinates": [row[2], row[1]] }, "properties": { "id": row[0], "eau": row[3], "air": row[4], "temps": row[5], "type": row[6], "piste": row[7], "rep": row[8], "transfo": row[9], "couleur_defaut": color } };
             });
 
-            // Limites
-            snowCannons.features.forEach(f => {
-                absoluteMaxes.eau = Math.max(absoluteMaxes.eau, f.properties.eau); absoluteMaxes.air = Math.max(absoluteMaxes.air, f.properties.air); absoluteMaxes.temps = Math.max(absoluteMaxes.temps, f.properties.temps);
-            });
+            snowCannons.features.forEach(f => { absoluteMaxes.eau = Math.max(absoluteMaxes.eau, f.properties.eau); absoluteMaxes.air = Math.max(absoluteMaxes.air, f.properties.air); absoluteMaxes.temps = Math.max(absoluteMaxes.temps, f.properties.temps); });
             currentMaxThreshold = { ...absoluteMaxes };
 
-            // Checkboxes
             let pUnique = new Set(); let tUnique = new Set();
             snowCannons.features.forEach(f => { if (f.properties.piste) pUnique.add(f.properties.piste); if (f.properties.type) tUnique.add(f.properties.type); });
             function buildCbs(id, set, cls) {
@@ -361,14 +346,13 @@
             setupCbs('check-all-pistes', 'piste-cb', vals => { currentPistes = vals; updateMap(); updateRightPanel(); });
             setupCbs('check-all-types', 'type-cb', vals => { currentTypes = vals; updateMap(); updateRightPanel(); });
 
-            // Layer
             if(geojsonLayer) map.removeLayer(geojsonLayer);
             geojsonLayer = L.geoJSON(snowCannons, {
                 pointToLayer: function (feature, latlng) { return L.marker(latlng, { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div></div>` }) }); },
                 onEachFeature: function (feature, layer) {
                     layer.on('click', function(e) {
                         L.DomEvent.stopPropagation(e);
-                        if (currentlyEditingId) return; // Bloque sélection si en édition
+                        if (currentlyEditingId) return; 
                         const id = feature.properties.id;
                         if (selectedCannonsMap.has(id)) selectedCannonsMap.delete(id); else selectedCannonsMap.set(id, layer);
                         updateMap(); renderSelectionPanel();
@@ -382,12 +366,12 @@
         }
 
         // ==========================================
-        // 3. SAUVEGARDE GOOGLE SHEETS
+        // SAUVEGARDE GOOGLE SHEETS (SEULEMENT CANONS)
         // ==========================================
         document.getElementById('btn-save-edit').addEventListener('click', async () => {
             if (!currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit');
-            btn.innerText = "⏳ Sauvegarde..."; btn.disabled = true;
+            btn.innerText = "⏳ Envoi..."; btn.disabled = true;
 
             const payload = {
                 id: document.getElementById('edit-id').value,
@@ -412,7 +396,6 @@
 
                     layer.feature.geometry.coordinates = [payload.lon, payload.lat];
                     layer.setLatLng([payload.lat, payload.lon]);
-                    
                     cancelEdit();
                 } else alert("Erreur Google Sheets : " + result.message);
             } catch (err) { alert("Échec réseau avec Google Sheets."); console.error(err); }
@@ -421,7 +404,7 @@
         });
 
         // ==========================================
-        // 4. PANNEAU DROIT (SELECTION / EDITION)
+        // PANNEAU DROIT (SELECTION / FICHE CANON)
         // ==========================================
         function closeRightSidebar() { document.getElementById('right-sidebar').classList.remove('open'); if(currentlyEditingId) cancelEdit(); clearSelection(); }
         function clearSelection() { selectedCannonsMap.clear(); updateMap(); renderSelectionPanel(); }
@@ -429,48 +412,75 @@
         function renderSelectionPanel() {
             document.getElementById('sel-count').innerText = selectedCannonsMap.size;
             let listDiv = document.getElementById('selected-list');
-            listDiv.innerHTML = selectedCannonsMap.size === 0 ? "<p style='font-size:12px; color:#7f8c8d; text-align:center;'>Aucun canon sélectionné. Cliquez sur les points de la carte.</p>" : "";
+            listDiv.innerHTML = selectedCannonsMap.size === 0 ? "<p style='font-size:12px; color:#7f8c8d; text-align:center;'>Aucun canon sélectionné. Cliquez sur la carte.</p>" : "";
             
             selectedCannonsMap.forEach((layer, id) => {
                 const p = layer.feature.properties;
-                listDiv.innerHTML += `<details class="sel-details" open><summary>Canon N° ${p.id} - ${p.piste}</summary><div>
-                    <b>Type:</b> <span style="color:${p.couleur_defaut}">${p.type}</span><br>
-                    <b>Eau:</b> ${p.eau} m³ | <b>Air:</b> ${p.air} | <b>Tps:</b> ${p.temps} h<br>
-                    <b>Répéteur:</b> ${p.rep} | <b>Transfo:</b> ${p.transfo}<br>
-                    <button class="btn-edit-small" onclick="startEdit(${p.id})">✏️ Éditer ce canon</button></div></details>`;
+                let active = getActiveTickets(p.id);
+                let history = getHistoryTickets(p.id);
+                
+                let ticketsHTML = "";
+                if (active.length > 0) {
+                    ticketsHTML += `<div class="ticket-alert"><strong>🚨 Défauts en cours :</strong><ul style="margin:5px 0; padding-left:15px;">`;
+                    active.forEach(t => ticketsHTML += `<li>${t.defaut || "Intervention requise"} <i style="color:#777;">(${t.statut})</i></li>`);
+                    ticketsHTML += `</ul></div>`;
+                }
+
+                if (history.length > 0) {
+                    ticketsHTML += `<details class="ticket-history"><summary>📁 Voir l'historique (${history.length})</summary><ul>`;
+                    history.forEach(t => {
+                        let d = new Date(t.date);
+                        let dateStr = isNaN(d) ? t.date : d.toLocaleDateString('fr-FR');
+                        ticketsHTML += `<li><b>${dateStr}</b> : ${t.defaut || "Terminé"} <br><i style="color:#888;">${t.remarque || ""}</i></li>`;
+                    });
+                    ticketsHTML += `</ul></details>`;
+                }
+
+                listDiv.innerHTML += `
+                    <div class="sel-details">
+                        <div class="sel-details-header">Canon N° ${p.id} <span style="font-weight:normal; font-size:12px;">(${p.piste})</span></div>
+                        <div class="sel-details-body">
+                            <b>Modèle:</b> <span style="color:${p.couleur_defaut}">${p.type}</span><br>
+                            <b>Eau:</b> ${p.eau} m³ | <b>Air:</b> ${p.air} | <b>Tps:</b> ${p.temps} h<br>
+                            <b>Répéteur:</b> ${p.rep} | <b>Transfo:</b> ${p.transfo}<br>
+                            ${ticketsHTML}
+                            <button class="btn-edit-small" onclick="startEdit(${p.id})">✏️ Modifier infos/position canon</button>
+                        </div>
+                    </div>`;
             });
         }
 
         function startEdit(id) {
-            currentlyEditingId = id;
-            const p = selectedCannonsMap.get(id).feature.properties;
-            const coords = selectedCannonsMap.get(id).getLatLng();
-            
+            currentlyEditingId = id; const layer = selectedCannonsMap.get(id); const p = layer.feature.properties;
             document.getElementById('edit-id-display').innerText = p.id; document.getElementById('edit-id').value = p.id;
             document.getElementById('edit-type').value = p.type; document.getElementById('edit-piste').value = p.piste;
             document.getElementById('edit-eau').value = p.eau; document.getElementById('edit-air').value = p.air; document.getElementById('edit-temps').value = p.temps;
             document.getElementById('edit-rep').value = p.rep; document.getElementById('edit-transfo').value = p.transfo;
-            document.getElementById('edit-lat').value = coords.lat.toFixed(7); document.getElementById('edit-lng').value = coords.lng.toFixed(7);
-            
+            document.getElementById('edit-lat').value = layer.getLatLng().lat.toFixed(7); document.getElementById('edit-lng').value = layer.getLatLng().lng.toFixed(7);
             document.getElementById('view-selection').style.display = 'none'; document.getElementById('view-edit').style.display = 'block';
             document.getElementById('right-header').classList.add('editing'); document.getElementById('right-title').innerText = "✏️ Mode Édition";
             updateMap(); 
         }
 
         function cancelEdit() {
-            currentlyEditingId = null;
-            document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none';
-            document.getElementById('right-header').classList.remove('editing'); document.getElementById('right-title').innerText = "📌 Canons Sélectionnés";
-            updateMap(); renderSelectionPanel(); // Repositionne marker initial if dragged without save
+            currentlyEditingId = null; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none';
+            document.getElementById('right-header').classList.remove('editing'); document.getElementById('right-title').innerText = "📌 Sélection Multiple";
+            updateMap(); renderSelectionPanel();
         }
 
         map.on('click', function(e) { if (currentlyEditingId) { document.getElementById('edit-lat').value = e.latlng.lat.toFixed(7); document.getElementById('edit-lng').value = e.latlng.lng.toFixed(7); selectedCannonsMap.get(currentlyEditingId).setLatLng(e.latlng); } });
 
         // ==========================================
-        // 5. AFFICHAGE CARTE & GRAPHIQUE
+        // AFFICHAGE CARTE & GRAPHIQUE
         // ==========================================
         function getColorByFilter(layer, ratio, props) {
             const inter = (c1,c2,f) => { let r=c1.slice(); for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`;};
+            if (layer === 'defauts') {
+                let act = getActiveTickets(props.id);
+                if (act.length === 0) return '#95a5a6'; // Gris = RAS
+                if (act.some(t => t.statut.includes('faire'))) return '#e74c3c'; // Rouge = urgent
+                return '#f39c12'; // Orange = en cours
+            }
             if (layer === 'eau') return inter([173,216,230], [0,0,139], ratio);
             if (layer === 'air') return inter([255,250,205], [184,134,11], ratio);
             if (layer === 'temps') return inter([144,238,144], [0,100,0], ratio);
@@ -481,10 +491,15 @@
 
         function updateLegend() {
             const c = document.getElementById('legend-content'); const sc = document.getElementById('slider-container');
-            if (currentLayer === 'type') { c.innerHTML = `<div class="legend-item"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item"><div class="color-box" style="background: #008000;"></div> Sufag / Street / Taurus / Peak</div><div class="legend-item"><div class="color-box" style="background: linear-gradient(to right, #FFFF99, #B8860B);"></div> Technoalpin</div>`; sc.style.display = 'none'; }
-            else if (currentLayer === 'repeteur') { let h=''; Object.keys(repColors).sort().forEach(k=>h+=`<div class="legend-item"><div class="color-box" style="background:${repColors[k]};"></div> Répéteur ${k}</div>`); c.innerHTML=h; sc.style.display='none'; }
-            else if (currentLayer === 'transfo') { let h=''; Object.keys(transfoColors).sort().forEach(k=>h+=`<div class="legend-item"><div class="color-box" style="background:${transfoColors[k]};"></div> Transfo ${k}</div>`); c.innerHTML=h; sc.style.display='none'; }
-            else {
+            if (currentLayer === 'defauts') {
+                c.innerHTML = `<div class="legend-item"><div class="color-box" style="background: #e74c3c;"></div> À faire urgent</div><div class="legend-item"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item"><div class="color-box" style="background: #95a5a6;"></div> RAS</div>`; sc.style.display = 'none';
+            } else if (currentLayer === 'type') {
+                c.innerHTML = `<div class="legend-item"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item"><div class="color-box" style="background: #008000;"></div> Sufag / Street / Taurus / Peak</div><div class="legend-item"><div class="color-box" style="background: linear-gradient(to right, #FFFF99, #B8860B);"></div> Technoalpin</div>`; sc.style.display = 'none';
+            } else if (currentLayer === 'repeteur') {
+                let html = ''; Object.keys(repColors).sort().forEach(k => html += `<div class="legend-item"><div class="color-box" style="background: ${repColors[k]};"></div> Répéteur ${k}</div>`); c.innerHTML=html; sc.style.display='none';
+            } else if (currentLayer === 'transfo') {
+                let html = ''; Object.keys(transfoColors).sort().forEach(k => html += `<div class="legend-item"><div class="color-box" style="background: ${transfoColors[k]};"></div> Transfo ${k}</div>`); c.innerHTML=html; sc.style.display='none';
+            } else {
                 sc.style.display = 'block';
                 document.getElementById('slider-min').max = absoluteMaxes[currentLayer]; document.getElementById('slider-max').max = absoluteMaxes[currentLayer];
                 document.getElementById('slider-min').value = currentMinThreshold[currentLayer]; document.getElementById('slider-max').value = currentMaxThreshold[currentLayer];
@@ -503,7 +518,9 @@
                 if (!currentTypes.includes('all') && !currentTypes.includes(p.type)) vis = false;
                 if (['eau','air','temps'].includes(currentLayer)) { if (p[currentLayer] < currentMinThreshold[currentLayer] || p[currentLayer] > currentMaxThreshold[currentLayer]) vis = false; }
 
-                if (!vis) { if(layer._icon) layer._icon.style.display = 'none'; } else {
+                if (!vis) {
+                    if(layer._icon) layer._icon.style.display = 'none';
+                } else {
                     let rad = 12; let ratio = 0;
                     if (['eau','air','temps'].includes(currentLayer)) { let maxVal = absoluteMaxes[currentLayer] || 1; ratio = p[currentLayer] / maxVal; rad = 10 + (14 * ratio); }
                     
@@ -512,7 +529,7 @@
 
                     let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
                     if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
-                    else if (isSel) { bord = "#f39c12"; bw = "4px"; layer.setZIndexOffset(1000); }
+                    else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
                     else { layer.setZIndexOffset(0); }
 
                     layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
@@ -526,24 +543,33 @@
             if (!currentPistes.includes('all')) f = f.filter(x => currentPistes.includes(x.properties.piste));
             if (!currentTypes.includes('all')) f = f.filter(x => currentTypes.includes(x.properties.type));
             
+            let ctx = document.getElementById('pisteChart').getContext('2d');
+            if (window.myChart) window.myChart.destroy();
+                
             if (['eau','air','temps'].includes(currentLayer)) {
                 f = f.filter(x => x.properties[currentLayer] >= currentMinThreshold[currentLayer] && x.properties[currentLayer] <= currentMaxThreshold[currentLayer]);
-                let ctx = document.getElementById('pisteChart').getContext('2d');
-                if (window.myChart) window.myChart.destroy();
                 window.myChart = new Chart(ctx, { 
                     type: 'bar', 
-                    data: { labels: f.map(x => 'N°' + x.properties.id), datasets: [{ label: currentLayer.toUpperCase(), data: f.map(x => x.properties[currentLayer]), backgroundColor: f.map(x => pisteColors[x.properties.piste] || '#0078A8'), borderRadius: 4 }] }, 
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: function(t) { return 'N°' + f[t[0].dataIndex].properties.id + ' | ' + f[t[0].dataIndex].properties.piste; } } } } } 
+                    data: { labels: f.map(x => 'N°' + x.properties.id), datasets: [{ data: f.map(x => x.properties[currentLayer]), backgroundColor: f.map(x => pisteColors[x.properties.piste] || '#0078A8'), borderRadius: 4 }] }, 
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: function(t) { return 'Canon N°' + f[t[0].dataIndex].properties.id + ' | ' + f[t[0].dataIndex].properties.piste; } } } } } 
+                });
+            } else {
+                let counts = {}; f.forEach(x => { counts[x.properties.piste] = (counts[x.properties.piste] || 0) + 1; });
+                let labels = Object.keys(counts); let data = Object.values(counts);
+                window.myChart = new Chart(ctx, { 
+                    type: 'bar', 
+                    data: { labels: labels, datasets: [{ data: data, backgroundColor: labels.map(l => pisteColors[l] || '#0078A8'), borderRadius: 4 }] }, 
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(t) { return t.raw + ' canons'; } } } } } 
                 });
             }
         }
 
-        // EVENEMENTS
+        // EVENEMENTS UI
         document.querySelectorAll('input[name="layer"]').forEach(r => r.addEventListener('change', e => { currentLayer = e.target.value; updateLegend(); updateMap(); updateRightPanel(); }));
         document.getElementById('slider-min').addEventListener('input', e => { let val = parseFloat(e.target.value); if (val > currentMaxThreshold[currentLayer]) { val = currentMaxThreshold[currentLayer]; e.target.value = val; } currentMinThreshold[currentLayer] = val; document.getElementById('val-min').innerText = val; updateMap(); updateRightPanel(); });
         document.getElementById('slider-max').addEventListener('input', e => { let val = parseFloat(e.target.value); if (val < currentMinThreshold[currentLayer]) { val = currentMinThreshold[currentLayer]; e.target.value = val; } currentMaxThreshold[currentLayer] = val; document.getElementById('val-max').innerText = val; updateMap(); updateRightPanel(); });
 
-        // DRAG & RESIZE MODAL
+        // GESTION DU GRAPHIQUE FLOTTANT (MODAL)
         function toggleFullscreenChart() {
             const modal = document.getElementById('chart-modal');
             const wrapper = document.getElementById('chart-wrapper');
@@ -552,12 +578,12 @@
             if (modal.style.display === 'flex') {
                 modal.style.display = 'none'; orig.appendChild(wrapper);
             } else {
-                modal.style.display = 'flex'; modal.appendChild(wrapper);
+                modal.style.display = 'flex'; document.getElementById('chart-modal-body').appendChild(wrapper);
             }
             if (window.myChart) setTimeout(() => window.myChart.resize(), 50);
         }
 
-        // Logic to drag the modal
+        // Rendre le Modal Dragable
         dragElement(document.getElementById("chart-modal"));
         function dragElement(elmnt) {
             var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
@@ -566,6 +592,9 @@
             function elementDrag(e) { e = e || window.event; e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; elmnt.style.top = (elmnt.offsetTop - pos2) + "px"; elmnt.style.left = (elmnt.offsetLeft - pos1) + "px"; }
             function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
         }
+
+        // Rendre le modal fluide lors du redimensionnement
+        new ResizeObserver(() => { if (window.myChart && document.getElementById('chart-modal').style.display === 'flex') { window.myChart.resize(); } }).observe(document.getElementById('chart-modal'));
 
         function toggleLeftSidebar() { document.getElementById('sidebar').classList.toggle('open'); setTimeout(() => map.invalidateSize(), 300); }
     </script>
