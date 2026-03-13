@@ -54,7 +54,9 @@
         #chart-modal { display: none; position: absolute; top: 15%; left: 360px; width: 600px; height: 400px; min-width: 300px; min-height: 200px; background: white; z-index: 9999; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); resize: both; overflow: hidden; flex-direction: column; border: 1px solid #ccc; }
         #chart-modal-header { background: #2c3e50; color: white; padding: 8px 15px; cursor: move; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: bold; user-select: none;}
         #chart-modal-body { flex-grow: 1; padding: 10px; position: relative; background: #fff; width: 100%; height: calc(100% - 35px); box-sizing: border-box;}
-        
+        .btn-expand { background: #0078A8; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+        .btn-expand:hover { background: #005f85; }
+
         /* CARTE & MOBILE */
         #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
         #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; z-index: 1; }
@@ -106,7 +108,7 @@
     <div id="loading-overlay">
         <div class="spinner"></div>
         <h2 style="color:#0078A8; margin:0;">Connexion à Google Sheets...</h2>
-        <p style="color:#666;">Récupération des canons et des tickets en cours</p>
+        <p style="color:#666;">Récupération des données en temps réel</p>
     </div>
 
     <div id="app-container">
@@ -156,7 +158,7 @@
             <details class="panel-section" id="chart-section" open>
                 <summary>
                     4. Analyse 
-                    <button title="Détacher et Agrandir le graphique" style="background:none; border:none; cursor:pointer; font-size:16px; padding:0; color:#0078A8;" onclick="event.preventDefault(); toggleFullscreenChart();">⛶</button>
+                    <button class="btn-expand" title="Agrandir et déplacer" onclick="event.preventDefault(); event.stopPropagation(); toggleFullscreenChart();">Agrandir ⛶</button>
                 </summary>
                 <div class="section-content" id="original-chart-container" style="position: relative; height: 200px; width:100%; padding-top: 5px;">
                     <div id="chart-wrapper" style="position: relative; width: 100%; height: 100%;">
@@ -248,7 +250,7 @@
                 }
 
                 // LECTURE DES TICKETS (LECTURE SEULE)
-                // Ordre défini : 0:id, 1:état, 2:date, 3:n°regard, 4:piste, 5:defaut, 6:Défaut sonde, 7:cause, 8:date_inter, 9:Remarque
+                // Ordre défini par l'utilisateur: 0:id, 1:état, 2:date, 3:n°regard, 4:piste, 5:defaut, 6:Défaut sonde, 7:cause, 8:date inter, 9:Remarque
                 if (data.tickets && data.tickets.length > 0) {
                     rawTickets = data.tickets.slice(1).map(row => ({
                         idTicket: row[0],
@@ -580,7 +582,8 @@
             } else {
                 modal.style.display = 'flex'; document.getElementById('chart-modal-body').appendChild(wrapper);
             }
-            if (window.myChart) setTimeout(() => window.myChart.resize(), 50);
+            // Forcer le redessin du graphique à la bonne taille
+            updateRightPanel();
         }
 
         // Rendre le Modal Dragable
