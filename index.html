@@ -15,11 +15,14 @@
         
         #loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
         .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #0078A8; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #error-box { display: none; background: #fdf0ed; border: 2px solid #e74c3c; padding: 20px; border-radius: 8px; max-width: 600px; color: #c0392b; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+
         /* BANDEAU GAUCHE */
         #sidebar { width: 340px; flex-shrink: 0; background: #f8f9fa; display: flex; flex-direction: column; z-index: 2000; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
         .sidebar-header { background: #2c3e50; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
         .sidebar-header h2 { margin: 0; font-size: 16px; }
+        .close-btn { background: none; border: none; color: white; font-size: 28px; cursor: pointer; display: none; padding: 0; line-height: 1; }
         
         details.panel-section { background: white; margin: 8px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         details.panel-section summary { background: #fff; padding: 12px 15px; font-size: 13px; font-weight: bold; color: #2c3e50; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; outline: none; border-radius: 8px; }
@@ -96,13 +99,23 @@
     <datalist id="list-transfos"></datalist>
 
     <div id="loading-overlay">
-        <div class="spinner"></div>
-        <h2 style="color:#0078A8; margin:0;">GMAO AppSheet...</h2>
-        <p style="color:#666;">Récupération des bases Général, Historique & Tickets</p>
+        <div class="spinner" id="loading-spinner"></div>
+        <h2 style="color:#0078A8; margin:0;" id="loading-title">GMAO AppSheet...</h2>
+        <p style="color:#666;" id="loading-desc">Récupération des bases Général, Historique & Tickets</p>
+        
+        <div id="error-box">
+            <h3 style="margin-top:0;">🛑 Le chargement a échoué</h3>
+            <p id="error-msg" style="font-weight:bold;"></p>
+            <hr style="border:0; border-top:1px solid #e74c3c;">
+            <p style="font-size:13px; color:#333;"><b>Causes possibles :</b><br>
+            1. Le script Apps Script a été modifié mais vous n'avez pas cliqué sur <i>Déployer > Nouvelle Version</i>.<br>
+            2. Le script est privé. Vérifiez que <i>Qui a accès</i> est bien sur <b>Tous les utilisateurs</b>.<br>
+            3. Les onglets de votre Google Sheets sont vides (il faut au moins 2 lignes : les titres et 1 donnée).<br>
+            4. Le tableau "Général" n'a pas de colonne nommée "N° regard" ou "xy".</p>
+        </div>
     </div>
 
     <div id="app-container">
-        
         <div id="sidebar" class="open">
             <div class="sidebar-header"><h2>❄️ GMAO Neige</h2></div>
 
@@ -220,7 +233,7 @@
     </div>
 
     <script>
-        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
+        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzI2FLqyfjMUkuaH-er98Og7U5Q0WxVUD0ci_7sCZ2ZkQwG_5_V2ei5OHb8mSrkChkOLw/exec";
         
         let snowCannons = { "type": "FeatureCollection", "features": [] };
         let rawTickets = [];
@@ -233,64 +246,93 @@
 
         let geojsonLayer = null;
 
-        const getIdx = (headers, nomsCherches, fallback) => {
+        const getIdx = (headers, nomsCherches) => {
             let i = headers.findIndex(h => nomsCherches.some(n => h.includes(n)));
-            return i !== -1 ? i : fallback;
+            return i !== -1 ? i : -1;
         };
+
+        function showError(msg) {
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('loading-title').style.display = 'none';
+            document.getElementById('loading-desc').style.display = 'none';
+            document.getElementById('error-box').style.display = 'block';
+            document.getElementById('error-msg').innerText = msg;
+        }
 
         // FETCH DATA
         async function fetchGoogleSheetsData() {
             try {
                 const response = await fetch(GOOGLE_API_URL);
-                if (!response.ok) throw new Error("Erreur serveur : " + response.status);
-                const data = await response.json();
+                if (!response.ok) throw new Error("Erreur serveur API Google : " + response.status);
+                
+                let textData = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(textData);
+                } catch(e) {
+                    throw new Error("Impossible de lire les données. L'application Apps Script n'est probablement pas réglée sur 'Tous les utilisateurs' ou vous n'avez pas déployé une Nouvelle Version.");
+                }
                 
                 // 1. LECTURE ONGLET GÉNÉRAL
-                if (!data.general || data.general.length < 2) throw new Error("Tableau général introuvable.");
+                if (!data.general || data.general.length < 2) {
+                    throw new Error("L'onglet 'général' est vide ou n'a pas été trouvé. Avez-vous vérifié son nom dans le Google Sheets ?");
+                }
+
                 const genHeaders = data.general[0].map(h => h.toString().toLowerCase().trim());
                 
-                const idxId = getIdx(genHeaders, ['n° regard', 'regard'], 2);
-                const idxPiste = getIdx(genHeaders, ['pistes', 'piste'], 3);
-                const idxType = getIdx(genHeaders, ['type canon', 'type'], 4);
-                const idxVanne = getIdx(genHeaders, ['type de vanne', 'vanne'], 5);
-                const idxModule = getIdx(genHeaders, ['type de module', 'module'], 7);
-                const idxXY = getIdx(genHeaders, ['xy', 'gps'], 29);
-                const idxRep = getIdx(genHeaders, ['peteur', 'repeteur'], 35);
-                const idxTrans = getIdx(genHeaders, ['transfo'], 36);
+                const idxId = getIdx(genHeaders, ['n° regard', 'regard', 'id']);
+                if (idxId === -1) throw new Error("La colonne 'N° regard' est introuvable dans l'onglet général.");
+
+                const idxXY = getIdx(genHeaders, ['xy', 'gps']);
+                if (idxXY === -1) throw new Error("La colonne 'xy' (coordonnées GPS) est introuvable dans l'onglet général.");
+
+                const idxPiste = getIdx(genHeaders, ['pistes', 'piste']);
+                const idxType = getIdx(genHeaders, ['type canon', 'type']);
+                const idxVanne = getIdx(genHeaders, ['type de vanne', 'vanne']);
+                const idxModule = getIdx(genHeaders, ['type de module', 'module']);
+                const idxRep = getIdx(genHeaders, ['peteur', 'repeteur']);
+                const idxTrans = getIdx(genHeaders, ['transfo']);
 
                 let dictGeneral = {};
+                let validPointsCount = 0;
+
                 data.general.slice(1).forEach(row => {
                     let idRaw = row[idxId];
                     if (!idRaw) return;
                     let id = idRaw.toString().replace(/[^0-9]/g, ''); 
                     
                     let lat = 0, lng = 0;
-                    if (idxXY !== -1 && row[idxXY]) {
+                    if (row[idxXY]) {
                         let parts = row[idxXY].toString().split(',');
                         if (parts.length === 2) { lat = parseFloat(parts[0].trim()); lng = parseFloat(parts[1].trim()); }
                     }
 
-                    // Stocker toutes les infos détaillées
+                    if(lat && lng) validPointsCount++;
+
                     let fullData = [];
                     genHeaders.forEach((head, i) => { if(row[i]) fullData.push({k: head, v: row[i]}); });
 
                     dictGeneral[id] = {
                         id: id, lat: lat, lng: lng,
-                        piste: row[idxPiste] || "Inconnue",
-                        type: row[idxType] || "Inconnu",
-                        vanne: row[idxVanne] || "N/A",
-                        module: row[idxModule] || "N/A",
-                        rep: row[idxRep] || "N/A",
-                        transfo: row[idxTrans] || "N/A",
+                        piste: (idxPiste>-1) ? (row[idxPiste] || "Inconnue") : "Inconnue",
+                        type: (idxType>-1) ? (row[idxType] || "Inconnu") : "Inconnu",
+                        vanne: (idxVanne>-1) ? (row[idxVanne] || "N/A") : "N/A",
+                        module: (idxModule>-1) ? (row[idxModule] || "N/A") : "N/A",
+                        rep: (idxRep>-1) ? (row[idxRep] || "N/A") : "N/A",
+                        transfo: (idxTrans>-1) ? (row[idxTrans] || "N/A") : "N/A",
                         fullData: fullData,
                         historique: {}
                     };
                 });
 
+                if (validPointsCount === 0) {
+                    throw new Error("Les canons ont été trouvés, mais aucun point GPS valide n'a été détecté dans la colonne 'xy'. (Format attendu : 'Latitude, Longitude')");
+                }
+
                 // 2. LECTURE HISTORIQUE
                 if (data.historique && data.historique.length > 1) {
                     const histHeaders = data.historique[0].map(h => h.toString().toLowerCase().trim());
-                    const idxCanons = getIdx(histHeaders, ['canons', 'n° regard'], 0);
+                    const idxCanons = getIdx(histHeaders, ['canons', 'n° regard']);
                     
                     let colsEau = {}, colsAir = {}, colsTemps = {};
                     let saisonsSet = new Set();
@@ -307,35 +349,39 @@
                     });
                     saisonsList = Array.from(saisonsSet).sort().reverse();
 
-                    data.historique.slice(1).forEach(row => {
-                        let rawId = row[idxCanons];
-                        if (rawId) {
-                            let id = rawId.toString().replace(/[^0-9]/g, ''); // Enlève le "YA "
-                            if (id && dictGeneral[id]) {
-                                saisonsList.forEach(s => {
-                                    dictGeneral[id].historique[s] = { eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 };
-                                });
+                    if(idxCanons > -1) {
+                        data.historique.slice(1).forEach(row => {
+                            let rawId = row[idxCanons];
+                            if (rawId) {
+                                let id = rawId.toString().replace(/[^0-9]/g, '');
+                                if (id && dictGeneral[id]) {
+                                    saisonsList.forEach(s => {
+                                        dictGeneral[id].historique[s] = { eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 };
+                                    });
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
 
                 // 3. LECTURE TICKETS
                 if (data.tickets && data.tickets.length > 1) {
                     const tHeaders = data.tickets[0].map(h => h.toString().toLowerCase().trim());
-                    const idxTEtat = getIdx(tHeaders, ['état', 'etat'], 1);
-                    const idxTDate = getIdx(tHeaders, ['date'], 2);
-                    const idxTRegard = getIdx(tHeaders, ['n°regard', 'regard'], 3);
-                    const idxTDefaut = getIdx(tHeaders, ['defaut', 'défaut'], 5); // Remis à 5 d'après votre retour
-                    const idxTCause = getIdx(tHeaders, ['cause'], 7); // Remis à 7
+                    const idxTEtat = getIdx(tHeaders, ['état', 'etat']);
+                    const idxTDate = getIdx(tHeaders, ['date']);
+                    const idxTRegard = getIdx(tHeaders, ['n°regard', 'regard']);
+                    const idxTDefaut = getIdx(tHeaders, ['defaut', 'défaut']); 
+                    const idxTCause = getIdx(tHeaders, ['cause']); 
 
-                    rawTickets = data.tickets.slice(1).map(row => ({
-                        statut: (row[idxTEtat] || "").toString().toLowerCase().trim(),
-                        date: row[idxTDate],
-                        idCanon: (row[idxTRegard] || "").toString().replace(/[^0-9]/g, ''), 
-                        defaut: row[idxTDefaut] || "Non spécifié",
-                        cause: row[idxTCause] || "Non spécifiée"
-                    }));
+                    if(idxTRegard > -1) {
+                        rawTickets = data.tickets.slice(1).map(row => ({
+                            statut: (idxTEtat>-1 ? row[idxTEtat] : "").toString().toLowerCase().trim(),
+                            date: (idxTDate>-1 ? row[idxTDate] : ""),
+                            idCanon: (row[idxTRegard] || "").toString().replace(/[^0-9]/g, ''), 
+                            defaut: (idxTDefaut>-1 ? row[idxTDefaut] : "Non spécifié"),
+                            cause: (idxTCause>-1 ? row[idxTCause] : "Non spécifiée")
+                        }));
+                    }
                 }
 
                 // CREATION GEOJSON
@@ -349,21 +395,17 @@
                 initApp();
 
             } catch (error) {
-                console.error("ERREUR : ", error);
-                document.getElementById('loading-overlay').innerHTML = `<h2 style='color:red;'>Erreur de chargement</h2><p>${error.message}</p>`;
+                console.error("CRASH : ", error);
+                showError(error.message);
             }
         }
 
-        // ==========================================
-        // GESTION TICKETS
+        // INIT UI ET RESTE DU CODE
         // ==========================================
         function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon == idCanon); }
-        function getActiveTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut === 'à faire' || t.statut === 'en cours'); }
+        function getActiveTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); }
         function getHistoryTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut === 'fait').sort((a,b) => new Date(b.date) - new Date(a.date)); }
 
-        // ==========================================
-        // UI & VARIABLES
-        // ==========================================
         let currentLayer = 'defauts'; 
         let currentPistes = ['all'], currentTypes = ['all'], currentVannes = ['all'], currentModules = ['all'];
         let selectedCannonsMap = new Map(); let currentlyEditingId = null; 
@@ -394,7 +436,6 @@
                 f.properties.couleur_defaut = color;
             });
 
-            // Peupler les Datalists pour l'édition
             const fillDL = (id, set) => document.getElementById(id).innerHTML = Array.from(set).sort().map(v => `<option value="${v}">`).join('');
             fillDL('list-types', Array.from(tSet)); fillDL('list-pistes', pSet); fillDL('list-vannes', vSet); fillDL('list-modules', mSet); fillDL('list-reps', rSet); fillDL('list-transfos', trSet);
 
@@ -416,7 +457,7 @@
                         if (currentlyEditingId) return; 
                         const id = feature.properties.id;
                         
-                        if (!isMultiSelect) selectedCannonsMap.clear(); // Si single select, on vide
+                        if (!isMultiSelect) selectedCannonsMap.clear(); 
                         if (selectedCannonsMap.has(id)) selectedCannonsMap.delete(id); else selectedCannonsMap.set(id, layer);
                         
                         updateMap(); renderSelectionPanel();
@@ -430,9 +471,6 @@
             updateLegend(); updateMap(); updateRightPanel();
         }
 
-        // ==========================================
-        // TOGGLE MULTI SELECT
-        // ==========================================
         function toggleMultiSelect() {
             isMultiSelect = !isMultiSelect;
             const btn = document.getElementById('btn-multi-toggle');
@@ -467,9 +505,6 @@
             currentMaxThreshold = { ...absoluteMaxes };
         }
 
-        // ==========================================
-        // SAUVEGARDE GOOGLE SHEETS
-        // ==========================================
         document.getElementById('btn-save-edit').addEventListener('click', async () => {
             if (!currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); btn.innerText = "⏳ Envoi..."; btn.disabled = true;
@@ -492,9 +527,6 @@
             btn.innerText = "✅ Sauvegarder dans Général"; btn.disabled = false;
         });
 
-        // ==========================================
-        // PANNEAU DROIT (SELECTION)
-        // ==========================================
         function closeRightSidebar() { document.getElementById('right-sidebar').classList.remove('open'); if(currentlyEditingId) cancelEdit(); clearSelection(); }
         function clearSelection() { selectedCannonsMap.clear(); updateMap(); renderSelectionPanel(); }
 
@@ -523,9 +555,7 @@
                     ticketsHTML += `</ul></details>`;
                 }
 
-                // Affichage conditionnel selon le mode
                 if(isMultiSelect) {
-                    // MODE MINI (MULTI)
                     listDiv.innerHTML += `
                     <div class="sel-details">
                         <div class="sel-details-header">Canon N° ${p.id} <span style="font-weight:normal; font-size:12px;">(${p.piste})</span></div>
@@ -535,9 +565,7 @@
                         </div>
                     </div>`;
                 } else {
-                    // MODE DÉTAILLÉ (SINGLE)
-                    // Création de la liste complète des données Général
-                    let fullDataHTML = `<details style="margin-top:10px; font-size:11px; background:#f0f0f0; padding:8px; border-radius:4px;"><summary style="cursor:pointer; font-weight:bold;">🔍 Voir toutes les données techniques</summary><ul style="padding-left:15px; margin-top:5px; color:#555;">`;
+                    let fullDataHTML = `<details style="margin-top:10px; font-size:11px; background:#f0f0f0; padding:8px; border-radius:4px;"><summary style="cursor:pointer; font-weight:bold;">🔍 Voir toutes les données de l'AppSheet</summary><ul style="padding-left:15px; margin-top:5px; color:#555;">`;
                     p.fullData.forEach(item => { if(item.k && item.v) fullDataHTML += `<li><b>${item.k.toUpperCase()}:</b> ${item.v}</li>`; });
                     fullDataHTML += `</ul></details>`;
 
@@ -553,7 +581,7 @@
                             </div>
                             ${fullDataHTML}
                             ${ticketsHTML}
-                            <button class="btn-edit-small" onclick="startEdit(${p.id})">✏️ Éditer les données du canon</button>
+                            <button class="btn-edit-small" onclick="startEdit(${p.id})">✏️ Éditer ce canon</button>
                         </div>
                     </div>`;
                 }
@@ -568,8 +596,7 @@
             document.getElementById('edit-rep').value = p.rep; document.getElementById('edit-transfo').value = p.transfo;
             document.getElementById('edit-lat').value = layer.getLatLng().lat.toFixed(7); document.getElementById('edit-lng').value = layer.getLatLng().lng.toFixed(7);
             
-            document.getElementById('allow-move-chk').checked = false; // Décoché par sécurité
-
+            document.getElementById('allow-move-chk').checked = false; 
             document.getElementById('view-selection').style.display = 'none'; document.getElementById('view-edit').style.display = 'block';
             document.getElementById('right-header').classList.add('editing'); document.getElementById('right-title').innerText = "✏️ Mode Édition";
             updateMap(); 
@@ -588,9 +615,6 @@
             } 
         });
 
-        // ==========================================
-        // AFFICHAGE CARTE & GRAPHIQUE
-        // ==========================================
         function getColorByFilter(layerType, ratio, props) {
             const inter = (c1,c2,f) => { let r=c1.slice(); for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`;};
             if (layerType === 'defauts') {
@@ -653,7 +677,9 @@
                     let bg = getColorByFilter(currentLayer, ratio, p);
                     let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
 
-                    if (selectedCannonsMap.has(p.id)) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
+                    let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
+                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
+                    else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
                     else { layer.setZIndexOffset(0); }
 
                     layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
