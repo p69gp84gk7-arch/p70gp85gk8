@@ -16,6 +16,8 @@
         #loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;}
         .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #0078A8; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #error-box { display: none; background: #fdf0ed; border: 2px solid #e74c3c; padding: 20px; border-radius: 8px; max-width: 600px; color: #c0392b; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top:20px;}
 
         /* BANDEAU GAUCHE */
         #sidebar { width: 340px; flex-shrink: 0; background: #f8f9fa; display: flex; flex-direction: column; z-index: 2000; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
@@ -101,126 +103,57 @@
     <div id="loading-overlay">
         <div class="spinner" id="loading-spinner"></div>
         <h2 style="color:#0078A8; margin:0;" id="loading-title">GMAO AppSheet...</h2>
-        <p style="color:#666; font-weight:bold; max-width: 80%;" id="loading-desc">Récupération des bases Général, Historique & Tickets</p>
+        <p style="color:#666; font-weight:bold;" id="loading-desc">Connexion à Google en cours</p>
+        
+        <div id="error-box">
+            <h3 style="margin-top:0;">🛑 Le chargement a échoué</h3>
+            <p id="error-msg" style="font-weight:bold; font-size:14px;"></p>
+            <hr style="border:0; border-top:1px solid #e74c3c;">
+            <p style="font-size:13px; color:#333;"><b>Pistes pour résoudre le problème :</b><br>
+            1. Le nom de l'onglet n'est pas le bon.<br>
+            2. Le script Apps Script n'a pas été déployé en "Nouvelle Version".</p>
+        </div>
     </div>
 
     <div id="app-container">
-        
         <div id="sidebar" class="open">
             <div class="sidebar-header"><h2>❄️ GMAO Neige</h2></div>
-
-            <details class="panel-section" open>
-                <summary>1. Légende & Plages</summary>
-                <div class="section-content" style="padding-top: 5px;">
-                    <div id="legend-content"></div>
-                    <div id="slider-container" style="display:none; margin-top:15px; padding-top: 10px; border-top: 1px dashed #ccc;">
-                        <div class="range-control"><label>Minimale : <span class="val-badge" id="val-min">0</span></label><input type="range" id="slider-min" min="0" max="100" value="0"></div>
-                        <div class="range-control"><label>Maximale : <span class="val-badge" id="val-max">100</span></label><input type="range" id="slider-max" min="0" max="100" value="100"></div>
-                    </div>
-                </div>
-            </details>
-
-            <details class="panel-section" open>
-                <summary>2. Thème de la carte</summary>
-                <div class="section-content radio-group" style="padding-top: 5px;">
-                    <label><input type="radio" name="layer" value="defauts" checked> 🚨 <b>Défauts en cours</b></label>
-                    <hr style="margin: 8px 0; border-top: 1px dashed #ccc;">
-                    <label><input type="radio" name="layer" value="type"> Type de canon</label>
-                    <label><input type="radio" name="layer" value="repeteur"> Répéteurs</label>
-                    <label><input type="radio" name="layer" value="transfo"> Transformateurs</label>
-                </div>
-            </details>
-
-            <details class="panel-section">
-                <summary>3. Historique Enneigeurs</summary>
-                <div class="section-content" style="padding-top: 5px;" id="dynamic-seasons-menu"></div>
-            </details>
-            
-            <details class="panel-section">
-                <summary>4. Filtres Avancés</summary>
-                <div class="section-content" style="padding-top: 5px;">
-                    <b style="font-size:12px;">Pistes :</b>
-                    <div class="checkbox-list" id="piste-checkboxes"><label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes</b></label><div id="individual-pistes"></div></div>
-                    <b style="font-size:12px;">Type Canon :</b>
-                    <div class="checkbox-list" id="type-checkboxes"><label><input type="checkbox" id="check-all-types" checked> <b>Tous</b></label><div id="individual-types"></div></div>
-                    <b style="font-size:12px;">Type Vanne :</b>
-                    <div class="checkbox-list" id="vanne-checkboxes"><label><input type="checkbox" id="check-all-vannes" checked> <b>Toutes</b></label><div id="individual-vannes"></div></div>
-                    <b style="font-size:12px;">Type Module :</b>
-                    <div class="checkbox-list" id="module-checkboxes"><label><input type="checkbox" id="check-all-modules" checked> <b>Tous</b></label><div id="individual-modules"></div></div>
-                </div>
-            </details>
-
-            <details class="panel-section" id="chart-section" open>
-                <summary>5. Analyse <button class="btn-expand" onclick="event.preventDefault(); toggleFullscreenChart();">Agrandir ⛶</button></summary>
-                <div class="section-content" id="original-chart-container" style="position: relative; height: 200px; width:100%; padding-top: 5px;">
-                    <div id="chart-wrapper" style="position: relative; width: 100%; height: 100%;"><canvas id="pisteChart"></canvas></div>
-                </div>
-            </details>
+            <details class="panel-section" open><summary>1. Légende & Plages</summary><div class="section-content"><div id="legend-content"></div><div id="slider-container" style="display:none; margin-top:15px; border-top: 1px dashed #ccc;"><div class="range-control"><label>Minimale : <span class="val-badge" id="val-min">0</span></label><input type="range" id="slider-min" min="0" max="100" value="0"></div><div class="range-control"><label>Maximale : <span class="val-badge" id="val-max">100</span></label><input type="range" id="slider-max" min="0" max="100" value="100"></div></div></div></details>
+            <details class="panel-section" open><summary>2. Thème de la carte</summary><div class="section-content radio-group"><label><input type="radio" name="layer" value="defauts" checked> 🚨 <b>Défauts en cours</b></label><hr style="border-top: 1px dashed #ccc;"><label><input type="radio" name="layer" value="type"> Type de canon</label><label><input type="radio" name="layer" value="repeteur"> Répéteurs</label><label><input type="radio" name="layer" value="transfo"> Transformateurs</label></div></details>
+            <details class="panel-section"><summary>3. Historique Enneigeurs</summary><div class="section-content" id="dynamic-seasons-menu"></div></details>
+            <details class="panel-section"><summary>4. Filtres Avancés</summary><div class="section-content"><b style="font-size:12px;">Pistes :</b><div class="checkbox-list" id="piste-checkboxes"><label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes</b></label><div id="individual-pistes"></div></div><b style="font-size:12px;">Type :</b><div class="checkbox-list" id="type-checkboxes"><label><input type="checkbox" id="check-all-types" checked> <b>Tous</b></label><div id="individual-types"></div></div><b style="font-size:12px;">Vanne :</b><div class="checkbox-list" id="vanne-checkboxes"><label><input type="checkbox" id="check-all-vannes" checked> <b>Toutes</b></label><div id="individual-vannes"></div></div><b style="font-size:12px;">Module :</b><div class="checkbox-list" id="module-checkboxes"><label><input type="checkbox" id="check-all-modules" checked> <b>Tous</b></label><div id="individual-modules"></div></div></div></details>
+            <details class="panel-section" id="chart-section" open><summary>5. Analyse <button class="btn-expand" onclick="event.preventDefault(); toggleFullscreenChart();">Agrandir ⛶</button></summary><div class="section-content" id="original-chart-container" style="height: 200px; position:relative;"><div id="chart-wrapper" style="position:relative; width:100%; height:100%;"><canvas id="pisteChart"></canvas></div></div></details>
         </div>
 
-        <div id="map-container">
-            <button id="btn-multi-toggle" onclick="toggleMultiSelect()">🔲 Multi-Sélection : OFF</button>
-            <div id="map"></div>
-        </div>
+        <div id="map-container"><button id="btn-multi-toggle" onclick="toggleMultiSelect()">🔲 Multi-Sélection : OFF</button><div id="map"></div></div>
 
-        <div id="chart-modal">
-            <div id="chart-modal-header"><span>📈 Analyse (Redimensionnable)</span><button onclick="toggleFullscreenChart()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;">✖</button></div>
-            <div id="chart-modal-body"></div>
-        </div>
+        <div id="chart-modal"><div id="chart-modal-header"><span>📈 Analyse</span><button onclick="toggleFullscreenChart()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;">✖</button></div><div id="chart-modal-body"></div></div>
 
         <div id="right-sidebar">
-            <div class="right-header" id="right-header">
-                <span id="right-title">📌 Fiche Canon</span>
-                <button onclick="closeRightSidebar()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
-            </div>
-            
+            <div class="right-header" id="right-header"><span id="right-title">📌 Fiche Canon</span><button onclick="closeRightSidebar()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button></div>
             <div class="right-content">
                 <div id="view-selection">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;" id="multi-tools">
-                        <span style="font-size:13px; color:#555;"><b id="sel-count">0</b> sélectionné(s)</span>
-                        <button onclick="clearSelection()" style="background:#95a5a6; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:11px;">Vider ✕</button>
+                        <span style="font-size:13px; color:#555;"><b id="sel-count">0</b> sélectionné(s)</span><button onclick="clearSelection()" style="background:#95a5a6; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:11px;">Vider ✕</button>
                     </div>
                     <div id="selected-list"></div>
                 </div>
 
                 <div id="view-edit" style="display:none;">
-                    <label class="toggle-move" style="margin-bottom:15px;"><input type="checkbox" id="allow-move-chk"> Autoriser le déplacement sur la carte</label>
-
-                    <h3 style="margin-top:0; color:#e74c3c;">Édition N°<span id="edit-id-display"></span></h3>
-                    <input type="hidden" id="edit-id">
-                    
-                    <div style="display:flex; gap:10px;">
-                        <div style="flex:1;"><div class="edit-label">Type de canon</div><input type="text" id="edit-type" class="edit-input" list="list-types"></div>
-                        <div style="flex:1;"><div class="edit-label">Piste associée</div><input type="text" id="edit-piste" class="edit-input" list="list-pistes"></div>
-                    </div>
-                    
-                    <div style="display:flex; gap:10px;">
-                        <div style="flex:1;"><div class="edit-label">Vanne</div><input type="text" id="edit-vanne" class="edit-input" list="list-vannes"></div>
-                        <div style="flex:1;"><div class="edit-label">Module</div><input type="text" id="edit-module" class="edit-input" list="list-modules"></div>
-                    </div>
-
-                    <div style="display:flex; gap:10px;">
-                        <div style="flex:1;"><div class="edit-label">Répéteur</div><input type="text" id="edit-rep" class="edit-input" list="list-reps"></div>
-                        <div style="flex:1;"><div class="edit-label">Transfo</div><input type="text" id="edit-transfo" class="edit-input" list="list-transfos"></div>
-                    </div>
-                    
-                    <hr style="border:0; border-top:1px solid #eee; margin: 10px 0;">
-                    <div style="display:flex; gap:10px;">
-                        <div style="flex:1;"><div class="edit-label">Latitude</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input"></div>
-                        <div style="flex:1;"><div class="edit-label">Longitude</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input"></div>
-                    </div>
-                    
-                    <div style="display:flex; gap:10px; margin-top:15px;">
-                        <button onclick="cancelEdit()" style="flex:1; background:#95a5a6; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
-                        <button id="btn-save-edit" style="flex:2; background:#27ae60; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
-                    </div>
+                    <label class="toggle-move" style="margin-bottom:15px;"><input type="checkbox" id="allow-move-chk"> Autoriser le déplacement du canon sur la carte</label>
+                    <h3 style="margin-top:0; color:#e74c3c;">Édition N°<span id="edit-id-display"></span></h3><input type="hidden" id="edit-id">
+                    <div style="display:flex; gap:10px;"><div style="flex:1;"><div class="edit-label">Type de canon</div><input type="text" id="edit-type" class="edit-input" list="list-types"></div><div style="flex:1;"><div class="edit-label">Piste associée</div><input type="text" id="edit-piste" class="edit-input" list="list-pistes"></div></div>
+                    <div style="display:flex; gap:10px;"><div style="flex:1;"><div class="edit-label">Vanne</div><input type="text" id="edit-vanne" class="edit-input" list="list-vannes"></div><div style="flex:1;"><div class="edit-label">Module</div><input type="text" id="edit-module" class="edit-input" list="list-modules"></div></div>
+                    <div style="display:flex; gap:10px;"><div style="flex:1;"><div class="edit-label">Répéteur</div><input type="text" id="edit-rep" class="edit-input" list="list-reps"></div><div style="flex:1;"><div class="edit-label">Transfo</div><input type="text" id="edit-transfo" class="edit-input" list="list-transfos"></div></div>
+                    <hr style="border-top:1px solid #eee; margin:10px 0;"><div style="display:flex; gap:10px;"><div style="flex:1;"><div class="edit-label">Latitude</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input"></div><div style="flex:1;"><div class="edit-label">Longitude</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input"></div></div>
+                    <div style="display:flex; gap:10px; margin-top:15px;"><button onclick="cancelEdit()" style="flex:1; background:#95a5a6; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button><button id="btn-save-edit" style="flex:2; background:#27ae60; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
+        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzI2FLqyfjMUkuaH-er98Og7U5Q0WxVUD0ci_7sCZ2ZkQwG_5_V2ei5OHb8mSrkChkOLw/exec";
         
         let snowCannons = { "type": "FeatureCollection", "features": [] };
         let rawTickets = [];
@@ -230,46 +163,49 @@
         const map = L.map('map', {zoomControl: false}).setView([42.766, 0.564], 14);
         L.control.zoom({ position: 'bottomleft' }).addTo(map);
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 }).addTo(map);
-
         let geojsonLayer = null;
 
-        const getIdx = (headers, nomsCherches, fallback) => {
-            let i = headers.findIndex(h => nomsCherches.some(n => h.includes(n)));
-            return i !== -1 ? i : fallback;
-        };
-
-        // Fonction d'erreur visuelle
-        function showFatalError(msg) {
-            console.error("Erreur Fatale :", msg);
+        function updateDesc(text) { document.getElementById('loading-desc').innerText = text; }
+        function showError(msg) {
             document.getElementById('loading-spinner').style.display = 'none';
             document.getElementById('loading-title').innerText = "🛑 Le chargement a échoué";
             document.getElementById('loading-title').style.color = "#e74c3c";
-            document.getElementById('loading-desc').innerHTML = `<span style="color:#333;">${msg}</span><br><br><span style="font-size:12px;">Assurez-vous d'avoir cliqué sur <b>Déployer > Nouvelle Version</b> dans Apps Script.</span>`;
+            document.getElementById('loading-desc').style.display = 'none';
+            document.getElementById('error-box').style.display = 'block';
+            document.getElementById('error-msg').innerHTML = msg;
         }
 
-        // FETCH DATA (Protégé)
+        const getIdx = (headers, nomsCherches) => {
+            let i = headers.findIndex(h => nomsCherches.some(n => h && h.includes(n)));
+            return i !== -1 ? i : -1;
+        };
+
+        // LECTURE DES DONNÉES
         async function fetchGoogleSheetsData() {
             try {
-                document.getElementById('loading-desc').innerText = "Connexion au serveur Google...";
+                updateDesc("Téléchargement des données Google Sheets...");
                 const response = await fetch(GOOGLE_API_URL);
-                if (!response.ok) throw new Error("L'URL Google Apps Script ne répond pas. (Erreur " + response.status + ")");
+                if (!response.ok) throw new Error("Google a refusé l'accès (Erreur " + response.status + ")");
                 
-                document.getElementById('loading-desc').innerText = "Lecture des données...";
                 let textData = await response.text();
-                
                 let data;
                 try { data = JSON.parse(textData); } 
-                catch(e) { throw new Error("Les données reçues sont illisibles. Le script est-il bien public ('Tous les utilisateurs') ?"); }
+                catch(e) { throw new Error("Les données reçues sont bloquées. Avez-vous mis l'accès du script sur 'Tous les utilisateurs' ?"); }
                 
-                // 1. GÉNÉRAL
-                if (!data.general || data.general.length < 2) throw new Error("L'onglet 'tableau général' est introuvable ou vide.");
+                // 1. GENERAL
+                updateDesc("Analyse de l'onglet Tableau Général...");
+                if (!data.general || data.general.length < 2) {
+                    let ongletsVus = data.debug_onglets ? data.debug_onglets.join(" / ") : "Aucun onglet visible";
+                    throw new Error(`L'onglet principal est introuvable ou ne contient qu'une seule ligne.<br><br><b>👉 Onglets vus par le script :</b><br> [ ${ongletsVus} ]<br><br>Vérifiez que le nom correspond bien à "tableau général" ou "général".`);
+                }
+                
                 const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
                 
-                const idxId = getIdx(genHeaders, ['n° regard', 'regard', 'id']);
-                const idxXY = getIdx(genHeaders, ['xy', 'gps']);
+                // LA CORRECTION CLEF EST ICI : On force l'index 2 (Colonne 3) pour le N° de Regard
+                const idxId = 2; // C'est la colonne 3
                 
-                if (idxId === -1) throw new Error("La colonne 'N° regard' est introuvable dans le tableau général.");
-                if (idxXY === -1) throw new Error("La colonne 'xy' est introuvable dans le tableau général.");
+                const idxXY = getIdx(genHeaders, ['xy', 'gps']);
+                if (idxXY === -1) throw new Error("La colonne 'xy' (coordonnées GPS) est introuvable dans le tableau général.");
 
                 const idxPiste = getIdx(genHeaders, ['pistes', 'piste']);
                 const idxType = getIdx(genHeaders, ['type canon', 'type']);
@@ -279,13 +215,13 @@
                 const idxTrans = getIdx(genHeaders, ['transfo']);
 
                 let dictGeneral = {};
-                let validPoints = 0;
+                let validPointsCount = 0;
 
                 data.general.slice(1).forEach(row => {
                     let idRaw = row[idxId];
                     if (idRaw == null || idRaw === "") return;
                     let id = idRaw.toString().replace(/[^0-9]/g, ''); 
-                    if(!id) return;
+                    if (!id) return;
 
                     let lat = 0, lng = 0;
                     if (row[idxXY]) {
@@ -293,27 +229,27 @@
                         if (parts.length === 2) { lat = parseFloat(parts[0].trim()); lng = parseFloat(parts[1].trim()); }
                     }
 
-                    if(lat && lng) validPoints++;
+                    if(lat && lng) validPointsCount++;
 
                     let fullData = [];
                     genHeaders.forEach((head, i) => { if(row[i] != null && row[i] !== "") fullData.push({k: head, v: row[i]}); });
 
                     dictGeneral[id] = {
                         id: id, lat: lat, lng: lng,
-                        piste: (idxPiste>-1 && row[idxPiste]) ? row[idxPiste] : "Inconnue",
-                        type: (idxType>-1 && row[idxType]) ? row[idxType] : "Inconnu",
-                        vanne: (idxVanne>-1 && row[idxVanne]) ? row[idxVanne] : "N/A",
-                        module: (idxModule>-1 && row[idxModule]) ? row[idxModule] : "N/A",
-                        rep: (idxRep>-1 && row[idxRep]) ? row[idxRep] : "N/A",
-                        transfo: (idxTrans>-1 && row[idxTrans]) ? row[idxTrans] : "N/A",
+                        piste: (idxPiste>-1 && row[idxPiste]) ? row[idxPiste].toString() : "Inconnue",
+                        type: (idxType>-1 && row[idxType]) ? row[idxType].toString() : "Inconnu",
+                        vanne: (idxVanne>-1 && row[idxVanne]) ? row[idxVanne].toString() : "N/A",
+                        module: (idxModule>-1 && row[idxModule]) ? row[idxModule].toString() : "N/A",
+                        rep: (idxRep>-1 && row[idxRep]) ? row[idxRep].toString() : "N/A",
+                        transfo: (idxTrans>-1 && row[idxTrans]) ? row[idxTrans].toString() : "N/A",
                         fullData: fullData,
                         historique: {}
                     };
                 });
 
-                if (validPoints === 0) throw new Error("Aucun point GPS valide trouvé dans la colonne 'xy'.");
+                if (validPointsCount === 0) throw new Error("Les canons ont été trouvés, mais aucun point GPS valide n'a été détecté dans la colonne 'xy'. (Format attendu : 'Lat, Long')");
 
-                // 2. HISTORIQUE
+                updateDesc("Analyse de l'Historique...");
                 if (data.historique && data.historique.length > 1) {
                     const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim());
                     const idxCanons = getIdx(histHeaders, ['canons', 'n° regard']);
@@ -347,7 +283,7 @@
                     }
                 }
 
-                // 3. TICKETS
+                updateDesc("Analyse des Tickets...");
                 if (data.tickets && data.tickets.length > 1) {
                     const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
                     const idxTEtat = getIdx(tHeaders, ['état', 'etat']);
@@ -358,16 +294,15 @@
 
                     if(idxTRegard > -1) {
                         rawTickets = data.tickets.slice(1).map(row => ({
-                            statut: (idxTEtat>-1 && row[idxTEtat] != null) ? row[idxTEtat].toString().toLowerCase().trim() : "",
+                            statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""),
                             date: (idxTDate>-1 ? row[idxTDate] : ""),
-                            idCanon: (row[idxTRegard] != null) ? row[idxTRegard].toString().replace(/[^0-9]/g, '') : "", 
-                            defaut: (idxTDefaut>-1 && row[idxTDefaut]) ? row[idxTDefaut] : "Non spécifié",
-                            cause: (idxTCause>-1 && row[idxTCause]) ? row[idxTCause] : "Non spécifiée"
+                            idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/[^0-9]/g, '') : ""), 
+                            defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Non spécifié"),
+                            cause: (idxTCause>-1 && row[idxTCause] ? row[idxTCause].toString() : "Non spécifiée")
                         }));
                     }
                 }
 
-                // MERGE GEOJSON
                 Object.values(dictGeneral).forEach(canon => {
                     if (canon.lat && canon.lng) { 
                         snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon });
@@ -378,7 +313,8 @@
                 initApp();
 
             } catch (error) {
-                showFatalError(error.message);
+                console.error(error);
+                showError(error.message);
             }
         }
 
@@ -387,9 +323,9 @@
         // GESTION TICKETS
         function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); }
         function getActiveTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); }
-        function getHistoryTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait')).sort((a,b) => new Date(b.date) - new Date(a.date)); }
+        function getHistoryTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut === 'fait').sort((a,b) => new Date(b.date) - new Date(a.date)); }
 
-        // VARIABLES GLOBALES
+        // APP LOGIC
         let currentLayer = 'defauts'; 
         let currentPistes = ['all'], currentTypes = ['all'], currentVannes = ['all'], currentModules = ['all'];
         let selectedCannonsMap = new Map(); let currentlyEditingId = null; 
@@ -661,7 +597,9 @@
                     let bg = getColorByFilter(currentLayer, ratio, p);
                     let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
 
-                    if (selectedCannonsMap.has(p.id)) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
+                    let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
+                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
+                    else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
                     else { layer.setZIndexOffset(0); }
 
                     layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
@@ -673,7 +611,7 @@
         function updateRightPanel() {
             let f = snowCannons.features;
             if (!currentPistes.includes('all')) f = f.filter(x => currentPistes.includes(x.properties.piste));
-            if (!currentTypes.includes('all')) f = f.filter(x => currentTypes.includes(x.properties.type.toLowerCase()));
+            if (!currentTypes.includes('all')) f = f.filter(x => currentTypes.includes(x.properties.type.toString().toLowerCase()));
             if (!currentVannes.includes('all')) f = f.filter(x => currentVannes.includes(x.properties.vanne));
             if (!currentModules.includes('all')) f = f.filter(x => currentModules.includes(x.properties.module));
 
