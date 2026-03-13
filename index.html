@@ -10,19 +10,22 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
+        /* BASE & LAYOUT */
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; background: #eee; overflow: hidden; }
         #app-container { display: flex; height: 100%; width: 100%; position: relative; }
         
+        /* ECRAN DE CHARGEMENT */
         #loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #0078A8; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* BANDEAU GAUCHE */
+        /* BANDEAU LATÉRAL GAUCHE */
         #sidebar { width: 340px; flex-shrink: 0; background: #f8f9fa; display: flex; flex-direction: column; z-index: 2000; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
         .sidebar-header { background: #2c3e50; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
         .sidebar-header h2 { margin: 0; font-size: 18px; }
         .close-btn { background: none; border: none; color: white; font-size: 28px; cursor: pointer; display: none; padding: 0; line-height: 1; }
         
+        /* ACCORDEONS GAUCHE */
         details.panel-section { background: white; margin: 8px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         details.panel-section summary { background: #fff; padding: 12px 15px; font-size: 14px; font-weight: bold; color: #2c3e50; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; outline: none; border-radius: 8px; }
         details[open].panel-section summary { border-bottom: 1px solid #eee; border-bottom-left-radius: 0; border-bottom-right-radius: 0; color: #0078A8; }
@@ -40,13 +43,14 @@
         .range-control input[type=range] { width: 100%; margin: 0; }
         .val-badge { color: #0078A8; font-weight: bold; }
 
+        /* LÉGENDE */
         #legend-content { max-height: 180px; overflow-y: auto; padding-right: 5px;}
         .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 12px;}
         .color-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #999; flex-shrink: 0;}
         .gradient-bar { height: 12px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #999; }
         .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; }
         
-        /* GRAPHIQUE FLOTTANT */
+        /* GRAPHIQUE FLOTTANT REDIMENSIONNABLE */
         #chart-modal { display: none; position: absolute; top: 15%; left: 360px; width: 600px; height: 400px; min-width: 300px; min-height: 200px; background: white; z-index: 9999; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); resize: both; overflow: hidden; flex-direction: column; border: 1px solid #ccc; }
         #chart-modal-header { background: #2c3e50; color: white; padding: 8px 15px; cursor: move; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: bold; user-select: none;}
         #chart-modal-body { flex-grow: 1; padding: 10px; position: relative; background: #fff; width: 100%; height: calc(100% - 35px); box-sizing: border-box;}
@@ -58,13 +62,10 @@
         #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; z-index: 1; }
         #btn-menu-mobile { position: absolute; top: 15px; left: 15px; z-index: 1000; background: white; border: 2px solid rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; }
 
+        /* MARKER CUSTOM */
         .custom-cannon-icon { background: none; border: none; }
         .cannon-circle { border-radius: 50%; color: white; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-sizing: border-box; box-shadow: 0px 2px 5px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;}
         .cannon-circle:hover { transform: scale(1.15); z-index: 1000 !important; cursor: pointer; }
-        
-        /* ALERTE CLIGNOTANTE */
-        @keyframes pulseAlert { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
-        .alert-urgent { animation: pulseAlert 1.5s infinite; }
 
         /* BANDEAU DROIT (SELECTION & EDITION) */
         #right-sidebar { position: absolute; top: 0; right: 0; bottom: 0; width: 360px; background: #fff; z-index: 2001; transform: translateX(100%); transition: transform 0.3s ease; box-shadow: -2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
@@ -74,6 +75,7 @@
         .right-header.editing { background: #e74c3c; }
         .right-content { padding: 15px; overflow-y: auto; flex-grow: 1; }
         
+        /* FICHES DE SELECTION ET TICKETS */
         .sel-details { background: #fff; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden;}
         .sel-details-header { padding: 12px; font-weight: 600; font-size: 14px; background: #f8f9fa; border-bottom: 1px solid #eee; color: #2c3e50; display:flex; justify-content:space-between;}
         .sel-details-body { padding: 12px; font-size: 12px; color: #444; }
@@ -88,6 +90,7 @@
         .btn-edit-small { background: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-top: 10px; width: 100%; font-weight: bold;}
         .btn-edit-small:hover { background: #c0392b; }
 
+        /* Formulaire Édition */
         .edit-input { width: 100%; box-sizing: border-box; padding: 7px; margin-top: 4px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
         .edit-label { font-size: 12px; font-weight: bold; color: #555; }
 
@@ -220,7 +223,7 @@
         // ==========================================
         // API GOOGLE SHEETS
         // ==========================================
-        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
+        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzI2FLqyfjMUkuaH-er98Og7U5Q0WxVUD0ci_7sCZ2ZkQwG_5_V2ei5OHb8mSrkChkOLw/exec";
         
         let rawData = [];
         let rawTickets = [];
@@ -247,15 +250,16 @@
                     });
                 }
 
-                // LECTURE DES TICKETS (Basé sur votre ordre: 0:id, 1:état, 2:date, 3:n°regard, 5:defaut, 9:Remarque)
+                // LECTURE DES TICKETS (LECTURE SEULE)
+                // Ordre de vos colonnes : 0:id, 1:état, 2:date, 3:n°regard, 4:piste, 5:defaut, 6:Défaut sonde, 7:cause, ...
                 if (data.tickets && data.tickets.length > 0) {
                     rawTickets = data.tickets.slice(1).map(row => ({
                         idTicket: row[0],
                         statut: (row[1] || "").toString().toLowerCase().trim(), // "à faire", "en cours", "fait"
                         date: row[2],
                         idCanon: row[3], // "n° regard"
-                        defaut: row[5],
-                        remarque: row[9]
+                        defaut: row[5] || "Non spécifié",
+                        cause: row[7] || "Non spécifiée"
                     }));
                 }
 
@@ -264,7 +268,7 @@
 
             } catch (error) {
                 console.error("ERREUR : ", error);
-                document.getElementById('loading-overlay').innerHTML = `<h2 style='color:red;'>Erreur de connexion</h2><p>Vérifiez que vous avez cliqué sur 'Nouvelle version' dans Apps Script.</p>`;
+                document.getElementById('loading-overlay').innerHTML = `<h2 style='color:red;'>Erreur de connexion</h2><p>Vérifiez que vous avez bien publié une "Nouvelle version" du script Apps Script.</p>`;
             }
         }
 
@@ -276,15 +280,13 @@
         function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon == idCanon); }
         
         function getActiveTickets(idCanon) { 
-            // On cherche strictement "à faire" ou "en cours"
-            return getTicketsForCanon(idCanon).filter(t => t.statut === 'à faire' || t.statut === 'en cours'); 
+            return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); 
         }
         
         function getHistoryTickets(idCanon) { 
-            // On cherche strictement "fait" (ou ce qui n'est pas actif)
             return getTicketsForCanon(idCanon)
-                .filter(t => t.statut === 'fait')
-                .sort((a, b) => new Date(b.date) - new Date(a.date)); // Du plus récent au plus ancien
+                .filter(t => !t.statut.includes('faire') && !t.statut.includes('cours') && t.statut !== "")
+                .sort((a, b) => new Date(b.date) - new Date(a.date)); // Trie du plus récent au plus ancien
         }
 
         // ==========================================
@@ -366,7 +368,7 @@
         }
 
         // ==========================================
-        // SAUVEGARDE GOOGLE SHEETS (CANONS UNIQUEMENT)
+        // SAUVEGARDE GOOGLE SHEETS (SEULEMENT CANONS)
         // ==========================================
         document.getElementById('btn-save-edit').addEventListener('click', async () => {
             if (!currentlyEditingId) return;
@@ -420,21 +422,24 @@
                 let history = getHistoryTickets(p.id);
                 
                 let ticketsHTML = "";
+                
+                // Brique : Défauts en cours
                 if (active.length > 0) {
                     ticketsHTML += `<div class="ticket-alert"><strong>🚨 Défauts en cours :</strong><ul style="margin:5px 0; padding-left:15px;">`;
                     active.forEach(t => {
                         let icon = t.statut === 'à faire' ? '🔴' : '🟠';
-                        ticketsHTML += `<li>${icon} ${t.defaut || "Intervention requise"} <i style="color:#777;">(${t.statut})</i></li>`;
+                        ticketsHTML += `<li style="margin-bottom:6px;">${icon} <b>Défaut :</b> ${t.defaut} <br><span style="color:#555; font-size:11px;"><b>Cause :</b> ${t.cause}</span> <i style="color:#777; font-size:11px;">(${t.statut})</i></li>`;
                     });
                     ticketsHTML += `</ul></div>`;
                 }
 
+                // Brique : Historique
                 if (history.length > 0) {
-                    ticketsHTML += `<details class="ticket-history"><summary>📁 Voir l'historique (${history.length})</summary><ul>`;
+                    ticketsHTML += `<details class="ticket-history"><summary>📁 Voir l'historique (${history.length})</summary><ul style="padding-left:15px; margin-top:8px;">`;
                     history.forEach(t => {
                         let d = new Date(t.date);
-                        let dateStr = isNaN(d) ? t.date : d.toLocaleDateString('fr-FR');
-                        ticketsHTML += `<li><b>${dateStr}</b> : ${t.defaut || "Terminé"} <br><i style="color:#888;">${t.remarque || ""}</i></li>`;
+                        let dateStr = isNaN(d.getTime()) ? (t.date || "Date inconnue") : d.toLocaleDateString('fr-FR');
+                        ticketsHTML += `<li style="margin-bottom:6px;"><b>${dateStr}</b> - <b>Défaut :</b> ${t.defaut} <br><span style="color:#666; font-size:11px;"><b>Cause :</b> ${t.cause}</span></li>`;
                     });
                     ticketsHTML += `</ul></details>`;
                 }
@@ -529,18 +534,13 @@
                     
                     let bg = getColorByFilter(currentLayer, ratio, p);
                     let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
-                    
-                    let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
-                    
-                    // Clignotement si défaut en cours
-                    let actClass = "";
-                    if (currentLayer === 'defauts' && getActiveTickets(p.id).some(t => t.statut === 'à faire')) actClass = "alert-urgent";
 
+                    let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
                     if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
                     else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
                     else { layer.setZIndexOffset(0); }
 
-                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
+                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
                     if(layer._icon) layer._icon.style.display = 'block';
                 }
             });
