@@ -3,55 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Carte - Canons à Neige</title>
+    <title>GMAO Neige - Tableau de Bord</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* CSS VERROUILLÉ POUR GARANTIR L'AFFICHAGE DE LA CARTE */
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', sans-serif; background: #eee; overflow: hidden; }
-        
+        /* BASE & LAYOUT */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eee; overflow: hidden; }
         #app-container { display: flex; height: 100%; width: 100%; }
         
-        #sidebar { 
-            width: 360px; flex-shrink: 0; background: #f8f9fa; display: flex; flex-direction: column; 
-            z-index: 2000; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.2); transition: transform 0.3s ease;
-        }
-        
-        #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
-        #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; z-index: 1; }
-        
+        /* BANDEAU LATÉRAL */
+        #sidebar { width: 360px; flex-shrink: 0; background: #f8f9fa; display: flex; flex-direction: column; z-index: 2000; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
         .sidebar-header { background: #2c3e50; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
         .sidebar-header h2 { margin: 0; font-size: 18px; }
         .close-btn { background: none; border: none; color: white; font-size: 28px; cursor: pointer; display: none; padding: 0; line-height: 1; }
         
+        /* SECTIONS DU PANNEAU */
         .panel-section { background: white; margin: 10px; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .panel-section h3 { margin-top: 0; margin-bottom: 10px; font-size: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; color: #333; }
+        .panel-section h3 { margin-top: 0; margin-bottom: 10px; font-size: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; color: #333; display: flex; justify-content: space-between; align-items: center; }
         
+        /* CONTROLES UI */
         .radio-group label { display: block; margin-bottom: 8px; cursor: pointer; font-size: 14px; }
-        
-        .checkbox-list { max-height: 140px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #fff; }
+        .checkbox-list { max-height: 120px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #fff; margin-bottom: 10px; }
         .checkbox-list label { display: block; margin-bottom: 6px; font-size: 13px; cursor: pointer; }
         
+        /* SLIDERS MIN/MAX */
+        .range-control { margin-bottom: 10px; }
+        .range-control label { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #444; }
+        .range-control input[type=range] { width: 100%; margin: 0; }
+        .val-badge { color: #0078A8; }
+
+        /* LÉGENDE */
         .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 13px;}
         .color-box { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #999; }
         .gradient-bar { height: 12px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #999; }
         .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; }
         
+        /* GRAPHIQUE PLEIN ÉCRAN */
+        #chart-section { transition: all 0.3s ease; }
+        .chart-fullscreen { position: fixed !important; top: 5vh; left: 5vw; right: 5vw; bottom: 5vh; z-index: 9999; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 0 30px rgba(0,0,0,0.6); display: flex; flex-direction: column; }
+        .chart-fullscreen #chart-wrapper { flex-grow: 1; height: auto !important; }
+        .btn-expand { background: #0078A8; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+        .btn-expand:hover { background: #005f85; }
+
+        /* DETAILS LISTE */
         details { background: #f9f9f9; margin-bottom: 6px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
         summary { padding: 10px; font-weight: 600; cursor: pointer; outline: none; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
         details > div { padding: 10px; border-top: 1px solid #ddd; font-size: 13px; color: #555; background: #fff; }
         
-        #mobile-toggle { 
-            position: absolute; top: 15px; left: 15px; z-index: 1000; 
-            background: white; border: 2px solid rgba(0,0,0,0.2); padding: 8px 12px; 
-            border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
-            cursor: pointer; font-size: 16px; font-weight: bold; display: none;
-        }
+        /* CARTE & MOBILE */
+        #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
+        #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; z-index: 1; }
+        #mobile-toggle { position: absolute; top: 15px; left: 15px; z-index: 1000; background: white; border: 2px solid rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: pointer; font-size: 16px; font-weight: bold; display: none; }
+        
+        /* MODE EDITION */
+        .edit-mode-active { border: 2px solid #e74c3c !important; background: #fdf0ed !important; }
 
-        /* RESPONSIVE DESIGN (Mobiles) */
         @media (max-width: 768px) {
             #sidebar { position: absolute; height: 100%; width: 85%; max-width: 320px; transform: translateX(-100%); }
             #sidebar.open { transform: translateX(0); }
@@ -68,8 +77,20 @@
                 <button class="close-btn" onclick="toggleSidebar()">&times;</button>
             </div>
 
+            <div class="panel-section" id="edit-section">
+                <h3>Mode Édition 📍</h3>
+                <label style="font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="edit-mode-toggle"> 
+                    <b>Activer le déplacement des canons</b>
+                </label>
+                <div id="edit-instructions" style="display:none; font-size:11px; color:#e74c3c; margin-top:8px;">
+                    1. Cliquez sur un canon pour le sélectionner.<br>
+                    2. Cliquez sur la carte pour choisir son nouvel emplacement.
+                </div>
+            </div>
+
             <div class="panel-section radio-group">
-                <h3>1. Thème de la carte</h3>
+                <h3>Thème de la carte</h3>
                 <label><input type="radio" name="layer" value="type" checked> Type de canon</label>
                 <label><input type="radio" name="layer" value="eau"> Volume Eau (m³)</label>
                 <label><input type="radio" name="layer" value="air"> Volume Air</label>
@@ -77,26 +98,44 @@
             </div>
             
             <div class="panel-section">
-                <h3>2. Sélection Piste(s)</h3>
+                <h3>Filtres de Sélection</h3>
+                
+                <b style="font-size:13px;">Par Pistes :</b>
                 <div class="checkbox-list" id="piste-checkboxes">
-                    <label><input type="checkbox" id="check-all" checked> <b>Toutes les pistes</b></label>
-                    <hr style="margin: 8px 0; border: 0; border-top: 1px solid #ddd;">
+                    <label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes les pistes</b></label>
+                    <hr style="margin: 5px 0; border-top: 1px solid #ddd;">
                     <div id="individual-pistes"></div>
+                </div>
+
+                <b style="font-size:13px;">Par Types de Canon :</b>
+                <div class="checkbox-list" id="type-checkboxes">
+                    <label><input type="checkbox" id="check-all-types" checked> <b>Tous les types</b></label>
+                    <hr style="margin: 5px 0; border-top: 1px solid #ddd;">
+                    <div id="individual-types"></div>
                 </div>
             </div>
 
             <div class="panel-section" id="legend-section">
-                <h3>Légende & Échelle</h3>
+                <h3>Légende & Plage de valeurs</h3>
                 <div id="legend-content"></div>
+                
                 <div id="slider-container" style="display:none; margin-top:15px; padding-top: 10px; border-top: 1px dashed #ccc;">
-                    <label style="display:block; margin-bottom:5px; font-size:13px; font-weight:bold;">Ajuster la valeur max : <span style="color:#0078A8;" id="slider-value-label">0</span></label>
-                    <input type="range" id="value-slider" min="0" max="100" value="100" style="width:100%;">
+                    <div class="range-control">
+                        <label>Valeur Minimale : <span class="val-badge" id="val-min">0</span></label>
+                        <input type="range" id="slider-min" min="0" max="100" value="0">
+                    </div>
+                    <div class="range-control">
+                        <label>Valeur Maximale : <span class="val-badge" id="val-max">100</span></label>
+                        <input type="range" id="slider-max" min="0" max="100" value="100">
+                    </div>
                 </div>
             </div>
 
             <div class="panel-section" id="chart-section" style="display:none;">
-                <h3>Analyse de la sélection</h3>
-                <div style="position: relative; height: 220px; width:100%;"><canvas id="pisteChart"></canvas></div>
+                <h3>Analyse <button class="btn-expand" id="btn-chart-expand">Agrandir ⛶</button></h3>
+                <div id="chart-wrapper" style="position: relative; height: 220px; width:100%;">
+                    <canvas id="pisteChart"></canvas>
+                </div>
             </div>
             
             <div class="panel-section" id="list-section">
@@ -112,7 +151,7 @@
     </div>
 
     <script>
-        // 1. DATA BRUTES INTEGREES
+        // --- 1. DATA BRUTES INTEGREES ---
         const rawData = [
             [1, 42.77010715, 0.563046654, 1512.0, 8945.0, 172.4, "2 rubis", "Lac"],
             [2, 42.77019959, 0.563856663, 2000.0, 0.0, 300.0, "PEAK", "Lac"],
@@ -322,36 +361,29 @@
             [52, 42.77024824, 0.576965882, 572.0, 12572.0, 207.7, "V3", "Jardin"]
         ];
 
-        // 2. FONCTIONS DE COULEURS
+        // --- 2. FONCTIONS DE COULEURS (Technoalpin) ---
         function hslToHex(h, s, l) {
             let r, g, b;
             if (s === 0) { r = g = b = l; }
             else {
                 const hue2rgb = (p, q, t) => {
-                    if (t < 0) t += 1;
-                    if (t > 1) t -= 1;
+                    if (t < 0) t += 1; if (t > 1) t -= 1;
                     if (t < 1 / 6) return p + (q - p) * 6 * t;
                     if (t < 1 / 2) return q;
-                    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-                    return p;
+                    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p;
                 }
                 let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
                 let p = 2 * l - q;
-                r = hue2rgb(p, q, h + 1 / 3);
-                g = hue2rgb(p, q, h);
-                b = hue2rgb(p, q, h - 1 / 3);
+                r = hue2rgb(p, q, h + 1 / 3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1 / 3);
             }
             const toHex = x => { const hex = Math.round(x * 255).toString(16); return hex.length === 1 ? '0' + hex : hex; };
             return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
         }
 
-        // Construire la palette Jaune Technoalpin
         let technoTypes = new Set();
         rawData.forEach(row => {
             let t = (row[6] || "").toString().toLowerCase().trim();
-            if (!["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(t)) {
-                technoTypes.add(t);
-            }
+            if (!["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(t)) technoTypes.add(t);
         });
         let sortedTechno = Array.from(technoTypes).sort();
         let technoColors = {};
@@ -360,7 +392,7 @@
             technoColors[t] = hslToHex(0.14, 1.0, luminosite);
         });
 
-        // 3. CONSTRUCTION DU GEOJSON
+        // --- 3. FORMATAGE GEOJSON ---
         const snowCannons = {
             "type": "FeatureCollection",
             "features": rawData.map(row => {
@@ -374,40 +406,21 @@
                     "type": "Feature",
                     "geometry": { "type": "Point", "coordinates": [parseFloat(row[2]), parseFloat(row[1])] },
                     "properties": {
-                        "id": row[0],
-                        "eau": parseFloat(row[3]) || 0,
-                        "air": parseFloat(row[4]) || 0,
-                        "temps": parseFloat(row[5]) || 0,
-                        "type": row[6] || "Inconnu",
-                        "piste": row[7] || "Inconnue",
-                        "couleur_defaut": color
+                        "id": row[0], "eau": parseFloat(row[3]) || 0, "air": parseFloat(row[4]) || 0, "temps": parseFloat(row[5]) || 0,
+                        "type": row[6] || "Inconnu", "piste": row[7] || "Inconnue", "couleur_defaut": color
                     }
                 };
             })
         };
 
-        // 4. UI & LOGIQUE
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            setTimeout(() => { map.invalidateSize(); }, 300);
-        }
-        if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.remove('open');
-        }
-
-        // INIT CARTE LEAFLET GRATUITE
-        const map = L.map('map', {zoomControl: false}).setView([42.766, 0.564], 14);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
-        
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri',
-            maxZoom: 18
-        }).addTo(map);
-        
+        // --- 4. ETAT GLOBAL & UI ---
         let currentLayer = 'type';
         let currentPistes = ['all'];
+        let currentTypes = ['all'];
+        
         let absoluteMaxes = { eau: 0, air: 0, temps: 0 };
         let currentMaxThreshold = { eau: 0, air: 0, temps: 0 };
+        let currentMinThreshold = { eau: 0, air: 0, temps: 0 };
         
         snowCannons.features.forEach(f => {
             absoluteMaxes.eau = Math.max(absoluteMaxes.eau, f.properties.eau);
@@ -418,129 +431,110 @@
         currentMaxThreshold.air = absoluteMaxes.air;
         currentMaxThreshold.temps = absoluteMaxes.temps;
 
+        // Génération de la liste des Pistes
         let pistesSet = new Set();
-        snowCannons.features.forEach(f => { if (f.properties.piste && f.properties.piste !== "Inconnue") pistesSet.add(f.properties.piste); });
+        let typesSet = new Set();
+        snowCannons.features.forEach(f => { 
+            if (f.properties.piste) pistesSet.add(f.properties.piste); 
+            if (f.properties.type) typesSet.add(f.properties.type); 
+        });
         
+        // Pistes
         const indPistesDiv = document.getElementById('individual-pistes');
-        const checkAllBtn = document.getElementById('check-all');
-
+        const checkAllPistesBtn = document.getElementById('check-all-pistes');
         [...pistesSet].sort().forEach(p => {
             let lbl = document.createElement('label');
             let cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.className = 'piste-cb';
-            cb.value = p;
-            lbl.appendChild(cb);
-            lbl.appendChild(document.createTextNode(' ' + p));
+            cb.type = 'checkbox'; cb.className = 'piste-cb'; cb.value = p;
+            lbl.appendChild(cb); lbl.appendChild(document.createTextNode(' ' + p));
             indPistesDiv.appendChild(lbl);
         });
+        
+        // Types de canons
+        const indTypesDiv = document.getElementById('individual-types');
+        const checkAllTypesBtn = document.getElementById('check-all-types');
+        [...typesSet].sort().forEach(t => {
+            let lbl = document.createElement('label');
+            let cb = document.createElement('input');
+            cb.type = 'checkbox'; cb.className = 'type-cb'; cb.value = t;
+            lbl.appendChild(cb); lbl.appendChild(document.createTextNode(' ' + t));
+            indTypesDiv.appendChild(lbl);
+        });
 
-        const pisteCbs = document.querySelectorAll('.piste-cb');
-
-        function getSelectedPistes() {
-            if (checkAllBtn.checked) return ['all'];
+        // Gestion Evenements Checkboxes
+        function getCheckedValues(allBtn, cbs) {
+            if (allBtn.checked) return ['all'];
             let selected = [];
-            pisteCbs.forEach(cb => { if (cb.checked) selected.push(cb.value); });
+            cbs.forEach(cb => { if (cb.checked) selected.push(cb.value); });
             return selected;
         }
 
-        checkAllBtn.addEventListener('change', (e) => {
-            if(e.target.checked) pisteCbs.forEach(cb => cb.checked = false);
-            currentPistes = getSelectedPistes();
-            updateMap(); updateRightPanel();
-        });
-
-        pisteCbs.forEach(cb => {
-            cb.addEventListener('change', () => {
-                if(cb.checked) checkAllBtn.checked = false;
-                else {
-                    let noneChecked = Array.from(pisteCbs).every(c => !c.checked);
-                    if(noneChecked) checkAllBtn.checked = true;
-                }
-                currentPistes = getSelectedPistes();
-                updateMap(); updateRightPanel();
+        function setupCheckboxes(allBtn, cbs, updateVarCallback) {
+            allBtn.addEventListener('change', (e) => {
+                if(e.target.checked) cbs.forEach(cb => cb.checked = false);
+                updateVarCallback(getCheckedValues(allBtn, cbs));
             });
+            cbs.forEach(cb => {
+                cb.addEventListener('change', () => {
+                    if(cb.checked) allBtn.checked = false;
+                    else if(Array.from(cbs).every(c => !c.checked)) allBtn.checked = true;
+                    updateVarCallback(getCheckedValues(allBtn, cbs));
+                });
+            });
+        }
+
+        setupCheckboxes(checkAllPistesBtn, document.querySelectorAll('.piste-cb'), (vals) => { currentPistes = val; updateMap(); updateRightPanel(); });
+        setupCheckboxes(checkAllTypesBtn, document.querySelectorAll('.type-cb'), (vals) => { currentTypes = val; updateMap(); updateRightPanel(); });
+
+
+        // --- 5. INITIALISATION CARTE LEAFLET ---
+        const map = L.map('map', {zoomControl: false}).setView([42.766, 0.564], 14);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri', maxZoom: 18
+        }).addTo(map);
+
+        // Gestion Mode Edition
+        let editMode = false;
+        let selectedCannon = null;
+
+        document.getElementById('edit-mode-toggle').addEventListener('change', e => {
+            editMode = e.target.checked;
+            document.getElementById('edit-instructions').style.display = editMode ? 'block' : 'none';
+            if (!editMode && selectedCannon) {
+                updateMap(); // Retire le style rouge du canon sélectionné
+                selectedCannon = null;
+            }
         });
 
-        function updateLegend() {
-            const content = document.getElementById('legend-content');
-            const sliderCont = document.getElementById('slider-container');
-            const slider = document.getElementById('value-slider');
-            const sliderLabel = document.getElementById('slider-value-label');
-            
-            let html = '';
-            if (currentLayer === 'type') {
-                html = `
-                    <div class="legend-item"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div>
-                    <div class="legend-item"><div class="color-box" style="background: #008000;"></div> Sufag / Street / Taurus / Peak</div>
-                    <div class="legend-item"><div class="color-box" style="background: linear-gradient(to right, #FFFF99, #B8860B);"></div> Modèles Technoalpin</div>
-                `;
-                sliderCont.style.display = 'none';
-            } else {
-                sliderCont.style.display = 'block';
-                slider.max = absoluteMaxes[currentLayer];
-                slider.value = currentMaxThreshold[currentLayer];
-                sliderLabel.innerText = currentMaxThreshold[currentLayer];
+        map.on('click', function(e) {
+            if (editMode && selectedCannon) {
+                let newLat = e.latlng.lat;
+                let newLng = e.latlng.lng;
                 
-                if (currentLayer === 'eau') {
-                    html = `<div class="gradient-bar" style="background: linear-gradient(to right, #ADD8E6, #00008B);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`;
-                } else if (currentLayer === 'air') {
-                    html = `<div class="gradient-bar" style="background: linear-gradient(to right, #FFFACD, #B8860B);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
-                } else if (currentLayer === 'temps') {
-                    html = `<div class="gradient-bar" style="background: linear-gradient(to right, #90EE90, #006400);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
-                }
+                selectedCannon.setLatLng(e.latlng);
+                selectedCannon.feature.geometry.coordinates = [newLng, newLat]; // Maj data GeoJSON
+                
+                let p = selectedCannon.feature.properties;
+                selectedCannon.bindPopup(`
+                    <h3 style="margin:0 0 5px 0; color:#27ae60;">✅ Position Modifiée</h3>
+                    <b>Type:</b> ${p.type} (N°${p.id})<br>
+                    <b>Lat:</b> <code>${newLat.toFixed(7)}</code><br>
+                    <b>Lng:</b> <code>${newLng.toFixed(7)}</code><br>
+                    <i style="font-size:11px; color:#555;">À copier dans votre Excel !</i>
+                `).openPopup();
+                
+                selectedCannon = null; // On déselectionne
+                updateMap(); // Reset couleur
             }
-            content.innerHTML = html;
-        }
+        });
 
-        function updateRightPanel() {
-            const chartCont = document.getElementById('chart-section');
-            const listCont = document.getElementById('list-section');
-            
-            let filtered = snowCannons.features;
-            if (!currentPistes.includes('all')) {
-                filtered = filtered.filter(f => currentPistes.includes(f.properties.piste));
-            }
-            
-            if (currentLayer !== 'type') {
-                listCont.style.display = 'none';
-                chartCont.style.display = 'block';
-                
-                let maxVal = currentMaxThreshold[currentLayer];
-                filtered = filtered.filter(f => f.properties[currentLayer] <= maxVal);
-                
-                let labels = filtered.map(f => 'N°' + f.properties.id);
-                let data = filtered.map(f => f.properties[currentLayer]);
-                
-                let ctx = document.getElementById('pisteChart').getContext('2d');
-                if (window.myChart) { window.myChart.destroy(); }
-                
-                window.myChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: { labels: labels, datasets: [{ label: currentLayer.toUpperCase(), data: data, backgroundColor: '#0078A8', borderRadius: 4 }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-                });
-            } else {
-                chartCont.style.display = 'none';
-                listCont.style.display = 'block';
-                
-                let html = '';
-                if (filtered.length === 0) html = "<i>Aucun canon ne correspond.</i>";
-                filtered.forEach(f => {
-                    html += `<details><summary>N° ${f.properties.id} - ${f.properties.piste} <span style="color:#aaa;">▼</span></summary>
-                             <div>Type : <b style="color:${f.properties.couleur_defaut}">${f.properties.type}</b><br>
-                             Eau : ${f.properties.eau} m³<br>Air : ${f.properties.air}<br>Temps : ${f.properties.temps} h</div></details>`;
-                });
-                document.getElementById('type-list').innerHTML = html;
-            }
+        // Fonction Couleur Dégradée (Eau/Air/Temps)
+        function interpolateColor(c1, c2, factor) {
+            let res = c1.slice();
+            for (let i=0; i<3; i++) res[i] = Math.round(res[i] + factor * (c2[i] - c1[i]));
+            return `rgb(${res[0]}, ${res[1]}, ${res[2]})`;
         }
-
-        function interpolateColor(color1, color2, factor) {
-            let result = color1.slice();
-            for (let i = 0; i < 3; i++) result[i] = Math.round(result[i] + factor * (color2[i] - color1[i]));
-            return `rgb(${result[0]}, ${result[1]}, ${result[2]})`;
-        }
-
         function getColorByFilter(layer, ratio) {
             if (layer === 'eau') return interpolateColor([173, 216, 230], [0, 0, 139], ratio);
             if (layer === 'air') return interpolateColor([255, 250, 205], [184, 134, 11], ratio);
@@ -548,19 +542,57 @@
             return '#000';
         }
 
-        // COUCHE DES CANONS SUR LA CARTE
+        // Création Couche de points
         let geojsonLayer = L.geoJSON(snowCannons, {
             pointToLayer: function (feature, latlng) {
                 return L.circleMarker(latlng, { radius: 6, fillColor: feature.properties.couleur_defaut, color: "#fff", weight: 1.5, opacity: 1, fillOpacity: 0.9 });
             },
             onEachFeature: function (feature, layer) {
+                // Clic pour mode édition
+                layer.on('click', function(e) {
+                    if (editMode) {
+                        L.DomEvent.stopPropagation(e);
+                        if (selectedCannon) updateMap(); // Efface la sélection précédente
+                        selectedCannon = layer;
+                        layer.setStyle({ color: '#e74c3c', weight: 4 }); // Met en surbrillance rouge
+                        layer.bindPopup(`<b>Mode Édition</b><br>Cliquez n'importe où sur la carte pour déplacer le canon N°${feature.properties.id}.`).openPopup();
+                    }
+                });
+
+                // Tooltip normal
                 const p = feature.properties;
                 layer.bindTooltip(`<strong>N° ${p.id} | ${p.piste}</strong><br>Type : <b style="color:${p.couleur_defaut}">${p.type}</b><br>Eau : ${p.eau} m³<br>Air : ${p.air}<br>Temps : ${p.temps} h`);
             }
         }).addTo(map);
 
-        // Zoomer automatiquement pour voir tous les canons
         map.fitBounds(geojsonLayer.getBounds(), { padding: [30, 30] });
+
+        // --- 6. LOGIQUE DE MISE A JOUR ---
+        function updateLegend() {
+            const content = document.getElementById('legend-content');
+            const sliderCont = document.getElementById('slider-container');
+            
+            if (currentLayer === 'type') {
+                content.innerHTML = `
+                    <div class="legend-item"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div>
+                    <div class="legend-item"><div class="color-box" style="background: #008000;"></div> Sufag / Street / Taurus / Peak</div>
+                    <div class="legend-item"><div class="color-box" style="background: linear-gradient(to right, #FFFF99, #B8860B);"></div> Modèles Technoalpin</div>`;
+                sliderCont.style.display = 'none';
+            } else {
+                sliderCont.style.display = 'block';
+                const sMin = document.getElementById('slider-min');
+                const sMax = document.getElementById('slider-max');
+                
+                sMin.max = absoluteMaxes[currentLayer]; sMax.max = absoluteMaxes[currentLayer];
+                sMin.value = currentMinThreshold[currentLayer]; sMax.value = currentMaxThreshold[currentLayer];
+                document.getElementById('val-min').innerText = currentMinThreshold[currentLayer];
+                document.getElementById('val-max').innerText = currentMaxThreshold[currentLayer];
+                
+                if (currentLayer === 'eau') content.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #ADD8E6, #00008B);"></div><div class="legend-labels"><span>Faible Volume</span><span>Élevé</span></div>`;
+                else if (currentLayer === 'air') content.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #FFFACD, #B8860B);"></div><div class="legend-labels"><span>Faible Volume</span><span>Élevé</span></div>`;
+                else if (currentLayer === 'temps') content.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #90EE90, #006400);"></div><div class="legend-labels"><span>Temps court</span><span>Temps long</span></div>`;
+            }
+        }
 
         function updateMap() {
             geojsonLayer.eachLayer(function(layer) {
@@ -568,7 +600,11 @@
                 let visible = true;
 
                 if (!currentPistes.includes('all') && !currentPistes.includes(props.piste)) visible = false;
-                if (currentLayer !== 'type' && props[currentLayer] > currentMaxThreshold[currentLayer]) visible = false;
+                if (!currentTypes.includes('all') && !currentTypes.includes(props.type)) visible = false;
+                
+                if (currentLayer !== 'type') {
+                    if (props[currentLayer] < currentMinThreshold[currentLayer] || props[currentLayer] > currentMaxThreshold[currentLayer]) visible = false;
+                }
 
                 if (!visible) {
                     layer.setStyle({ opacity: 0, fillOpacity: 0, stroke: false });
@@ -576,42 +612,104 @@
                 } else {
                     let color = props.couleur_defaut;
                     let radius = 6;
+                    let strokeColor = "#fff";
+                    let weight = 1.5;
 
                     if (currentLayer !== 'type') {
-                        let maxVal = parseFloat(currentMaxThreshold[currentLayer]);
+                        let maxVal = absoluteMaxes[currentLayer];
                         if (maxVal <= 0) maxVal = 1;
                         let ratio = props[currentLayer] / maxVal;
-                        if (ratio > 1) ratio = 1;
-
                         radius = 4 + (16 * ratio); 
                         color = getColorByFilter(currentLayer, ratio);
                     }
 
-                    layer.setStyle({ radius: radius, fillColor: color, opacity: 1, fillOpacity: 0.9, color: "#fff", weight: 1.5, stroke: true });
+                    // Surcharge pour le mode édition
+                    if (editMode && layer === selectedCannon) {
+                        strokeColor = '#e74c3c'; weight = 4;
+                    }
+
+                    layer.setStyle({ radius: radius, fillColor: color, opacity: 1, fillOpacity: 0.9, color: strokeColor, weight: weight, stroke: true });
                 }
             });
         }
 
-        // ECOUTEURS D'EVENEMENTS
+        function updateRightPanel() {
+            const chartCont = document.getElementById('chart-section');
+            const listCont = document.getElementById('list-section');
+            
+            let filtered = snowCannons.features;
+            if (!currentPistes.includes('all')) filtered = filtered.filter(f => currentPistes.includes(f.properties.piste));
+            if (!currentTypes.includes('all')) filtered = filtered.filter(f => currentTypes.includes(f.properties.type));
+            
+            if (currentLayer !== 'type') {
+                listCont.style.display = 'none'; chartCont.style.display = 'block';
+                filtered = filtered.filter(f => f.properties[currentLayer] >= currentMinThreshold[currentLayer] && f.properties[currentLayer] <= currentMaxThreshold[currentLayer]);
+                
+                let labels = filtered.map(f => 'N°' + f.properties.id);
+                let data = filtered.map(f => f.properties[currentLayer]);
+                
+                let ctx = document.getElementById('pisteChart').getContext('2d');
+                if (window.myChart) window.myChart.destroy();
+                window.myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ label: currentLayer.toUpperCase(), data: data, backgroundColor: '#0078A8', borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            } else {
+                chartCont.style.display = 'none'; listCont.style.display = 'block';
+                let html = filtered.length === 0 ? "<i>Aucun canon ne correspond.</i>" : "";
+                filtered.forEach(f => {
+                    html += `<details><summary>N° ${f.properties.id} - ${f.properties.piste} <span style="color:#aaa;">▼</span></summary>
+                             <div>Type : <b style="color:${f.properties.couleur_defaut}">${f.properties.type}</b><br>
+                             Eau : ${f.properties.eau} m³ | Air : ${f.properties.air} | Temps : ${f.properties.temps} h</div></details>`;
+                });
+                document.getElementById('type-list').innerHTML = html;
+            }
+        }
+
+        // Ecouteurs Evènements
         document.querySelectorAll('input[name="layer"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 currentLayer = e.target.value;
                 updateLegend(); updateMap(); updateRightPanel();
             });
         });
-        
-        document.getElementById('value-slider').addEventListener('input', (e) => {
-            currentMaxThreshold[currentLayer] = parseFloat(e.target.value);
-            document.getElementById('slider-value-label').innerText = currentMaxThreshold[currentLayer];
+
+        document.getElementById('slider-min').addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value);
+            if (val > currentMaxThreshold[currentLayer]) { val = currentMaxThreshold[currentLayer]; e.target.value = val; }
+            currentMinThreshold[currentLayer] = val;
+            document.getElementById('val-min').innerText = val;
             updateMap(); updateRightPanel();
         });
 
-        // LANCEMENT
+        document.getElementById('slider-max').addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value);
+            if (val < currentMinThreshold[currentLayer]) { val = currentMinThreshold[currentLayer]; e.target.value = val; }
+            currentMaxThreshold[currentLayer] = val;
+            document.getElementById('val-max').innerText = val;
+            updateMap(); updateRightPanel();
+        });
+
+        // Graphique Plein Écran
+        document.getElementById('btn-chart-expand').addEventListener('click', () => {
+            const section = document.getElementById('chart-section');
+            const btn = document.getElementById('btn-chart-expand');
+            section.classList.toggle('chart-fullscreen');
+            btn.innerText = section.classList.contains('chart-fullscreen') ? "Réduire ✕" : "Agrandir ⛶";
+            if (window.myChart) window.myChart.resize();
+        });
+
+        // Mobile et fix carte
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            setTimeout(() => map.invalidateSize(), 300);
+        }
+        if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+        
+        // Initialisation
         updateLegend(); updateMap(); updateRightPanel();
-
-        // Correction pour empêcher le bug de la page vide
-        setTimeout(() => { map.invalidateSize(); }, 500);
-
+        setTimeout(() => map.invalidateSize(), 500);
     </script>
 </body>
 </html>
