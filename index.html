@@ -30,11 +30,11 @@
         });
     </script>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js" crossorigin="anonymous"></script>
     
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; overflow: hidden; }
@@ -105,6 +105,7 @@
         .sel-details-body { padding: 15px; font-size: 13px; color: #444; line-height: 1.5; }
         
         .badge { display: inline-block; background: #f0f3f5; color: #2c3e50; padding: 5px 10px; border-radius: 4px; font-size: 11px; margin: 0 4px 6px 0; border: 1px solid #e1e8ed; }
+        .ticket-card { background: #fff; border: 1px solid #eee; border-left: 4px solid #e74c3c; padding: 12px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         
         .piste-chart-container { background: #fff; border:1px solid #eee; padding:15px; border-radius:6px; margin-top:15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
         .btn-action-primary { background: #3498db; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-top: 15px; width: 100%; font-weight: bold; transition: 0.2s;}
@@ -263,6 +264,7 @@
 
         <div id="map-container">
             <div id="map-controls-tr">
+                <button id="btn-toggle-right" class="map-btn" onclick="window.toggleRightSidebar()" style="background:#2c3e50; color:white; border:none;">📊 Tableau de bord</button>
                 <button id="btn-multi-toggle" class="map-btn" onclick="window.toggleMultiSelect()">🔲 Sélection Multiple : OFF</button>
             </div>
             <div id="map"></div>
@@ -309,21 +311,28 @@
         // =======================================================
         // 1. CONFIGURATION & VARIABLES GLOBALES 
         // =======================================================
+        
+        // ⚠️ LIEN GOOGLE APPS SCRIPT (À VÉRIFIER) ⚠️
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
         
-        window.map = null; window.satLayer = null;
+        window.map = null;
+        window.satLayer = null;
         window.snowCannons = { "type": "FeatureCollection", "features": [] };
         window.rawTickets = []; window.saisonsList = []; window.cloudKmzLayers = [];
         window.isMultiSelect = false; window.columnValuesSets = {}; window.availableColumns = [];
         window.mainTheme = 'defauts'; window.histMetric = 'eau'; window.histSeasonIdx = 0;
-        window.absoluteMaxes = { eau: 0, air: 0, temps: 0 }; window.currentMaxThreshold = { eau: 100, air: 100, temps: 100 }; window.currentMinThreshold = { eau: 0, air: 0, temps: 0 };
+        window.absoluteMaxes = { eau: 0, air: 0, temps: 0 }; 
+        window.currentMaxThreshold = { eau: 100, air: 100, temps: 100 }; 
+        window.currentMinThreshold = { eau: 0, air: 0, temps: 0 };
         window.activeFilters = [ {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]} ];
         window.currentPistes = ['all']; window.currentTypes = ['all']; window.currentVannes = ['all']; window.currentModules = ['all'];
         window.geojsonLayer = null; window.chartInstances = {}; window.selectedCannonsMap = new Map(); window.currentlyEditingId = null; 
-        window.technoColors = {}; window.repColors = {}; window.transfoColors = {}; window.externalLayers = {}; 
+        window.technoColors = {}; window.repColors = {}; window.transfoColors = {};
+        window.externalLayers = {}; 
         window.defaultColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
         window.keyPiste = ""; window.keyType = ""; window.keyRep = ""; window.keyTransfo = ""; window.keyVanne = ""; window.keyModule = "";
-        window.localDB = null; window.bootAttempt = 0;
+        window.localDB = null;
+        window.bootAttempt = 0;
 
         // =======================================================
         // 2. FONCTIONS DE LECTURE DONNÉES
@@ -340,6 +349,20 @@
         // ==============================================================
         // 3. UI: BOUTONS CARTE & SIDEBAR
         // ==============================================================
+        window.toggleRightSidebar = function() {
+            let sb = document.getElementById('right-sidebar');
+            if(sb.classList.contains('open')) {
+                sb.classList.remove('open');
+            } else {
+                sb.classList.add('open');
+                if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) {
+                    window.triggerGlobalFilterChart();
+                } else {
+                    window.renderSelectionPanel();
+                }
+            }
+        };
+
         window.toggleMultiSelect = function() {
             window.isMultiSelect = !window.isMultiSelect; const btn = document.getElementById('btn-multi-toggle');
             if(window.isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; } 
@@ -347,11 +370,23 @@
             window.renderSelectionPanel();
         };
 
-        window.closeRightSidebar = function() { document.getElementById('right-sidebar').classList.remove('open'); if(window.currentlyEditingId) window.cancelEdit(); window.clearSelection(); };
-        window.clearSelection = function() { window.selectedCannonsMap.clear(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); };
+        window.closeRightSidebar = function() { 
+            document.getElementById('right-sidebar').classList.remove('open'); 
+        };
+
+        window.clearSelection = function() { 
+            window.selectedCannonsMap.clear(); 
+            window.updateMap(); 
+            window.renderSelectionPanel(); 
+            window.triggerGlobalFilterChart(); 
+        };
+
         window.cancelEdit = function() {
-            window.currentlyEditingId = null; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none';
-            document.getElementById('right-header').classList.remove('editing'); document.getElementById('right-title').innerText = "📌 Fiche Détaillée";
+            window.currentlyEditingId = null; 
+            document.getElementById('view-selection').style.display = 'block'; 
+            document.getElementById('view-edit').style.display = 'none';
+            document.getElementById('right-header').classList.remove('editing'); 
+            document.getElementById('right-title').innerText = "📌 Fiche Détaillée";
             window.updateMap(); window.renderSelectionPanel();
         };
 
@@ -380,6 +415,7 @@
             window.currentlyEditingId = id; const layer = window.selectedCannonsMap.get(id); const p = layer.feature.properties;
             document.getElementById('edit-id-display').innerText = p.id; document.getElementById('edit-id').value = p.id;
             document.getElementById('edit-lat').value = layer.getLatLng().lat.toFixed(7); document.getElementById('edit-lng').value = layer.getLatLng().lng.toFixed(7);
+            
             let formContainer = document.getElementById('dynamic-edit-fields'); formContainer.innerHTML = "";
             p.fullData.forEach(item => {
                 let kLow = item.k.toLowerCase();
@@ -387,24 +423,11 @@
                 let safeId = "dl-" + item.k.replace(/[^a-zA-Z0-9]/g, '-');
                 formContainer.innerHTML += `<div style="margin-bottom:10px;"><div class="edit-label">${item.k}</div><input type="text" class="edit-input dyn-field" data-key="${item.k}" value="${item.v}" list="${safeId}"></div>`;
             });
+
             document.getElementById('allow-move-chk').checked = false; 
             document.getElementById('view-selection').style.display = 'none'; document.getElementById('view-edit').style.display = 'block';
             document.getElementById('right-header').classList.add('editing'); document.getElementById('right-title').innerText = "✏️ Édition Complète";
             window.updateMap(); 
-        };
-
-        window.focusCannon = function(id) {
-            if(!window.geojsonLayer) return;
-            window.geojsonLayer.eachLayer(function(l) {
-                if (l.feature.properties.id === id) {
-                    window.selectedCannonsMap.clear();
-                    window.selectedCannonsMap.set(id, l);
-                    window.map.setView(l.getLatLng(), 17);
-                    window.updateMap();
-                    window.renderSelectionPanel();
-                    document.getElementById('right-sidebar').classList.add('open');
-                }
-            });
         };
 
         // ==============================================================
@@ -415,7 +438,8 @@
             if(!window.geojsonLayer) return;
             window.geojsonLayer.eachLayer(function(layer) {
                 if(!layer.feature.properties._isVisible) return;
-                let p = layer.feature.properties; let match = false;
+                let p = layer.feature.properties;
+                let match = false;
                 
                 if (theme === 'defauts') {
                     let act = window.getActiveTickets(p.id);
@@ -434,11 +458,19 @@
                 }
 
                 if (match) {
-                    layer.setOpacity(1); layer.setZIndexOffset(2000);
-                    if(layer._icon) { layer._icon.style.opacity = "1"; if(!layer._icon.style.transform.includes('scale(1.3)')) layer._icon.style.transform += ' scale(1.3)'; }
+                    layer.setOpacity(1); 
+                    layer.setZIndexOffset(2000);
+                    if(layer._icon) {
+                        layer._icon.style.opacity = "1";
+                        if(!layer._icon.style.transform.includes('scale(1.3)')) layer._icon.style.transform += ' scale(1.3)';
+                    }
                 } else {
-                    layer.setOpacity(0.2); layer.setZIndexOffset(0);
-                    if(layer._icon) { layer._icon.style.opacity = "0.2"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
+                    layer.setOpacity(0.2); 
+                    layer.setZIndexOffset(0);
+                    if(layer._icon) {
+                        layer._icon.style.opacity = "0.2";
+                        layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', '');
+                    }
                 }
             });
         };
@@ -447,7 +479,10 @@
             if(!window.geojsonLayer) return;
             window.geojsonLayer.eachLayer(function(layer) {
                 layer.setOpacity(1);
-                if(layer._icon) { layer._icon.style.opacity = "1"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
+                if(layer._icon) {
+                    layer._icon.style.opacity = "1";
+                    layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', '');
+                }
             });
             window.updateMap();
         };
@@ -456,25 +491,34 @@
         // 5. EDITEUR COMPLET DE TICKETS 
         // ==============================================================
         window.editFullTicket = function(canonId, defaut) {
-            let safeDef = defaut.replace(/[^a-zA-Z0-9]/g, ""); let idDiv = `ticket-edit-${canonId}-${safeDef}`;
-            let el = document.getElementById(idDiv); if(!el) return;
-            let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut); if(!ticket) return;
+            let safeDef = defaut.replace(/[^a-zA-Z0-9]/g, "");
+            let idDiv = `ticket-edit-${canonId}-${safeDef}`;
+            let el = document.getElementById(idDiv);
+            if(!el) return;
+            
+            let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut);
+            if(!ticket) return;
 
             let html = '<div style="background:#f4f6f8; padding:10px; border-radius:4px; border:1px solid #ddd; margin-top:10px;">';
+            
             ticket.fullData.forEach(d => {
                 let kLow = d.k.toLowerCase();
                 if (kLow.includes('regard') || kLow === 'id' || kLow.includes('n°')) {
                     html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${d.v}" readonly style="background:#e1e8ed; color:#7f8c8d; margin-bottom:0; cursor:not-allowed;"></div>`;
-                } else if (kLow.includes('etat') || kLow.includes('état') || kLow === 'statut') {
+                } 
+                else if (kLow.includes('etat') || kLow.includes('état') || kLow === 'statut') {
                     let statuts = ['à faire', 'en cours', 'fait'];
                     let options = statuts.map(s => `<option value="${s}" ${d.v.toString().toLowerCase().includes(s) ? 'selected' : ''}>${s.toUpperCase()}</option>`).join('');
                     html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><select class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;">${options}</select></div>`;
-                } else if (d.v.toString().length > 40 || kLow.includes('cause') || kLow.includes('intervention') || kLow.includes('commentaire')) {
+                } 
+                else if (d.v.toString().length > 40 || kLow.includes('cause') || kLow.includes('intervention') || kLow.includes('commentaire')) {
                     html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><textarea class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;" rows="2">${d.v}</textarea></div>`;
-                } else {
+                } 
+                else {
                     html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${d.v}" style="margin-bottom:0;"></div>`;
                 }
             });
+
             html += `<div style="display:flex; gap:10px; margin-top:12px;">
                         <button onclick="window.renderSelectionPanel()" style="flex:1; padding:8px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
                         <button onclick="window.saveFullTicket('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:8px; background:#2ecc71; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
@@ -483,17 +527,27 @@
         };
 
         window.saveFullTicket = async function(canonId, defaut, idDiv) {
-            let btn = event.target; btn.innerText = "⏳..."; btn.disabled = true;
-            let fieldsObj = {}; let newStatutForLocal = "";
+            let btn = event.target;
+            btn.innerText = "⏳..."; btn.disabled = true;
+
+            let fieldsObj = {};
+            let newStatutForLocal = "";
 
             document.querySelectorAll(`.tick-dyn-field-${idDiv}`).forEach(inp => {
-                let k = inp.getAttribute('data-key'); let v = inp.value;
-                if(!k.toLowerCase().includes('regard') && k.toLowerCase() !== 'id') fieldsObj[k] = v;
-                if(k.toLowerCase().includes('etat') || k.toLowerCase().includes('état') || k.toLowerCase() === 'statut') newStatutForLocal = v;
+                let k = inp.getAttribute('data-key');
+                let v = inp.value;
+                if(!k.toLowerCase().includes('regard') && k.toLowerCase() !== 'id') {
+                    fieldsObj[k] = v;
+                }
+                if(k.toLowerCase().includes('etat') || k.toLowerCase().includes('état') || k.toLowerCase() === 'statut') {
+                    newStatutForLocal = v;
+                }
             });
 
+            let payload = { action: "update_ticket", idCanon: canonId, defaut: defaut, fields: fieldsObj };
+
             try {
-                const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "update_ticket", idCanon: canonId, defaut: defaut, fields: fieldsObj }) });
+                const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) });
                 const result = await response.json();
                 if(result.status === "success") {
                     let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut);
@@ -501,13 +555,20 @@
                         ticket.fullData.forEach(d => { if(fieldsObj[d.k] !== undefined) d.v = fieldsObj[d.k]; });
                         if(newStatutForLocal) ticket.statut = newStatutForLocal.toLowerCase();
                     }
-                    window.renderSelectionPanel(); window.updateMap();
-                } else { alert("Erreur: " + result.msg); btn.innerText = "✅ Sauvegarder"; btn.disabled = false; }
-            } catch(e) { alert("Échec réseau."); btn.innerText = "✅ Sauvegarder"; btn.disabled = false; }
+                    window.renderSelectionPanel();
+                    window.updateMap();
+                } else {
+                    alert("Erreur: " + result.msg);
+                    btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
+                }
+            } catch(e) {
+                alert("Échec réseau.");
+                btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
+            }
         };
 
         // ==============================================================
-        // 6. COMPARAISONS GRAPHIQUES
+        // 6. COMPARAISONS GRAPHIQUES ET DASHBOARD GLOBAL
         // ==============================================================
         window.openGlobalCompareModal = function(show) {
             let m = document.getElementById('compare-modal');
@@ -515,15 +576,25 @@
             let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2'); let pList = document.getElementById('comp-piste');
             
             s1.innerHTML = ""; s2.innerHTML = "";
-            window.saisonsList.forEach((s, i) => { s1.innerHTML += `<option value="${s}" ${i===0?'selected':''}>${s}</option>`; s2.innerHTML += `<option value="${s}" ${i===1?'selected':''}>${s}</option>`; });
+            window.saisonsList.forEach((s, i) => {
+                s1.innerHTML += `<option value="${s}" ${i===0?'selected':''}>${s}</option>`;
+                s2.innerHTML += `<option value="${s}" ${i===1?'selected':''}>${s}</option>`;
+            });
+
             pList.innerHTML = `<option value="all">Toutes les pistes</option>`;
-            Array.from(window.columnValuesSets[window.keyPiste] || []).sort().forEach(p => { pList.innerHTML += `<option value="${p}">${p}</option>`; });
-            m.style.display = 'flex'; window.renderGlobalComparison();
+            Array.from(window.columnValuesSets[window.keyPiste] || []).sort().forEach(p => {
+                pList.innerHTML += `<option value="${p}">${p}</option>`;
+            });
+
+            m.style.display = 'flex';
+            window.renderGlobalComparison();
         };
 
         window.renderGlobalComparison = function() {
             let s1 = document.getElementById('comp-s1').value; let s2 = document.getElementById('comp-s2').value;
-            let metric = document.getElementById('comp-metric').value; let targetPiste = document.getElementById('comp-piste').value;
+            let metric = document.getElementById('comp-metric').value;
+            let targetPiste = document.getElementById('comp-piste').value;
+
             let labels = []; let d1 = []; let d2 = [];
 
             if (targetPiste === 'all') {
@@ -553,6 +624,7 @@
 
             if(window.chartInstances['c1']) window.chartInstances['c1'].destroy();
             window.chartInstances['c1'] = new Chart(document.getElementById('comp-canvas-1').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: d1, backgroundColor: '#3498db' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            
             if(window.chartInstances['c2']) window.chartInstances['c2'].destroy();
             window.chartInstances['c2'] = new Chart(document.getElementById('comp-canvas-2').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: d2, backgroundColor: '#e67e22' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
         };
@@ -579,6 +651,20 @@
             window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][window.histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
         };
 
+        window.focusCannon = function(id) {
+            if(!window.geojsonLayer) return;
+            window.geojsonLayer.eachLayer(function(l) {
+                if (l.feature.properties.id === id) {
+                    window.selectedCannonsMap.clear();
+                    window.selectedCannonsMap.set(id, l);
+                    window.map.setView(l.getLatLng(), 17);
+                    window.updateMap();
+                    window.renderSelectionPanel();
+                    document.getElementById('right-sidebar').classList.add('open');
+                }
+            });
+        };
+
         // ==============================================================
         // 7. GESTION BASE DE DONNÉES LOCALE (INDEXEDDB)
         // ==============================================================
@@ -594,7 +680,6 @@
                     window.localDB = event.target.result;
                     window.loadSavedLayersFromDB(); 
                 };
-                request.onerror = function(e) { console.warn("IndexedDB refusé (Mode Privé ?)."); };
             } catch(e) {}
         };
 
@@ -642,8 +727,10 @@
 
         window.fetchWithTimeout = async function(resource, options = {}) {
             let finalUrl = resource;
-            if(!resource.includes('raw.githubusercontent')) { finalUrl += (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime(); }
-            
+            if(!resource.includes('raw.githubusercontent')) {
+                finalUrl += (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+            }
+
             const controller = window.AbortController ? new AbortController() : null;
             if (controller) options.signal = controller.signal;
 
@@ -1076,8 +1163,6 @@
 
             window.generateDynamicFiltersUI();
             window.renderCloudLayersList();
-            
-            // LA FONCTION MANQUANTE ETAIT ICI !
             window.calculateMaxes();
 
             window.geojsonLayer = L.geoJSON(window.snowCannons, {
@@ -1091,7 +1176,6 @@
                         if (window.selectedCannonsMap.has(id)) window.selectedCannonsMap.delete(id); else window.selectedCannonsMap.set(id, layer);
                         window.updateMap(); window.renderSelectionPanel();
                         if (window.selectedCannonsMap.size > 0) document.getElementById('right-sidebar').classList.add('open');
-                        else document.getElementById('right-sidebar').classList.remove('open');
                     });
                 }
             }).addTo(map);
@@ -1157,8 +1241,8 @@
 
             document.querySelectorAll('input[name="hist_metric"]').forEach(r => { r.addEventListener('change', e => { window.histMetric = e.target.value; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart(); }); });
             document.getElementById('season-slider').addEventListener('input', e => { window.histSeasonIdx = parseInt(e.target.value); document.getElementById('season-display').innerText = window.saisonsList[window.histSeasonIdx]; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart(); });
-            document.getElementById('slider-min').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val > window.currentMaxThreshold[window.histMetric]) { val = window.currentMaxThreshold[window.histMetric]; e.target.value = val; } window.currentMinThreshold[window.histMetric] = val; document.getElementById('val-min').innerText = val; window.updateMap(); });
-            document.getElementById('slider-max').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val < window.currentMinThreshold[window.histMetric]) { val = window.currentMinThreshold[window.histMetric]; e.target.value = val; } window.currentMaxThreshold[window.histMetric] = val; document.getElementById('val-max').innerText = val; window.updateMap(); });
+            document.getElementById('slider-min').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val > window.currentMaxThreshold[window.histMetric]) { val = window.currentMaxThreshold[window.histMetric]; e.target.value = val; } window.currentMinThreshold[window.histMetric] = val; document.getElementById('val-min').innerText = val; window.updateMap(); window.triggerGlobalFilterChart();});
+            document.getElementById('slider-max').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val < window.currentMinThreshold[window.histMetric]) { val = window.currentMinThreshold[window.histMetric]; e.target.value = val; } window.currentMaxThreshold[window.histMetric] = val; document.getElementById('val-max').innerText = val; window.updateMap(); window.triggerGlobalFilterChart();});
             document.getElementById('dynamic-filters-container').addEventListener('change', e => { if(e.target.classList.contains('filter-select')) window.renderCheckboxesForFilter(e.target.getAttribute('data-idx'), e.target.value); });
         
             if(window.map) {
@@ -1173,9 +1257,6 @@
             }
         };
 
-        // ==============================================================
-        // LES FONCTIONS VITALES MANQUANTES SONT BIEN LÀ !
-        // ==============================================================
         window.calculateMaxes = function() {
             if(!window.saisonsList[window.histSeasonIdx]) return;
             let s = window.saisonsList[window.histSeasonIdx]; window.absoluteMaxes = { eau: 0, air: 0, temps: 0 };
@@ -1202,6 +1283,7 @@
             let html = `<div style="background:#eafaf1; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px; border:1px solid #d5f5e3;"><span style="font-size:24px; font-weight:bold; color:#27ae60;">${visibleCannons.length}</span><br><span style="font-size:12px; color:#555; text-transform:uppercase;">Canons affichés</span></div>`;
 
             let chartLabels = []; let chartData = []; let chartColors = []; let chartType = 'bar';
+            let chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
 
             if (window.mainTheme === 'defauts') {
                 document.getElementById('right-title').innerText = "📊 Analyse : Défauts";
@@ -1224,7 +1306,26 @@
                 chartColors = ['#e74c3c', '#f39c12', '#bdc3c7'];
                 chartType = 'doughnut';
 
-                html += `<div class="piste-chart-container"><div style="height:180px;position:relative;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                let total = cUrgent + cEnCours + cRas;
+                let faultPerc = total > 0 ? (((cUrgent + cEnCours) / total) * 100).toFixed(1) : 0;
+
+                chartOptions.plugins.legend = { position: 'right', labels: { boxWidth: 12, font: {size: 11} } };
+                chartOptions.plugins.tooltip = {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.parsed || 0;
+                            let total = context.chart._metasets[context.datasetIndex].total;
+                            let perc = total > 0 ? ((value/total)*100).toFixed(1) : 0;
+                            return `${label} : ${value} (${perc}%)`;
+                        }
+                    }
+                };
+
+                html += `<div class="piste-chart-container">
+                            <div style="text-align:center; font-size:16px; font-weight:bold; color:#e74c3c; margin-bottom:5px;">Taux de pannes : ${faultPerc}%</div>
+                            <div style="height:180px;position:relative;"><canvas id="global-filter-chart"></canvas></div>
+                         </div>`;
                 
                 html += `<div style="font-size:13px; font-weight:bold; margin-top:15px; border-bottom:2px solid #eee; padding-bottom:5px;">Liste détaillée des défauts :</div>`;
                 if (activeList.length === 0) {
@@ -1305,23 +1406,16 @@
             }
 
             document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none';
-            document.getElementById('selected-list').innerHTML = html; document.getElementById('right-sidebar').classList.add('open');
+            document.getElementById('selected-list').innerHTML = html; 
 
             setTimeout(() => {
                 let ctx = document.getElementById('global-filter-chart'); if(!ctx) return;
                 if(window.chartInstances['global-filter-chart']) window.chartInstances['global-filter-chart'].destroy();
                 
-                let options = { responsive: true, maintainAspectRatio: false };
-                if (chartType === 'doughnut') {
-                    options.plugins = { legend: { position: 'right', labels: { boxWidth: 12, font: {size: 11} } } };
-                } else {
-                    options.plugins = { legend: { display: false } };
-                }
-
                 window.chartInstances['global-filter-chart'] = new Chart(ctx.getContext('2d'), { 
                     type: chartType, 
                     data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors, borderRadius: chartType==='bar'?4:0 }] }, 
-                    options: options 
+                    options: chartOptions 
                 });
             }, 50);
         };
@@ -1474,10 +1568,10 @@
 
                 if (!vis) {
                     p._isVisible = false;
-                    if (map.hasLayer(layer)) map.removeLayer(layer);
+                    if (window.map.hasLayer(layer)) window.map.removeLayer(layer);
                 } else {
                     p._isVisible = true;
-                    if (!map.hasLayer(layer)) map.addLayer(layer);
+                    if (!window.map.hasLayer(layer)) window.map.addLayer(layer);
 
                     let rad = 12; let ratio = 0;
                     if (window.mainTheme === 'historique') { let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
@@ -1503,22 +1597,39 @@
             });
         };
 
-        // BOOT FORCE EN DERNIER RECOURS SI DOMContentLoaded NE SE DECLENCHE PAS
-        setTimeout(function() {
-            if (!window.map) {
-                console.log("Démarrage de secours activé...");
-                try {
-                    let satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
-                    map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
-                    L.control.zoom({ position: 'bottomright' }).addTo(map);
-                    window.initLocalDB();
-                    window.fetchGoogleSheetsData();
-                } catch(e) {
-                    window.showCrash(e.message, "Moteur Démarrage Secours");
+        // ==============================================================
+        // 11. BOOTLOADER SECURISE POUR BROWSER RECALCITRANTS
+        // ==============================================================
+        async function bootApp() {
+            if(window.bootAttempt > 0) return;
+            window.bootAttempt = 1;
+            try {
+                window.setStep(0, "Initialisation de la carte...");
+                
+                let retries = 0;
+                while ((typeof L === 'undefined' || typeof JSZip === 'undefined') && retries < 50) {
+                    await new Promise(r => setTimeout(r, 100));
+                    retries++;
                 }
-            }
-        }, 1500);
 
+                if (typeof L === 'undefined') throw new Error("Les outils de la carte n'ont pas pu être téléchargés. Un pare-feu bloque l'accès.");
+
+                window.satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+                window.map = L.map('map', {zoomControl: false, layers: [window.satLayer]}).setView([42.766, 0.564], 14);
+                L.control.zoom({ position: 'bottomright' }).addTo(window.map);
+
+                window.initLocalDB();
+                await window.fetchGoogleSheetsData();
+            } catch (err) {
+                window.showCrash(err.message, "Boot Principal");
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootApp);
+        } else {
+            bootApp();
+        }
     </script>
 </body>
 </html>
