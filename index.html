@@ -7,7 +7,6 @@
     
     <script>
         window.onerror = function(message, source, lineno) {
-            document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('loading-spinner').style.display = 'none';
             document.getElementById('loading-title').innerText = "🛑 CRASH SYSTÈME";
             document.getElementById('loading-title').style.color = "#e74c3c";
@@ -108,7 +107,8 @@
     </style>
 </head>
 <body>
-    <datalist id="list-suggestions"></datalist>
+    
+    <div id="datalists-container"></div> 
 
     <div id="loading-overlay">
         <div class="spinner" id="loading-spinner"></div>
@@ -264,17 +264,6 @@
         function setStep(step, desc) {
             document.getElementById('loading-step').innerText = "Étape " + step + "/4";
             document.getElementById('loading-desc').innerText = desc;
-        }
-
-        function showError(msg) {
-            document.getElementById('loading-overlay').style.display = 'flex';
-            document.getElementById('loading-spinner').style.display = 'none';
-            document.getElementById('loading-title').innerText = "🛑 Erreur détectée";
-            document.getElementById('loading-title').style.color = "#e74c3c";
-            document.getElementById('loading-desc').style.display = 'none';
-            document.getElementById('loading-step').style.display = 'none';
-            document.getElementById('error-box').style.display = 'block';
-            document.getElementById('error-msg').innerHTML = msg;
         }
 
         const getIdx = (headers, nomsCherches) => {
@@ -439,15 +428,23 @@
                         initApp(); 
                         document.getElementById('loading-overlay').style.display = 'none';
                     } catch(err) {
-                        showError("Erreur pendant l'affichage de la carte : " + err.message);
+                        // Affichera l'erreur si initApp plante
+                        throw new Error(err.message);
                     }
                 }, 1500);
 
             } catch (error) { 
+                document.getElementById('loading-spinner').style.display = 'none';
+                document.getElementById('loading-title').innerText = "🛑 Erreur détectée";
+                document.getElementById('loading-title').style.color = "#e74c3c";
+                document.getElementById('loading-desc').style.display = 'none';
+                document.getElementById('loading-step').style.display = 'none';
+                document.getElementById('error-box').style.display = 'block';
+                
                 if(error.name === 'AbortError') {
-                    showError("Délai d'attente dépassé (Timeout). Google met trop de temps à répondre. Réessayez ou vérifiez l'URL de votre script.");
+                    document.getElementById('error-msg').innerHTML = "Délai d'attente dépassé (Timeout). Google met trop de temps à répondre.";
                 } else {
-                    showError(error.message); 
+                    document.getElementById('error-msg').innerHTML = error.message; 
                 }
             }
         }
@@ -493,6 +490,7 @@
                 let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-');
                 dlHtml += `<datalist id="${safeId}">${Array.from(columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`;
             }
+            // Le fameux conteneur est désormais bien présent !
             document.getElementById('datalists-container').innerHTML = dlHtml;
 
             if (saisonsList.length > 0) {
@@ -617,6 +615,7 @@
             renderSelectionPanel();
         }
 
+        // SAUVEGARDE
         document.getElementById('btn-save-edit').addEventListener('click', async () => {
             if (!currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); btn.innerText = "⏳ Envoi..."; btn.disabled = true;
@@ -845,8 +844,6 @@
             document.getElementById('allow-move-chk').checked = false; 
             document.getElementById('view-selection').style.display = 'none'; document.getElementById('view-edit').style.display = 'block';
             document.getElementById('right-header').classList.add('editing'); document.getElementById('right-title').innerText = "✏️ Édition Complète";
-            
-            if (!map.hasLayer(layer)) map.addLayer(layer);
             updateMap(); 
         }
 
@@ -892,53 +889,57 @@
         }
 
         function updateMap() {
-            if(!geojsonLayer) return;
-            let s = saisonsList[histSeasonIdx];
+            try {
+                if(!geojsonLayer) return;
+                let s = saisonsList[histSeasonIdx];
 
-            geojsonLayer.eachLayer(function(layer) {
-                const p = layer.feature.properties; let vis = true;
-                
-                if (currentPistes && !currentPistes.includes('all')) { if (!currentPistes.includes(getV(p, keyPiste))) vis = false; }
-                if (currentTypes && !currentTypes.includes('all')) { if (!currentTypes.includes(getV(p, keyType).toLowerCase())) vis = false; }
-                if (currentVannes && !currentVannes.includes('all')) { if (!currentVannes.includes(getV(p, keyVanne))) vis = false; }
-                if (currentModules && !currentModules.includes('all')) { if (!currentModules.includes(getV(p, keyModule))) vis = false; }
+                geojsonLayer.eachLayer(function(layer) {
+                    const p = layer.feature.properties; let vis = true;
+                    
+                    if (currentPistes && !currentPistes.includes('all')) { if (!currentPistes.includes(getV(p, keyPiste))) vis = false; }
+                    if (currentTypes && !currentTypes.includes('all')) { if (!currentTypes.includes(getV(p, keyType).toLowerCase())) vis = false; }
+                    if (currentVannes && !currentVannes.includes('all')) { if (!currentVannes.includes(getV(p, keyVanne))) vis = false; }
+                    if (currentModules && !currentModules.includes('all')) { if (!currentModules.includes(getV(p, keyModule))) vis = false; }
 
-                activeFilters.forEach(filt => {
-                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
-                        let val = getV(p, filt.key);
-                        if(!filt.vals.includes(val)) vis = false;
+                    activeFilters.forEach(filt => {
+                        if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
+                            let val = getV(p, filt.key);
+                            if(!filt.vals.includes(val)) vis = false;
+                        }
+                    });
+
+                    let val = 0;
+                    if (mainTheme === 'historique') {
+                        val = p.historique[s] ? p.historique[s][histMetric] : 0;
+                        if (val < currentMinThreshold[histMetric] || val > currentMaxThreshold[histMetric]) vis = false;
+                    }
+
+                    if (!vis) {
+                        p._isVisible = false;
+                        if (map.hasLayer(layer)) map.removeLayer(layer);
+                    } else {
+                        p._isVisible = true;
+                        if (!map.hasLayer(layer)) map.addLayer(layer);
+
+                        let rad = 12; let ratio = 0;
+                        if (mainTheme === 'historique') { let maxVal = absoluteMaxes[histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
+                        
+                        let bg = getColorByFilter(ratio, p);
+                        let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
+
+                        let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
+                        if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
+                        else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
+                        else { layer.setZIndexOffset(0); }
+
+                        let actClass = (mainTheme === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
+
+                        layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
                     }
                 });
-
-                let val = 0;
-                if (mainTheme === 'historique') {
-                    val = p.historique[s] ? p.historique[s][histMetric] : 0;
-                    if (val < currentMinThreshold[histMetric] || val > currentMaxThreshold[histMetric]) vis = false;
-                }
-
-                if (!vis) {
-                    p._isVisible = false;
-                    if (map.hasLayer(layer)) map.removeLayer(layer);
-                } else {
-                    p._isVisible = true;
-                    if (!map.hasLayer(layer)) map.addLayer(layer);
-
-                    let rad = 12; let ratio = 0;
-                    if (mainTheme === 'historique') { let maxVal = absoluteMaxes[histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
-                    
-                    let bg = getColorByFilter(ratio, p);
-                    let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
-
-                    let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
-                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
-                    else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
-                    else { layer.setZIndexOffset(0); }
-
-                    let actClass = (mainTheme === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
-
-                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
-                }
-            });
+            } catch(e) {
+                console.error(e);
+            }
         }
     </script>
 </body>
