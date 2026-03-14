@@ -6,7 +6,7 @@
     <title>GMAO Neige - Mode Expert BI</title>
     
     <script>
-        window.showCrash = function(msg, line) {
+        function showCrash(msg, line) {
             let overlay = document.getElementById('loading-overlay');
             if (overlay) {
                 overlay.style.display = 'flex';
@@ -16,15 +16,17 @@
                 if(document.getElementById('loading-step')) document.getElementById('loading-step').style.display = 'none';
                 document.getElementById('error-box').style.display = 'block';
                 document.getElementById('error-msg').innerHTML = "<b>Détail :</b> " + msg + (line ? "<br><b>Lieu :</b> " + line : "");
+            } else {
+                alert("🛑 CRASH : " + msg);
             }
-        };
+        }
         window.onerror = function(message, source, lineno) { 
             if (message === 'Script error.' || message.indexOf('Script error') > -1) return false; 
-            window.showCrash(message, lineno); 
+            showCrash(message, lineno); 
             return true; 
         };
         window.addEventListener('unhandledrejection', function(event) { 
-            window.showCrash(event.reason ? event.reason.message : "Erreur réseau bloquée", "Réseau/Promesse"); 
+            showCrash(event.reason ? event.reason.message : "Erreur réseau bloquée", "Réseau/Promesse"); 
         });
     </script>
 
@@ -119,7 +121,6 @@
         .comp-controls { display: flex; gap: 15px; background: #fff; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ddd; align-items: flex-end; flex-wrap: wrap;}
         .comp-chart-box { background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 15px; height: 250px; position: relative;}
 
-        /* CALQUES KML/KMZ - UI COULEUR & EPAISSEUR */
         .kml-layer-item { display:flex; align-items:center; background:#fff; padding:8px 10px; border:1px solid #ddd; border-radius:4px; margin-bottom:8px; font-size:12px; font-weight:bold; }
         .layer-color-picker { width:24px; height:24px; padding:0; border:none; border-radius:4px; cursor:pointer; flex-shrink:0; outline:1px solid #ccc;}
         .layer-weight-picker { width:35px; height:22px; padding:2px; border:1px solid #ccc; border-radius:4px; text-align:center; font-size:12px; margin-left:5px;}
@@ -139,14 +140,14 @@
     </div>
 
     <div id="compare-modal">
-        <div class="comp-header"><span>📊 Comparaison Globale de Saisons</span><button onclick="window.openGlobalCompareModal(false)" style="background:none;border:none;color:white;cursor:pointer;font-size:24px;">&times;</button></div>
+        <div class="comp-header"><span>📊 Comparaison Globale de Saisons</span><button onclick="openGlobalCompareModal(false)" style="background:none;border:none;color:white;cursor:pointer;font-size:24px;">&times;</button></div>
         <div class="comp-body">
             <div class="comp-controls">
                 <div style="flex:1; min-width: 120px;"><div class="edit-label">Filtre Piste</div><select id="comp-piste" class="edit-input" style="margin:0;"><option value="all">Toutes les pistes</option></select></div>
                 <div style="flex:1; min-width: 120px;"><div class="edit-label">Donnée</div><select id="comp-metric" class="edit-input" style="margin:0;"><option value="eau">Eau (m³)</option><option value="air">Air</option><option value="temps">Temps de marche</option></select></div>
                 <div style="flex:1; min-width: 120px;"><div class="edit-label">Saison A</div><select id="comp-s1" class="edit-input" style="margin:0;"></select></div>
                 <div style="flex:1; min-width: 120px;"><div class="edit-label">Saison B</div><select id="comp-s2" class="edit-input" style="margin:0;"></select></div>
-                <button class="btn-action-primary" style="margin:0; width:auto; padding:10px 20px;" onclick="window.renderGlobalComparison()">Comparer</button>
+                <button class="btn-action-primary" style="margin:0; width:auto; padding:10px 20px;" onclick="renderGlobalComparison()">Comparer</button>
             </div>
             <div class="comp-chart-box"><div style="position:absolute; top:5px; left:15px; font-weight:bold; font-size:12px; color:#555;" id="comp-title-1">Saison A</div><canvas id="comp-canvas-1"></canvas></div>
             <div class="comp-chart-box"><div style="position:absolute; top:5px; left:15px; font-weight:bold; font-size:12px; color:#555;" id="comp-title-2">Saison B</div><canvas id="comp-canvas-2"></canvas></div>
@@ -163,7 +164,6 @@
             <details class="panel-section" open>
                 <summary>1. Thème & Légende</summary>
                 <div class="section-content" style="padding-top: 10px;">
-                    
                     <div class="theme-block">
                         <label class="radio-card" id="lbl-defauts" style="border-radius: 6px 6px 0 0; margin-bottom: 0; border-color: #3498db;"><input type="radio" name="main_theme" value="defauts" checked> 🚨 Défauts en cours</label>
                         <div class="theme-details" id="details-defauts" style="display: block; border-color: #3498db;">
@@ -216,7 +216,7 @@
                                 <div class="slider-label" style="margin-top:12px;">Cacher au dessus de : <span id="val-max" class="val-badge" style="color:#2980b9;">100</span></div>
                                 <input type="range" id="slider-max" min="0" max="100" value="100">
                             </div>
-                            <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="window.openGlobalCompareModal(true)">📊 Comparer 2 Saisons</button>
+                            <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal(true)">📊 Comparer 2 Saisons</button>
                         </div>
                     </div>
                 </div>
@@ -254,7 +254,7 @@
                     <p style="font-size:11px; color:#666; margin-bottom:10px; line-height:1.4;">
                         <b>2. Import Manuel depuis votre PC :</b>
                     </p>
-                    <input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="window.handleKMLUpload(event)">
+                    <input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="handleKMLUpload(event)">
                     <button class="btn-action-primary" style="margin-top:0; background:#8e44ad;" onclick="document.getElementById('kml-upload').click()">📂 Importer / Parcourir...</button>
                     <div id="custom-layers-list" style="margin-top:15px;"></div>
                 </div>
@@ -263,7 +263,7 @@
 
         <div id="map-container">
             <div id="map-controls-tr">
-                <button id="btn-multi-toggle" class="map-btn" onclick="window.toggleMultiSelect()">🔲 Sélection Multiple : OFF</button>
+                <button id="btn-multi-toggle" class="map-btn" onclick="toggleMultiSelect()">🔲 Sélection Multiple : OFF</button>
             </div>
             <div id="map"></div>
         </div>
@@ -271,14 +271,14 @@
         <div id="right-sidebar">
             <div class="right-header" id="right-header">
                 <span id="right-title">📌 Analyse Détaillée</span>
-                <button onclick="window.closeRightSidebar()" style="background:none; border:none; color:#bdc3c7; font-size:28px; cursor:pointer;">&times;</button>
+                <button onclick="closeRightSidebar()" style="background:none; border:none; color:#bdc3c7; font-size:28px; cursor:pointer;">&times;</button>
             </div>
             
             <div class="right-content">
                 <div id="view-selection">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;" id="multi-tools">
                         <span style="font-size:13px; color:#555;"><b id="sel-count">0</b> canon(s) ciblé(s)</span>
-                        <button onclick="window.clearSelection()" style="background:#bdc3c7; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">Tout vider ✕</button>
+                        <button onclick="clearSelection()" style="background:#bdc3c7; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">Tout vider ✕</button>
                     </div>
                     <div id="selected-list"></div>
                 </div>
@@ -297,8 +297,8 @@
                     </div>
                     <div id="dynamic-edit-fields"></div>
                     <div style="display:flex; gap:10px; margin-top:20px;">
-                        <button onclick="window.cancelEdit()" style="flex:1; background:#ecf0f1; color:#333; padding:12px; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">Annuler</button>
-                        <button id="btn-save-edit" onclick="window.saveEditData()" style="flex:2; background:#27ae60; color:white; padding:12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
+                        <button onclick="cancelEdit()" style="flex:1; background:#ecf0f1; color:#333; padding:12px; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">Annuler</button>
+                        <button id="btn-save-edit" onclick="saveEditData()" style="flex:2; background:#27ae60; color:white; padding:12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
                     </div>
                 </div>
             </div>
@@ -309,72 +309,72 @@
         // =======================================================
         // 1. CONFIGURATION & VARIABLES GLOBALES 
         // =======================================================
+        
+        // ⚠️ LIEN GOOGLE APPS SCRIPT (À VÉRIFIER) ⚠️
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
         
-        window.map = null;
-        window.satLayer = null;
-        window.snowCannons = { "type": "FeatureCollection", "features": [] };
-        window.rawTickets = []; window.saisonsList = []; window.cloudKmzLayers = [];
-        window.isMultiSelect = false; window.columnValuesSets = {}; window.availableColumns = [];
-        window.mainTheme = 'defauts'; window.histMetric = 'eau'; window.histSeasonIdx = 0;
-        window.absoluteMaxes = { eau: 0, air: 0, temps: 0 }; 
-        window.currentMaxThreshold = { eau: 100, air: 100, temps: 100 }; 
-        window.currentMinThreshold = { eau: 0, air: 0, temps: 0 };
-        window.activeFilters = [ {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]} ];
-        window.currentPistes = ['all']; window.currentTypes = ['all']; window.currentVannes = ['all']; window.currentModules = ['all'];
-        window.geojsonLayer = null; window.chartInstances = {}; window.selectedCannonsMap = new Map(); window.currentlyEditingId = null; 
-        window.technoColors = {}; window.repColors = {}; window.transfoColors = {};
-        window.externalLayers = {}; 
-        window.defaultColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
-        window.keyPiste = ""; window.keyType = ""; window.keyRep = ""; window.keyTransfo = ""; window.keyVanne = ""; window.keyModule = "";
-        window.localDB = null;
+        let map;
+        let snowCannons = { "type": "FeatureCollection", "features": [] };
+        let rawTickets = []; let saisonsList = []; let cloudKmzLayers = [];
+        let isMultiSelect = false; let columnValuesSets = {}; let availableColumns = [];
+        let mainTheme = 'defauts'; let histMetric = 'eau'; let histSeasonIdx = 0;
+        let absoluteMaxes = { eau: 0, air: 0, temps: 0 }; 
+        let currentMaxThreshold = { eau: 100, air: 100, temps: 100 }; 
+        let currentMinThreshold = { eau: 0, air: 0, temps: 0 };
+        let activeFilters = [ {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]} ];
+        let currentPistes = ['all'], currentTypes = ['all'], currentVannes = ['all'], currentModules = ['all'];
+        let geojsonLayer = null; let chartInstances = {}; let selectedCannonsMap = new Map(); let currentlyEditingId = null; 
+        let technoColors = {}, repColors = {}, transfoColors = {};
+        let externalLayers = {}; 
+        const defaultColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+        let keyPiste = "", keyType = "", keyRep = "", keyTransfo = "", keyVanne = "", keyModule = "";
 
         // =======================================================
-        // 2. FONCTIONS DE LECTURE DONNÉES
+        // 2. FONCTIONS DE LECTURE (SÉCURISÉES)
         // =======================================================
-        window.getV = function(p, key) { 
+        function getV(p, key) { 
             if(!key || !p || !p.fullData) return "N/A"; 
             let o = p.fullData.find(x => x.k === key); 
             return o ? o.v.toString().trim() : "N/A"; 
-        };
-        window.getTicketsForCanon = function(idCanon) { return window.rawTickets.filter(t => t.idCanon === idCanon); };
-        window.getActiveTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
-        window.getHistoryTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
+        }
+        function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); }
+        function getActiveTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); }
+        function getHistoryTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); }
 
         // ==============================================================
-        // 3. BOUTONS CARTE & SIDEBAR
+        // 3. TOUTES LES FONCTIONS DES BOUTONS DE L'INTERFACE
         // ==============================================================
-        window.toggleMultiSelect = function() {
-            window.isMultiSelect = !window.isMultiSelect; const btn = document.getElementById('btn-multi-toggle');
-            if(window.isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; } 
-            else { btn.classList.remove('active'); btn.innerText = "🔲 Multi-Sélection : OFF"; if(window.selectedCannonsMap.size > 1) window.clearSelection(); }
-            window.renderSelectionPanel();
-        };
+        function toggleMultiSelect() {
+            isMultiSelect = !isMultiSelect; const btn = document.getElementById('btn-multi-toggle');
+            if(isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; } 
+            else { btn.classList.remove('active'); btn.innerText = "🔲 Multi-Sélection : OFF"; if(selectedCannonsMap.size > 1) clearSelection(); }
+            renderSelectionPanel();
+        }
 
-        window.closeRightSidebar = function() { 
+        function closeRightSidebar() { 
             document.getElementById('right-sidebar').classList.remove('open'); 
-            if(window.currentlyEditingId) window.cancelEdit(); 
-            window.clearSelection(); 
-        };
+            if(currentlyEditingId) cancelEdit(); 
+            clearSelection(); 
+        }
 
-        window.clearSelection = function() { 
-            window.selectedCannonsMap.clear(); 
-            window.updateMap(); 
-            window.renderSelectionPanel(); 
-            window.triggerGlobalFilterChart(); 
-        };
+        function clearSelection() { 
+            selectedCannonsMap.clear(); 
+            updateMap(); 
+            renderSelectionPanel(); 
+            triggerGlobalFilterChart(); 
+        }
 
-        window.cancelEdit = function() {
-            window.currentlyEditingId = null; 
+        function cancelEdit() {
+            currentlyEditingId = null; 
             document.getElementById('view-selection').style.display = 'block'; 
             document.getElementById('view-edit').style.display = 'none';
             document.getElementById('right-header').classList.remove('editing'); 
             document.getElementById('right-title').innerText = "📌 Fiche Détaillée";
-            window.updateMap(); window.renderSelectionPanel();
-        };
+            updateMap(); renderSelectionPanel();
+        }
 
-        window.saveEditData = async function() {
-            if (!window.currentlyEditingId) return;
+        async function saveEditData() {
+            if (!currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); btn.innerText = "⏳ Envoi..."; btn.disabled = true;
             let fieldsObj = {}; document.querySelectorAll('.dyn-field').forEach(inp => { fieldsObj[inp.getAttribute('data-key')] = inp.value; });
             const payload = { id: document.getElementById('edit-id').value, lat: parseFloat(document.getElementById('edit-lat').value), lng: parseFloat(document.getElementById('edit-lng').value), fields: fieldsObj };
@@ -383,19 +383,19 @@
                 const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) });
                 const result = await response.json();
                 if(result.status === "success") {
-                    const layer = window.selectedCannonsMap.get(window.currentlyEditingId); const p = layer.feature.properties;
+                    const layer = selectedCannonsMap.get(currentlyEditingId); const p = layer.feature.properties;
                     p.fullData.forEach(item => { if(fieldsObj[item.k] !== undefined) item.v = fieldsObj[item.k]; });
-                    let tLower = window.getV(p, window.keyType).toLowerCase().trim();
-                    if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = window.technoColors[tLower] || "#FFD700";
+                    let tLower = getV(p, keyType).toLowerCase().trim();
+                    if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = technoColors[tLower] || "#FFD700";
                     layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lng]);
-                    window.cancelEdit();
+                    cancelEdit();
                 } else alert("Erreur Google : " + result.message);
             } catch (err) { alert("Échec réseau."); }
             btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
-        };
+        }
 
-        window.startEdit = function(id) {
-            window.currentlyEditingId = id; const layer = window.selectedCannonsMap.get(id); const p = layer.feature.properties;
+        function startEdit(id) {
+            currentlyEditingId = id; const layer = selectedCannonsMap.get(id); const p = layer.feature.properties;
             document.getElementById('edit-id-display').innerText = p.id; document.getElementById('edit-id').value = p.id;
             document.getElementById('edit-lat').value = layer.getLatLng().lat.toFixed(7); document.getElementById('edit-lng').value = layer.getLatLng().lng.toFixed(7);
             
@@ -410,34 +410,34 @@
             document.getElementById('allow-move-chk').checked = false; 
             document.getElementById('view-selection').style.display = 'none'; document.getElementById('view-edit').style.display = 'block';
             document.getElementById('right-header').classList.add('editing'); document.getElementById('right-title').innerText = "✏️ Édition Complète";
-            window.updateMap(); 
-        };
+            updateMap(); 
+        }
 
         // ==============================================================
         // 4. SURBRILLANCE & LEGENDE
         // ==============================================================
-        window.highlightLegend = function(theme, val) {
+        function highlightLegend(theme, val) {
             if (theme === 'historique') return; 
-            if(!window.geojsonLayer) return;
-            window.geojsonLayer.eachLayer(function(layer) {
+            if(!geojsonLayer) return;
+            geojsonLayer.eachLayer(function(layer) {
                 if(!layer.feature.properties._isVisible) return;
                 let p = layer.feature.properties;
                 let match = false;
                 
                 if (theme === 'defauts') {
-                    let act = window.getActiveTickets(p.id);
+                    let act = getActiveTickets(p.id);
                     if (val === 'urgent' && act.some(t => t.statut.includes('faire'))) match = true;
                     else if (val === 'encours' && act.some(t => t.statut.includes('cours'))) match = true;
                     else if (val === 'ras' && act.length === 0) match = true;
                 } else if (theme === 'type') {
-                    let tLower = window.getV(p, window.keyType).toLowerCase();
+                    let tLower = getV(p, keyType).toLowerCase();
                     if (val === 'demac' && ["demak lenko", "demac lenko"].includes(tLower)) match = true;
                     else if (val === 'sufag' && ["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) match = true;
                     else if (val === 'techno' && !["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(tLower) && tLower !== "n/a") match = true;
                 } else if (theme === 'repeteur') {
-                    if (window.getV(p, window.keyRep) === val) match = true;
+                    if (getV(p, keyRep) === val) match = true;
                 } else if (theme === 'transfo') {
-                    if (window.getV(p, window.keyTransfo) === val) match = true;
+                    if (getV(p, keyTransfo) === val) match = true;
                 }
 
                 if (match) {
@@ -456,30 +456,30 @@
                     }
                 }
             });
-        };
+        }
 
-        window.resetHighlight = function() {
-            if(!window.geojsonLayer) return;
-            window.geojsonLayer.eachLayer(function(layer) {
+        function resetHighlight() {
+            if(!geojsonLayer) return;
+            geojsonLayer.eachLayer(function(layer) {
                 layer.setOpacity(1);
                 if(layer._icon) {
                     layer._icon.style.opacity = "1";
                     layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', '');
                 }
             });
-            window.updateMap();
-        };
+            updateMap();
+        }
 
         // ==============================================================
         // 5. EDITEUR COMPLET DE TICKETS 
         // ==============================================================
-        window.editFullTicket = function(canonId, defaut) {
+        function editFullTicket(canonId, defaut) {
             let safeDef = defaut.replace(/[^a-zA-Z0-9]/g, "");
             let idDiv = `ticket-edit-${canonId}-${safeDef}`;
             let el = document.getElementById(idDiv);
             if(!el) return;
             
-            let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut);
+            let ticket = rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut);
             if(!ticket) return;
 
             let html = '<div style="background:#f4f6f8; padding:10px; border-radius:4px; border:1px solid #ddd; margin-top:10px;">';
@@ -503,13 +503,13 @@
             });
 
             html += `<div style="display:flex; gap:10px; margin-top:12px;">
-                        <button onclick="window.renderSelectionPanel()" style="flex:1; padding:8px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
-                        <button onclick="window.saveFullTicket('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:8px; background:#2ecc71; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
+                        <button onclick="renderSelectionPanel()" style="flex:1; padding:8px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
+                        <button onclick="saveFullTicket('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:8px; background:#2ecc71; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
                     </div></div>`;
             el.innerHTML = html;
-        };
+        }
 
-        window.saveFullTicket = async function(canonId, defaut, idDiv) {
+        async function saveFullTicket(canonId, defaut, idDiv) {
             let btn = event.target;
             btn.innerText = "⏳..."; btn.disabled = true;
 
@@ -530,16 +530,16 @@
             let payload = { action: "update_ticket", idCanon: canonId, defaut: defaut, fields: fieldsObj };
 
             try {
-                const response = await window.fetchWithTimeout(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const response = await fetchWithTimeout(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) });
                 const result = await response.json();
                 if(result.status === "success") {
-                    let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut);
+                    let ticket = rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut);
                     if(ticket) {
                         ticket.fullData.forEach(d => { if(fieldsObj[d.k] !== undefined) d.v = fieldsObj[d.k]; });
                         if(newStatutForLocal) ticket.statut = newStatutForLocal.toLowerCase();
                     }
-                    window.renderSelectionPanel();
-                    window.updateMap();
+                    renderSelectionPanel();
+                    updateMap();
                 } else {
                     alert("Erreur: " + result.msg);
                     btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
@@ -548,32 +548,32 @@
                 alert("Échec réseau.");
                 btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
             }
-        };
+        }
 
         // ==============================================================
         // 6. COMPARAISONS GRAPHIQUES
         // ==============================================================
-        window.openGlobalCompareModal = function(show) {
+        function openGlobalCompareModal(show) {
             let m = document.getElementById('compare-modal');
             if(!show) { m.style.display = 'none'; return; }
             let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2'); let pList = document.getElementById('comp-piste');
             
             s1.innerHTML = ""; s2.innerHTML = "";
-            window.saisonsList.forEach((s, i) => {
+            saisonsList.forEach((s, i) => {
                 s1.innerHTML += `<option value="${s}" ${i===0?'selected':''}>${s}</option>`;
                 s2.innerHTML += `<option value="${s}" ${i===1?'selected':''}>${s}</option>`;
             });
 
             pList.innerHTML = `<option value="all">Toutes les pistes</option>`;
-            Array.from(window.columnValuesSets[window.keyPiste] || []).sort().forEach(p => {
+            Array.from(columnValuesSets[keyPiste] || []).sort().forEach(p => {
                 pList.innerHTML += `<option value="${p}">${p}</option>`;
             });
 
             m.style.display = 'flex';
-            window.renderGlobalComparison();
-        };
+            renderGlobalComparison();
+        }
 
-        window.renderGlobalComparison = function() {
+        function renderGlobalComparison() {
             let s1 = document.getElementById('comp-s1').value; let s2 = document.getElementById('comp-s2').value;
             let metric = document.getElementById('comp-metric').value;
             let targetPiste = document.getElementById('comp-piste').value;
@@ -583,11 +583,11 @@
             if (targetPiste === 'all') {
                 document.getElementById('comp-title-1').innerText = `Saison ${s1} - ${metric.toUpperCase()} (Toutes pistes)`;
                 document.getElementById('comp-title-2').innerText = `Saison ${s2} - ${metric.toUpperCase()} (Toutes pistes)`;
-                labels = Array.from(window.columnValuesSets[window.keyPiste] || []).sort();
+                labels = Array.from(columnValuesSets[keyPiste] || []).sort();
                 labels.forEach(p => {
                     let sum1 = 0; let sum2 = 0;
-                    window.snowCannons.features.forEach(f => {
-                        if (window.getV(f.properties, window.keyPiste) === p) {
+                    snowCannons.features.forEach(f => {
+                        if (getV(f.properties, keyPiste) === p) {
                             if(f.properties.historique[s1]) sum1 += f.properties.historique[s1][metric];
                             if(f.properties.historique[s2]) sum2 += f.properties.historique[s2][metric];
                         }
@@ -597,7 +597,7 @@
             } else {
                 document.getElementById('comp-title-1').innerText = `Saison ${s1} - ${metric.toUpperCase()} (Piste: ${targetPiste})`;
                 document.getElementById('comp-title-2').innerText = `Saison ${s2} - ${metric.toUpperCase()} (Piste: ${targetPiste})`;
-                let canons = window.snowCannons.features.filter(f => window.getV(f.properties, window.keyPiste) === targetPiste).sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
+                let canons = snowCannons.features.filter(f => getV(f.properties, keyPiste) === targetPiste).sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
                 labels = canons.map(c => c.properties.id);
                 canons.forEach(c => {
                     d1.push(c.properties.historique[s1] ? c.properties.historique[s1][metric] : 0);
@@ -605,100 +605,103 @@
                 });
             }
 
-            if(window.chartInstances['c1']) window.chartInstances['c1'].destroy();
-            window.chartInstances['c1'] = new Chart(document.getElementById('comp-canvas-1').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: d1, backgroundColor: '#3498db' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            if(chartInstances['c1']) chartInstances['c1'].destroy();
+            chartInstances['c1'] = new Chart(document.getElementById('comp-canvas-1').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: d1, backgroundColor: '#3498db' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
             
-            if(window.chartInstances['c2']) window.chartInstances['c2'].destroy();
-            window.chartInstances['c2'] = new Chart(document.getElementById('comp-canvas-2').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: d2, backgroundColor: '#e67e22' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-        };
+            if(chartInstances['c2']) chartInstances['c2'].destroy();
+            chartInstances['c2'] = new Chart(document.getElementById('comp-canvas-2').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: d2, backgroundColor: '#e67e22' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+        }
 
-        window.drawPisteCompareChart = function(targetCannon) {
+        function drawPisteCompareChart(targetCannon) {
             let canvasId = `chart-${targetCannon.id}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
-            if(window.chartInstances[canvasId]) window.chartInstances[canvasId].destroy();
-            let s = window.saisonsList[window.histSeasonIdx]; let pName = window.getV(targetCannon, window.keyPiste);
-            let pisteCannons = window.snowCannons.features.filter(f => window.getV(f.properties, window.keyPiste) === pName && f.properties.historique[s]);
+            if(chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            let s = saisonsList[histSeasonIdx]; let pName = getV(targetCannon, keyPiste);
+            let pisteCannons = snowCannons.features.filter(f => getV(f.properties, keyPiste) === pName && f.properties.historique[s]);
             pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
             let bgColors = pisteCannons.map(f => f.properties.id === targetCannon.id ? '#e74c3c' : '#3498db');
-            window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[s][window.histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
-        };
+            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[s][histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
+        }
 
-        window.drawSecondPisteChart = function(targetId, seasonStr) {
+        function drawSecondPisteChart(targetId, seasonStr) {
             let canvasId = `chart2-${targetId}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
-            if(window.chartInstances[canvasId]) { window.chartInstances[canvasId].destroy(); }
+            if(chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
             if(!seasonStr) return;
-            let targetCannon = window.snowCannons.features.find(f => f.properties.id === targetId).properties;
-            let pName = window.getV(targetCannon, window.keyPiste);
-            let pisteCannons = window.snowCannons.features.filter(f => window.getV(f.properties, window.keyPiste) === pName && f.properties.historique[seasonStr]);
+            let targetCannon = snowCannons.features.find(f => f.properties.id === targetId).properties;
+            let pName = getV(targetCannon, keyPiste);
+            let pisteCannons = snowCannons.features.filter(f => getV(f.properties, keyPiste) === pName && f.properties.historique[seasonStr]);
             pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
             let bgColors = pisteCannons.map(f => f.properties.id === targetId ? '#e74c3c' : '#9b59b6');
-            window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][window.histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
-        };
+            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
+        }
 
         // ==============================================================
         // 7. GESTION BASE DE DONNÉES LOCALE (INDEXEDDB)
         // ==============================================================
-        window.initLocalDB = function() {
+        function initLocalDB() {
             try {
                 if (!window.indexedDB) return;
                 const request = window.indexedDB.open("GMAONeigeDB", 2);
                 request.onupgradeneeded = function(event) {
-                    window.localDB = event.target.result;
-                    if (!window.localDB.objectStoreNames.contains("kmz_layers")) window.localDB.createObjectStore("kmz_layers", { keyPath: "id" });
+                    localDB = event.target.result;
+                    if (!localDB.objectStoreNames.contains("kmz_layers")) localDB.createObjectStore("kmz_layers", { keyPath: "id" });
                 };
                 request.onsuccess = function(event) {
-                    window.localDB = event.target.result;
-                    window.loadSavedLayersFromDB(); 
+                    localDB = event.target.result;
+                    loadSavedLayersFromDB(); 
+                };
+                request.onerror = function(e) {
+                    console.warn("IndexedDB refusé (Mode Privé ?).");
                 };
             } catch(e) {}
-        };
+        }
 
-        window.saveLayerToDB = function(id, name, geojson, color, weight) {
-            if(!window.localDB) return;
-            const tx = window.localDB.transaction("kmz_layers", "readwrite");
+        function saveLayerToDB(id, name, geojson, color, weight) {
+            if(!localDB) return;
+            const tx = localDB.transaction("kmz_layers", "readwrite");
             tx.objectStore("kmz_layers").put({ id: id, name: name, geojson: geojson, isVisible: true, color: color, weight: weight });
-        };
+        }
 
-        window.deleteLayerFromDB = function(id) {
-            if(!window.localDB) return;
-            const tx = window.localDB.transaction("kmz_layers", "readwrite");
+        function deleteLayerFromDB(id) {
+            if(!localDB) return;
+            const tx = localDB.transaction("kmz_layers", "readwrite");
             tx.objectStore("kmz_layers").delete(id);
-        };
+        }
 
-        window.updateLayerDataInDB = function(id, updates) {
-            if(!window.localDB) return;
-            const tx = window.localDB.transaction("kmz_layers", "readwrite");
+        function updateLayerDataInDB(id, updates) {
+            if(!localDB) return;
+            const tx = localDB.transaction("kmz_layers", "readwrite");
             const store = tx.objectStore("kmz_layers");
             const req = store.get(id);
             req.onsuccess = function() {
                 let data = req.result;
                 if(data) { Object.assign(data, updates); store.put(data); }
             };
-        };
+        }
 
-        window.loadSavedLayersFromDB = function() {
-            if(!window.localDB) return;
-            const tx = window.localDB.transaction("kmz_layers", "readonly");
+        function loadSavedLayersFromDB() {
+            if(!localDB) return;
+            const tx = localDB.transaction("kmz_layers", "readonly");
             const req = tx.objectStore("kmz_layers").getAll();
             req.onsuccess = function() {
-                req.result.forEach(item => { window.addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); });
+                req.result.forEach(item => { addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); });
             };
-        };
+        }
 
         // ==============================================================
         // 8. RÉSEAU ET DONNÉES GOOGLE SHEETS
         // ==============================================================
-        window.setStep = function(step, desc) {
+        function setStep(step, desc) {
             let elStep = document.getElementById('loading-step');
             let elDesc = document.getElementById('loading-desc');
             if (elStep) elStep.innerText = "Étape " + step + "/4";
             if (elDesc) elDesc.innerText = desc;
-        };
+        }
 
-        window.fetchWithTimeout = async function(resource, options = {}) {
-            const noCacheUrl = resource + (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-            
-            // Si on demande la data KML depuis github on évite d'ajouter ?t=... car ça peut casser l'URL brut
-            let finalUrl = resource.includes('raw.githubusercontent') ? resource : noCacheUrl;
+        async function fetchWithTimeout(resource, options = {}) {
+            let finalUrl = resource;
+            if(!resource.includes('raw.githubusercontent')) {
+                finalUrl += (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+            }
 
             const controller = window.AbortController ? new AbortController() : null;
             if (controller) options.signal = controller.signal;
@@ -706,23 +709,23 @@
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => {
                     if (controller) controller.abort();
-                    reject(new Error("Le serveur met trop de temps à répondre (> 15s)."));
+                    reject(new Error("Délai d'attente dépassé (15s). Le serveur ne répond pas."));
                 }, 15000);
             });
 
             return Promise.race([fetch(finalUrl, options), timeoutPromise]);
-        };
+        }
 
-        window.fetchGoogleSheetsData = async function() {
-            window.setStep(1, "Connexion au serveur Google...");
-            const response = await window.fetchWithTimeout(GOOGLE_API_URL);
+        async function fetchGoogleSheetsData() {
+            setStep(1, "Connexion au serveur Google...");
+            const response = await fetchWithTimeout(GOOGLE_API_URL);
             if (!response.ok) throw new Error("Accès refusé. Vérifiez l'URL de votre script.");
             
             let textData = await response.text();
             let data;
             try { data = JSON.parse(textData); } catch(e) { throw new Error("Format de données invalide depuis Google."); }
             
-            window.setStep(2, "Analyse du Tableau Général...");
+            setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
             
             const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
@@ -734,14 +737,14 @@
             const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
             if (idxXY === -1) throw new Error("La colonne 'xy' est introuvable.");
 
-            window.keyPiste = findCol(['pistes', 'piste']); window.keyType = findCol(['type canon', 'type']);
-            window.keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']);
-            window.keyTransfo = findCol(['transfo']); window.keyVanne = findCol(['vanne']); window.keyModule = findCol(['module']);
+            keyPiste = findCol(['pistes', 'piste']); keyType = findCol(['type canon', 'type']);
+            keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']);
+            keyTransfo = findCol(['transfo']); keyVanne = findCol(['vanne']); keyModule = findCol(['module']);
 
             originalHeaders.forEach(h => {
                 let hl = h.toLowerCase();
                 if(!hl.includes('xy') && !hl.includes('gps') && !hl.includes('photo')) {
-                    window.availableColumns.push(h); window.columnValuesSets[h] = new Set();
+                    availableColumns.push(h); columnValuesSets[h] = new Set();
                 }
             });
 
@@ -768,7 +771,7 @@
                 originalHeaders.forEach((head, i) => { 
                     let val = (i < row.length && row[i] != null && row[i] !== "") ? row[i].toString() : "N/A";
                     fullData.push({k: head, v: val}); 
-                    if(val !== "N/A" && window.columnValuesSets[head]) window.columnValuesSets[head].add(val.trim());
+                    if(val !== "N/A" && columnValuesSets[head]) columnValuesSets[head].add(val.trim());
                 });
 
                 if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
@@ -777,7 +780,7 @@
 
             if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté.");
 
-            window.setStep(3, "Analyse de l'Historique...");
+            setStep(3, "Analyse de l'Historique...");
             if (data.historique && data.historique.length > 1) {
                 const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim());
                 const idxCanons = 1; 
@@ -792,15 +795,15 @@
                         if (t.includes('eau')) colsEau[s] = i; if (t.includes('air')) colsAir[s] = i; if (t.includes('marche')) colsTemps[s] = i;
                     }
                 });
-                window.saisonsList = Array.from(saisonsSet).sort((a,b) => parseInt(a.split('/')[0]) - parseInt(b.split('/')[0]));
-                window.histSeasonIdx = window.saisonsList.length > 0 ? window.saisonsList.length - 1 : 0;
+                saisonsList = Array.from(saisonsSet).sort((a,b) => parseInt(a.split('/')[0]) - parseInt(b.split('/')[0]));
+                histSeasonIdx = saisonsList.length > 0 ? saisonsList.length - 1 : 0;
 
                 data.historique.slice(1).forEach(row => {
                     let rawId = row[idxCanons];
                     if (rawId != null && rawId !== "") {
                         let id = rawId.toString().replace(/^YA\s*/i, '').trim();
                         if (id && dictGeneral[id]) {
-                            window.saisonsList.forEach(s => {
+                            saisonsList.forEach(s => {
                                 dictGeneral[id].historique[s] = { eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 };
                             });
                         }
@@ -808,7 +811,7 @@
                 });
             }
 
-            window.setStep(4, "Préparation des Pannes & GitHub...");
+            setStep(4, "Préparation des Pannes & GitHub...");
             if (data.tickets && data.tickets.length > 1) {
                 const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
                 const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
@@ -818,7 +821,7 @@
                 const idxTDefaut = tHeaders.findIndex(h => h.includes('defaut') || h.includes('défaut'));
 
                 if(idxTRegard > -1) {
-                    window.rawTickets = data.tickets.slice(1).map(row => {
+                    rawTickets = data.tickets.slice(1).map(row => {
                         let fullTData = [];
                         originalTHeaders.forEach((h, i) => { if (i < row.length && row[i] != null && row[i] !== "") fullTData.push({k: h, v: row[i]}); });
                         return {
@@ -833,8 +836,8 @@
             }
 
             if (data.kmz && data.kmz.length > 0) {
-                window.cloudKmzLayers = data.kmz.map((k, index) => {
-                    let col = k.color ? k.color : window.defaultColors[index % window.defaultColors.length];
+                cloudKmzLayers = data.kmz.map((k, index) => {
+                    let col = k.color ? k.color : defaultColors[index % defaultColors.length];
                     let wei = k.weight ? parseInt(k.weight) : 4;
                     return { ...k, isVisible: false, leafletLayer: null, color: col, weight: wei };
                 });
@@ -842,7 +845,7 @@
 
             Object.values(dictGeneral).forEach(canon => {
                 if (canon.lat !== 0 && !isNaN(canon.lat)) { 
-                    window.snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon });
+                    snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon });
                 }
             });
 
@@ -850,18 +853,18 @@
             document.getElementById('loading-title').innerText = "✅ Chargement Réussi !";
             document.getElementById('loading-title').style.color = "#27ae60";
             if (document.getElementById('loading-step')) document.getElementById('loading-step').style.display = 'none';
-            document.getElementById('loading-desc').innerHTML = `${window.snowCannons.features.length} canons placés.`;
+            document.getElementById('loading-desc').innerHTML = `${snowCannons.features.length} canons placés.`;
             
             setTimeout(() => { 
-                window.initAppUI(); 
+                initAppUI(); 
                 document.getElementById('loading-overlay').style.display = 'none';
             }, 800);
-        };
+        }
 
         // ==============================================================
         // 9. GESTION DES CALQUES KML/KMZ (LOGIQUE LEAFLET)
         // ==============================================================
-        window.buildGeoJsonStyle = function(hexColor, weight) {
+        function buildGeoJsonStyle(hexColor, weight) {
             let finalWeight = weight ? parseInt(weight) : 4;
             return {
                 style: function (feature) { return { color: hexColor, weight: finalWeight, opacity: 0.8, fillColor: hexColor }; },
@@ -872,10 +875,10 @@
                     }
                 }
             };
-        };
+        }
 
-        window.fetchGitHubKMZ = async function(url) {
-            const response = await window.fetchWithTimeout(url);
+        async function fetchGitHubKMZ(url) {
+            const response = await fetchWithTimeout(url);
             if (!response.ok) throw new Error("GitHub refuse l'accès. Vérifiez l'URL.");
             
             let kmlString = "";
@@ -893,21 +896,21 @@
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(kmlString, "text/xml");
             return toGeoJSON.kml(xmlDoc);
-        };
+        }
 
-        window.renderCloudLayersList = function() {
+        function renderCloudLayersList() {
             const container = document.getElementById('cloud-layers-container');
             container.innerHTML = "";
-            if (window.cloudKmzLayers.length === 0) {
+            if (cloudKmzLayers.length === 0) {
                 container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré dans l'onglet 'kmz'.</p>`;
                 return;
             }
-            window.cloudKmzLayers.forEach((layer, idx) => {
+            cloudKmzLayers.forEach((layer, idx) => {
                 container.innerHTML += `
                     <div class="kml-layer-item" style="border-color:#e1e8ed; background:#fafbfc; display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
-                        <input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="window.toggleCloudLayer(${idx})" style="margin:0 5px 0 0;">
-                        <input type="color" class="layer-color-picker" value="${layer.color}" onchange="window.changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur">
-                        <input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="window.changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur">
+                        <input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="toggleCloudLayer(${idx})" style="margin:0 5px 0 0;">
+                        <input type="color" class="layer-color-picker" value="${layer.color}" onchange="changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur">
+                        <input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur">
                         <label style="cursor:pointer; display:flex; flex-direction:column; flex-grow:1; margin-left:8px; min-width:120px;" for="cloud-cbx-${idx}">
                             <span style="color:#2c3e50; font-size:12px;">${layer.nom}</span>
                             <span style="font-size:10px; color:#7f8c8d; font-weight:normal;">${layer.commentaire}</span>
@@ -915,10 +918,10 @@
                         <span id="cloud-status-${idx}" style="min-width:20px; text-align:right;"></span>
                     </div>`;
             });
-        };
+        }
 
-        window.toggleCloudLayer = async function(idx) {
-            let layerObj = window.cloudKmzLayers[idx];
+        async function toggleCloudLayer(idx) {
+            let layerObj = cloudKmzLayers[idx];
             let cbx = document.getElementById('cloud-cbx-' + idx);
             let statusSpan = document.getElementById('cloud-status-' + idx);
 
@@ -939,8 +942,8 @@
             cbx.disabled = true;
 
             try {
-                const geojson = await window.fetchGitHubKMZ(layerObj.url);
-                layerObj.leafletLayer = L.geoJSON(geojson, window.buildGeoJsonStyle(layerObj.color, layerObj.weight)).addTo(map);
+                const geojson = await fetchGitHubKMZ(layerObj.url);
+                layerObj.leafletLayer = L.geoJSON(geojson, buildGeoJsonStyle(layerObj.color, layerObj.weight)).addTo(map);
                 layerObj.isVisible = true;
                 if(layerObj.leafletLayer.getBounds().isValid()) { map.fitBounds(layerObj.leafletLayer.getBounds()); }
                 statusSpan.innerText = " ✅";
@@ -950,10 +953,10 @@
                 cbx.checked = false;
             }
             cbx.disabled = false;
-        };
+        }
 
-        window.changeCloudLayerStyle = function(idx, newColor, newWeight) {
-            let layerObj = window.cloudKmzLayers[idx];
+        function changeCloudLayerStyle(idx, newColor, newWeight) {
+            let layerObj = cloudKmzLayers[idx];
             if (newColor !== null) layerObj.color = newColor;
             if (newWeight !== null) layerObj.weight = parseInt(newWeight);
             
@@ -968,9 +971,9 @@
                     if (layer instanceof L.CircleMarker) { layer.setStyle({ color: layerObj.color, fillColor: layerObj.color }); }
                 });
             }
-        };
+        }
 
-        window.handleKMLUpload = async function(event) {
+        async function handleKMLUpload(event) {
             const file = event.target.files[0];
             if(!file) return;
             
@@ -1002,8 +1005,8 @@
                     const xmlDoc = parser.parseFromString(kmlString, "text/xml");
                     const geojson = toGeoJSON.kml(xmlDoc);
 
-                    window.saveLayerToDB(layerId, fileName, geojson, defaultColor, defaultWeight);
-                    window.addGeoJsonToMap(layerId, fileName, geojson, true, defaultColor, defaultWeight);
+                    saveLayerToDB(layerId, fileName, geojson, defaultColor, defaultWeight);
+                    addGeoJsonToMap(layerId, fileName, geojson, true, defaultColor, defaultWeight);
                     
                     document.getElementById('loading-overlay').style.display = 'none';
                 } catch (err) {
@@ -1012,71 +1015,71 @@
                 }
                 event.target.value = ""; 
             }, 100);
-        };
+        }
 
-        window.addGeoJsonToMap = function(id, name, geojson, isVisible, hexColor, weight) {
+        function addGeoJsonToMap(id, name, geojson, isVisible, hexColor, weight) {
             let finalWeight = weight || 4;
-            const layer = L.geoJSON(geojson, window.buildGeoJsonStyle(hexColor, finalWeight));
+            const layer = L.geoJSON(geojson, buildGeoJsonStyle(hexColor, finalWeight));
             
             if(isVisible) layer.addTo(map);
-            window.externalLayers[id] = { name: name, layer: layer, isVisible: isVisible, color: hexColor, weight: finalWeight };
-            window.renderCustomLayersList();
+            externalLayers[id] = { name: name, layer: layer, isVisible: isVisible, color: hexColor, weight: finalWeight };
+            renderCustomLayersList();
             
             if(isVisible && layer.getBounds && typeof layer.getBounds === 'function') { 
                 let b = layer.getBounds(); if(b.isValid()) map.fitBounds(b); 
             }
-        };
+        }
 
-        window.renderCustomLayersList = function() {
+        function renderCustomLayersList() {
             const container = document.getElementById('custom-layers-list'); container.innerHTML = "";
-            for (let id in window.externalLayers) {
-                const ext = window.externalLayers[id];
+            for (let id in externalLayers) {
+                const ext = externalLayers[id];
                 container.innerHTML += `
                     <div class="kml-layer-item">
-                        <input type="checkbox" id="loc-cbx-${id}" ${ext.isVisible ? 'checked' : ''} onchange="window.toggleExtLayer('${id}')" style="margin:0 5px 0 0;">
-                        <input type="color" class="layer-color-picker" value="${ext.color}" onchange="window.changeExtLayerStyle('${id}', this.value, null)" title="Couleur">
-                        <input type="number" class="layer-weight-picker" value="${ext.weight || 4}" min="1" max="15" onchange="window.changeExtLayerStyle('${id}', null, this.value)" title="Épaisseur">
+                        <input type="checkbox" id="loc-cbx-${id}" ${ext.isVisible ? 'checked' : ''} onchange="toggleExtLayer('${id}')" style="margin:0 5px 0 0;">
+                        <input type="color" class="layer-color-picker" value="${ext.color}" onchange="changeExtLayerStyle('${id}', this.value, null)" title="Couleur">
+                        <input type="number" class="layer-weight-picker" value="${ext.weight || 4}" min="1" max="15" onchange="changeExtLayerStyle('${id}', null, this.value)" title="Épaisseur">
                         <label for="loc-cbx-${id}" style="cursor:pointer; flex-grow:1; margin-left:8px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#34495e;">${ext.name}</label>
-                        <button onclick="window.deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button>
+                        <button onclick="deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button>
                     </div>`;
             }
-        };
+        }
 
-        window.toggleExtLayer = function(id) {
-            const ext = window.externalLayers[id]; ext.isVisible = !ext.isVisible;
+        function toggleExtLayer(id) {
+            const ext = externalLayers[id]; ext.isVisible = !ext.isVisible;
             if(ext.isVisible) { map.addLayer(ext.layer); } else { map.removeLayer(ext.layer); }
-            window.updateLayerDataInDB(id, { isVisible: ext.isVisible });
-            window.renderCustomLayersList();
-        };
+            updateLayerDataInDB(id, { isVisible: ext.isVisible });
+            renderCustomLayersList();
+        }
 
-        window.changeExtLayerStyle = function(id, newColor, newWeight) {
-            if(window.externalLayers[id]) {
-                if (newColor !== null) window.externalLayers[id].color = newColor;
-                if (newWeight !== null) window.externalLayers[id].weight = parseInt(newWeight);
+        function changeExtLayerStyle(id, newColor, newWeight) {
+            if(externalLayers[id]) {
+                if (newColor !== null) externalLayers[id].color = newColor;
+                if (newWeight !== null) externalLayers[id].weight = parseInt(newWeight);
                 
-                let col = window.externalLayers[id].color;
-                let w = window.externalLayers[id].weight;
+                let col = externalLayers[id].color;
+                let w = externalLayers[id].weight;
 
-                if(window.externalLayers[id].layer) {
-                    window.externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w});
-                    window.externalLayers[id].layer.eachLayer(function (layer) {
+                if(externalLayers[id].layer) {
+                    externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w});
+                    externalLayers[id].layer.eachLayer(function (layer) {
                         if (layer instanceof L.CircleMarker) { layer.setStyle({ color: col, fillColor: col }); }
                     });
                 }
-                window.updateLayerDataInDB(id, { color: col, weight: w });
+                updateLayerDataInDB(id, { color: col, weight: w });
             }
-        };
+        }
 
-        window.deleteExtLayer = function(id) {
-            map.removeLayer(window.externalLayers[id].layer); delete window.externalLayers[id];
-            window.deleteLayerFromDB(id);
-            window.renderCustomLayersList();
-        };
+        function deleteExtLayer(id) {
+            map.removeLayer(externalLayers[id].layer); delete externalLayers[id];
+            deleteLayerFromDB(id);
+            renderCustomLayersList();
+        }
 
         // ==============================================================
         // 10. ASSEMBLAGE DES OUTILS ET INTERFACE PRINCIPALE
         // ==============================================================
-        window.initAppUI = function() {
+        function initAppUI() {
             function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
             let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}
             const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
@@ -1084,211 +1087,328 @@
 
             let tSet = new Set(), rSet = new Set(), trSet = new Set(), pSet = new Set(), vSet = new Set(), mSet = new Set();
             
-            window.snowCannons.features.forEach(f => {
+            snowCannons.features.forEach(f => {
                 let p = f.properties;
-                let t = window.getV(p, window.keyType); if(t!=="N/A") tSet.add(t.toLowerCase()); 
-                let r = window.getV(p, window.keyRep); if(r!=="N/A") rSet.add(r); 
-                let tr = window.getV(p, window.keyTransfo); if(tr!=="N/A") trSet.add(tr); 
-                let pi = window.getV(p, window.keyPiste); if(pi!=="N/A") pSet.add(pi);
-                let va = window.getV(p, window.keyVanne); if(va!=="N/A") vSet.add(va);
-                let mo = window.getV(p, window.keyModule); if(mo!=="N/A") mSet.add(mo);
+                let t = getV(p, keyType); if(t!=="N/A") tSet.add(t.toLowerCase()); 
+                let r = getV(p, keyRep); if(r!=="N/A") rSet.add(r); 
+                let tr = getV(p, keyTransfo); if(tr!=="N/A") trSet.add(tr); 
+                let pi = getV(p, keyPiste); if(pi!=="N/A") pSet.add(pi);
+                let va = getV(p, keyVanne); if(va!=="N/A") vSet.add(va);
+                let mo = getV(p, keyModule); if(mo!=="N/A") mSet.add(mo);
             });
 
-            Array.from(tSet).sort().forEach((t, i) => { window.technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
-            window.repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); 
-            window.transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
+            Array.from(tSet).sort().forEach((t, i) => { technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
+            repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); 
+            transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
 
-            window.snowCannons.features.forEach(f => {
-                let typeLower = window.getV(f.properties, window.keyType).toLowerCase(); let color = "#FFD700";
+            snowCannons.features.forEach(f => {
+                let typeLower = getV(f.properties, keyType).toLowerCase(); let color = "#FFD700";
                 if (["demak lenko", "demac lenko"].includes(typeLower)) color = "#0000FF";
                 else if (["sufag", "street", "taurus", "taurax", "peak"].includes(typeLower)) color = "#008000";
-                else color = window.technoColors[typeLower] || "#FFD700";
+                else color = technoColors[typeLower] || "#FFD700";
                 f.properties.couleur_defaut = color;
             });
 
             let dlContainer = document.getElementById('datalists-container');
             if (!dlContainer) { dlContainer = document.createElement('div'); dlContainer.id = 'datalists-container'; document.body.appendChild(dlContainer); }
             let dlHtml = "";
-            for(let header in window.columnValuesSets) {
+            for(let header in columnValuesSets) {
                 let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-');
-                dlHtml += `<datalist id="${safeId}">${Array.from(window.columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`;
+                dlHtml += `<datalist id="${safeId}">${Array.from(columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`;
             }
             dlContainer.innerHTML = dlHtml;
 
-            if (window.saisonsList.length > 0) {
+            if (saisonsList.length > 0) {
                 let sld = document.getElementById('season-slider');
-                sld.max = window.saisonsList.length - 1; sld.value = window.histSeasonIdx;
-                document.getElementById('season-display').innerText = window.saisonsList[window.histSeasonIdx];
+                sld.max = saisonsList.length - 1; sld.value = histSeasonIdx;
+                document.getElementById('season-display').innerText = saisonsList[histSeasonIdx];
             }
 
             function buildCbs(id, set, cls) { const c = document.getElementById(id); c.innerHTML = ''; [...set].sort().forEach(v => { let l=document.createElement('label'); let cb=document.createElement('input'); cb.type='checkbox'; cb.className=cls; cb.value=v; l.appendChild(cb); l.appendChild(document.createTextNode(' '+v)); c.appendChild(l); }); }
             buildCbs('individual-pistes', pSet, 'piste-cb'); buildCbs('individual-types', tSet, 'type-cb'); buildCbs('individual-vannes', vSet, 'vanne-cb'); buildCbs('individual-modules', mSet, 'module-cb');
 
             function setupCbs(allId, cls, cbk) { const aBtn = document.getElementById(allId); const cbs = document.querySelectorAll('.'+cls); const getVals = () => aBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); aBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); cbk(getVals()); }); cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) aBtn.checked=false; else if(Array.from(cbs).every(x=>!x.checked)) aBtn.checked=true; cbk(getVals()); })); }
-            setupCbs('check-all-pistes', 'piste-cb', vals => { window.currentPistes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
-            setupCbs('check-all-types', 'type-cb', vals => { window.currentTypes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
-            setupCbs('check-all-vannes', 'vanne-cb', vals => { window.currentVannes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
-            setupCbs('check-all-modules', 'module-cb', vals => { window.currentModules = vals; window.updateMap(); window.triggerGlobalFilterChart(); });
+            setupCbs('check-all-pistes', 'piste-cb', vals => { currentPistes = vals; updateMap(); triggerGlobalFilterChart(); }); 
+            setupCbs('check-all-types', 'type-cb', vals => { currentTypes = vals; updateMap(); triggerGlobalFilterChart(); }); 
+            setupCbs('check-all-vannes', 'vanne-cb', vals => { currentVannes = vals; updateMap(); triggerGlobalFilterChart(); }); 
+            setupCbs('check-all-modules', 'module-cb', vals => { currentModules = vals; updateMap(); triggerGlobalFilterChart(); });
 
-            window.generateDynamicFiltersUI();
-            window.renderCloudLayersList();
-            window.calculateMaxes();
+            generateDynamicFiltersUI();
+            renderCloudLayersList();
+            calculateMaxes();
 
-            window.geojsonLayer = L.geoJSON(window.snowCannons, {
+            geojsonLayer = L.geoJSON(snowCannons, {
                 pointToLayer: function (feature, latlng) { return L.marker(latlng, { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div></div>` }) }); },
                 onEachFeature: function (feature, layer) {
                     layer.on('click', function(e) {
                         L.DomEvent.stopPropagation(e);
-                        if (window.currentlyEditingId) return; 
+                        if (currentlyEditingId) return; 
                         const id = feature.properties.id;
-                        if (!window.isMultiSelect) window.selectedCannonsMap.clear(); 
-                        if (window.selectedCannonsMap.has(id)) window.selectedCannonsMap.delete(id); else window.selectedCannonsMap.set(id, layer);
-                        window.updateMap(); window.renderSelectionPanel();
-                        if (window.selectedCannonsMap.size > 0) document.getElementById('right-sidebar').classList.add('open');
+                        if (!isMultiSelect) selectedCannonsMap.clear(); 
+                        if (selectedCannonsMap.has(id)) selectedCannonsMap.delete(id); else selectedCannonsMap.set(id, layer);
+                        updateMap(); renderSelectionPanel();
+                        if (selectedCannonsMap.size > 0) document.getElementById('right-sidebar').classList.add('open');
                         else document.getElementById('right-sidebar').classList.remove('open');
                     });
                 }
             }).addTo(map);
 
-            if (window.snowCannons.features.length > 0) {
-                let bounds = window.geojsonLayer.getBounds();
+            if (snowCannons.features.length > 0) {
+                let bounds = geojsonLayer.getBounds();
                 if(bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
             }
             
-            window.attachEvents();
-            window.updateLegend(); window.updateMap();
-        };
+            attachEvents();
+            updateLegend(); updateMap();
+        }
 
-        window.generateDynamicFiltersUI = function() {
+        function generateDynamicFiltersUI() {
             let container = document.getElementById('dynamic-filters-container'); container.innerHTML = "";
-            let optionsHTML = `<option value="">-- Choisir un critère --</option>` + window.availableColumns.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
+            let optionsHTML = `<option value="">-- Choisir un critère --</option>` + availableColumns.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
             for(let i=0; i<4; i++) {
                 container.innerHTML += `<div class="dynamic-filter-slot"><select class="filter-select" id="filter-sel-${i}" data-idx="${i}">${optionsHTML}</select><div class="checkbox-list" id="filter-cbx-${i}" style="display:none;"></div></div>`;
             }
-        };
+        }
 
         window.renderCheckboxesForFilter = function(idx, colName) {
             let cbxContainer = document.getElementById(`filter-cbx-${idx}`);
-            if(!colName) { cbxContainer.style.display = 'none'; window.activeFilters[idx] = {key:"", vals:[]}; window.updateMap(); window.triggerGlobalFilterChart(); return; }
+            if(!colName) { cbxContainer.style.display = 'none'; activeFilters[idx] = {key:"", vals:[]}; updateMap(); triggerGlobalFilterChart(); return; }
             
             cbxContainer.style.display = 'block';
-            let vals = Array.from(window.columnValuesSets[colName] || []).sort();
+            let vals = Array.from(columnValuesSets[colName] || []).sort();
             let html = `<label><input type="checkbox" class="cb-all-${idx}" checked> <b>Tout sélectionner</b></label><hr style="margin:4px 0; border-top:1px solid #eee;">`;
             vals.forEach(v => html += `<label><input type="checkbox" class="cb-val-${idx}" value="${v}"> ${v}</label>`);
             cbxContainer.innerHTML = html;
-            window.activeFilters[idx] = {key: colName, vals: ['all']};
+            activeFilters[idx] = {key: colName, vals: ['all']};
 
             let allBtn = cbxContainer.querySelector(`.cb-all-${idx}`); let cbs = cbxContainer.querySelectorAll(`.cb-val-${idx}`);
-            const updateLogic = () => { window.activeFilters[idx].vals = allBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); window.updateMap(); window.triggerGlobalFilterChart(); };
+            const updateLogic = () => { activeFilters[idx].vals = allBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); updateMap(); triggerGlobalFilterChart(); };
             allBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); updateLogic(); });
             cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) allBtn.checked=false; else if(Array.from(cbs).every(x=>!x.checked)) allBtn.checked=true; updateLogic(); }));
         };
 
-        window.attachEvents = function() {
+        function attachEvents() {
             document.querySelectorAll('input[name="main_theme"]').forEach(r => {
                 r.addEventListener('change', e => {
-                    window.mainTheme = e.target.value;
+                    mainTheme = e.target.value;
                     document.querySelectorAll('.theme-details, .theme-details-hist').forEach(el => el.style.display = 'none');
                     document.querySelectorAll('.radio-card').forEach(el => {
                         el.style.borderBottomLeftRadius = '6px'; el.style.borderBottomRightRadius = '6px';
                         el.style.marginBottom = '8px'; el.style.borderColor = '#e1e8ed';
                         if(el.id === 'lbl-historique') el.style.borderColor = '#2ecc71';
                     });
-                    let activeDetails = document.getElementById('details-' + window.mainTheme);
-                    let activeLabel = document.getElementById('lbl-' + window.mainTheme);
+                    let activeDetails = document.getElementById('details-' + mainTheme);
+                    let activeLabel = document.getElementById('lbl-' + mainTheme);
                     if (activeDetails && activeLabel) {
                         activeDetails.style.display = 'block';
                         activeLabel.style.borderBottomLeftRadius = '0';
                         activeLabel.style.borderBottomRightRadius = '0';
                         activeLabel.style.marginBottom = '0';
-                        if(window.mainTheme === 'historique') { activeLabel.style.borderColor = '#2ecc71'; } 
+                        if(mainTheme === 'historique') { activeLabel.style.borderColor = '#2ecc71'; } 
                         else { activeLabel.style.borderColor = '#3498db'; }
                     }
-                    if(window.mainTheme === 'historique') window.calculateMaxes();
-                    window.updateLegend(); window.updateMap(); window.renderSelectionPanel();
+                    if(mainTheme === 'historique') calculateMaxes();
+                    updateLegend(); updateMap(); renderSelectionPanel();
                 });
             });
 
-            document.querySelectorAll('input[name="hist_metric"]').forEach(r => { r.addEventListener('change', e => { window.histMetric = e.target.value; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.renderSelectionPanel(); }); });
-            document.getElementById('season-slider').addEventListener('input', e => { window.histSeasonIdx = parseInt(e.target.value); document.getElementById('season-display').innerText = window.saisonsList[window.histSeasonIdx]; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.renderSelectionPanel(); });
-            document.getElementById('slider-min').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val > window.currentMaxThreshold[window.histMetric]) { val = window.currentMaxThreshold[window.histMetric]; e.target.value = val; } window.currentMinThreshold[window.histMetric] = val; document.getElementById('val-min').innerText = val; window.updateMap(); });
-            document.getElementById('slider-max').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val < window.currentMinThreshold[window.histMetric]) { val = window.currentMinThreshold[window.histMetric]; e.target.value = val; } window.currentMaxThreshold[window.histMetric] = val; document.getElementById('val-max').innerText = val; window.updateMap(); });
-            document.getElementById('dynamic-filters-container').addEventListener('change', e => { if(e.target.classList.contains('filter-select')) window.renderCheckboxesForFilter(e.target.getAttribute('data-idx'), e.target.value); });
+            document.querySelectorAll('input[name="hist_metric"]').forEach(r => { r.addEventListener('change', e => { histMetric = e.target.value; calculateMaxes(); updateLegend(); updateMap(); renderSelectionPanel(); }); });
+            document.getElementById('season-slider').addEventListener('input', e => { histSeasonIdx = parseInt(e.target.value); document.getElementById('season-display').innerText = saisonsList[histSeasonIdx]; calculateMaxes(); updateLegend(); updateMap(); renderSelectionPanel(); });
+            document.getElementById('slider-min').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val > currentMaxThreshold[histMetric]) { val = currentMaxThreshold[histMetric]; e.target.value = val; } currentMinThreshold[histMetric] = val; document.getElementById('val-min').innerText = val; updateMap(); });
+            document.getElementById('slider-max').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val < currentMinThreshold[histMetric]) { val = currentMinThreshold[histMetric]; e.target.value = val; } currentMaxThreshold[histMetric] = val; document.getElementById('val-max').innerText = val; updateMap(); });
+            document.getElementById('dynamic-filters-container').addEventListener('change', e => { if(e.target.classList.contains('filter-select')) renderCheckboxesForFilter(e.target.getAttribute('data-idx'), e.target.value); });
         
             map.on('click', function(e) { 
-                if (window.currentlyEditingId && document.getElementById('allow-move-chk').checked) { 
+                if (currentlyEditingId && document.getElementById('allow-move-chk').checked) { 
                     document.getElementById('edit-lat').value = e.latlng.lat.toFixed(7); 
                     document.getElementById('edit-lng').value = e.latlng.lng.toFixed(7); 
-                    let layer = window.selectedCannonsMap.get(window.currentlyEditingId);
+                    let layer = selectedCannonsMap.get(currentlyEditingId);
                     if(layer) { layer.setLatLng(e.latlng); layer.feature.geometry.coordinates = [e.latlng.lng, e.latlng.lat]; }
                 } 
             });
-        };
+        }
 
-        window.calculateMaxes = function() {
-            if(!window.saisonsList[window.histSeasonIdx]) return;
-            let s = window.saisonsList[window.histSeasonIdx]; window.absoluteMaxes = { eau: 0, air: 0, temps: 0 };
-            window.snowCannons.features.forEach(f => {
+        function calculateMaxes() {
+            if(!saisonsList[histSeasonIdx]) return;
+            let s = saisonsList[histSeasonIdx]; absoluteMaxes = { eau: 0, air: 0, temps: 0 };
+            snowCannons.features.forEach(f => {
                 if (f.properties.historique[s]) {
-                    window.absoluteMaxes.eau = Math.max(window.absoluteMaxes.eau, f.properties.historique[s].eau);
-                    window.absoluteMaxes.air = Math.max(window.absoluteMaxes.air, f.properties.historique[s].air);
-                    window.absoluteMaxes.temps = Math.max(window.absoluteMaxes.temps, f.properties.historique[s].temps);
+                    absoluteMaxes.eau = Math.max(absoluteMaxes.eau, f.properties.historique[s].eau);
+                    absoluteMaxes.air = Math.max(absoluteMaxes.air, f.properties.historique[s].air);
+                    absoluteMaxes.temps = Math.max(absoluteMaxes.temps, f.properties.historique[s].temps);
                 }
             });
-            window.currentMaxThreshold = { ...window.absoluteMaxes }; window.currentMinThreshold = { eau:0, air:0, temps:0 };
-            document.getElementById('slider-min').max = window.absoluteMaxes[window.histMetric] || 1; document.getElementById('slider-max').max = window.absoluteMaxes[window.histMetric] || 1;
-            document.getElementById('slider-min').value = 0; document.getElementById('slider-max').value = window.absoluteMaxes[window.histMetric] || 1;
-            document.getElementById('val-min').innerText = 0; document.getElementById('val-max').innerText = window.absoluteMaxes[window.histMetric] || 1;
-        };
+            currentMaxThreshold = { ...absoluteMaxes }; currentMinThreshold = { eau:0, air:0, temps:0 };
+            document.getElementById('slider-min').max = absoluteMaxes[histMetric] || 1; document.getElementById('slider-max').max = absoluteMaxes[histMetric] || 1;
+            document.getElementById('slider-min').value = 0; document.getElementById('slider-max').value = absoluteMaxes[histMetric] || 1;
+            document.getElementById('val-min').innerText = 0; document.getElementById('val-max').innerText = absoluteMaxes[histMetric] || 1;
+        }
 
-        window.getColorByFilter = function(ratio, props) {
+        function triggerGlobalFilterChart() {
+            if (selectedCannonsMap.size > 0 || currentlyEditingId) return;
+            let hasDyn = activeFilters.some(f => f.key && f.vals.length > 0 && !f.vals.includes('all'));
+            let hasStat = !currentPistes.includes('all') || !currentTypes.includes('all') || !currentVannes.includes('all') || !currentModules.includes('all');
+            if (!hasDyn && !hasStat) { document.getElementById('right-sidebar').classList.remove('open'); return; }
+            document.getElementById('right-header').classList.remove('editing'); document.getElementById('right-title').innerText = "📊 Analyse des Filtres";
+            
+            let visibleCannons = snowCannons.features.filter(f => f.properties._isVisible);
+            let targetGroupKey = keyPiste || (activeFilters.find(f => f.key) ? activeFilters.find(f => f.key).key : keyType); 
+            let counts = {};
+            visibleCannons.forEach(f => { let v = getV(f.properties, targetGroupKey); counts[v] = (counts[v] || 0) + 1; });
+            
+            let html = `<div style="background:#eafaf1; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px; border:1px solid #d5f5e3;"><span style="font-size:24px; font-weight:bold; color:#27ae60;">${visibleCannons.length}</span><br><span style="font-size:12px; color:#555; text-transform:uppercase;">Canons trouvés</span></div><div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Répartition par ${targetGroupKey.toUpperCase()}</div><div style="height:180px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
+            document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none';
+            document.getElementById('selected-list').innerHTML = html; document.getElementById('right-sidebar').classList.add('open');
+
+            setTimeout(() => {
+                let ctx = document.getElementById('global-filter-chart'); if(!ctx) return;
+                if(chartInstances['global-filter-chart']) chartInstances['global-filter-chart'].destroy();
+                chartInstances['global-filter-chart'] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: Object.keys(counts), datasets: [{ data: Object.values(counts), backgroundColor: '#3498db', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            }, 50);
+        }
+
+        function renderSelectionPanel() {
+            if(selectedCannonsMap.size === 0) { triggerGlobalFilterChart(); return; }
+            document.getElementById('sel-count').innerText = selectedCannonsMap.size;
+            let listDiv = document.getElementById('selected-list'); listDiv.innerHTML = "";
+            document.getElementById('right-title').innerText = "📌 Fiche Canon";
+            
+            selectedCannonsMap.forEach((layer, id) => {
+                const p = layer.feature.properties;
+                let active = getActiveTickets(p.id); let history = getHistoryTickets(p.id);
+                let mainContent = ""; let histHtml = "";
+
+                if (history.length > 0) {
+                    histHtml = `<details class="ticket-history"><summary>📁 Historique d'interventions passées (${history.length})</summary><ul style="padding-left:15px; margin-top:10px;">`;
+                    history.forEach(t => {
+                        let dateStr = isNaN(new Date(t.date).getTime()) ? (t.date || "Inconnue") : new Date(t.date).toLocaleDateString('fr-FR');
+                        let cause = t.fullData.find(x => x.k.toLowerCase().includes('cause') || x.k.toLowerCase().includes('intervention'));
+                        let causeTxt = cause ? cause.v : "Non précisée";
+                        histHtml += `<li style="margin-bottom:8px; font-size:11.5px; border-bottom:1px solid #eee; padding-bottom:5px;"><b>${dateStr}</b> - <span style="color:#e74c3c;">${t.defaut}</span> <br><span style="color:#666;">Intervention : ${causeTxt}</span></li>`;
+                    });
+                    histHtml += `</ul></details>`;
+                }
+
+                if (mainTheme === 'historique') {
+                    let s = saisonsList[histSeasonIdx]; let hd = p.historique[s] || {eau:0, air:0, temps:0};
+                    mainContent = `
+                        <div class="hist-card">
+                            <div style="font-size:14px; color:#555; margin-bottom:10px; text-transform:uppercase;">Saison <b>${s}</b></div>
+                            <div style="display:flex; justify-content: space-around;">
+                                <div><div style="font-size:24px; font-weight:bold; color:#2980b9;">${hd.eau}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">m³ Eau</div></div>
+                                <div><div style="font-size:24px; font-weight:bold; color:#e67e22;">${hd.air}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Air</div></div>
+                                <div><div style="font-size:24px; font-weight:bold; color:#27ae60;">${hd.temps}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Heures</div></div>
+                            </div>
+                        </div>
+                        <div class="piste-chart-container">
+                            <div style="font-size:12px; font-weight:bold; color:#34495e; text-align:center;">Comparatif sur la piste (${getV(p, keyPiste)})</div>
+                            <div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart-${p.id}"></canvas></div>
+                        </div>
+                        <div class="piste-chart-container" style="background:#fafbfc;">
+                            <div style="font-size:11px; font-weight:bold; color:#555; text-align:center;">➕ Comparer avec une autre saison : 
+                                <select onchange="drawSecondPisteChart('${p.id}', this.value)" style="padding:4px; border-radius:4px; border:1px solid #ccc; outline:none;">
+                                    <option value="">-- Choisir --</option>
+                                    ${saisonsList.filter(x => x !== s).map(x => `<option value="${x}">${x}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart2-${p.id}"></canvas></div>
+                        </div>`;
+                } 
+                else if (mainTheme === 'defauts') {
+                    if (active.length === 0) { mainContent = `<div style="background:#eafaf1; color:#27ae60; padding:15px; border-radius:6px; text-align:center; font-weight:bold; border:1px solid #d5f5e3; margin-bottom:15px;">✅ Aucun défaut en cours</div>${histHtml}`; } 
+                    else {
+                        mainContent = active.map(t => {
+                            let borderCol = t.statut.includes('faire') ? '#e74c3c' : '#f39c12';
+                            let safeDef = t.defaut.replace(/'/g, "\\'");
+                            let safeId = p.id.replace(/'/g, "\\'");
+                            let idDiv = `ticket-edit-${safeId}-${t.defaut.replace(/[^a-zA-Z0-9]/g, "")}`;
+                            
+                            let details = t.fullData.map(d => {
+                                let kLow = d.k.toLowerCase();
+                                if (kLow.includes('defaut') || kLow.includes('n°') || kLow === 'id' || kLow.includes('etat') || kLow.includes('état')) return '';
+                                return `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #f9f9f9; padding:5px 0; font-size:12px;"><span style="color:#7f8c8d;">${d.k}</span><span style="font-weight:600; text-align:right; max-width:65%; color:#2c3e50;">${d.v}</span></div>`;
+                            }).join('');
+
+                            return `
+                                <div class="ticket-card" style="border-left-color:${borderCol};">
+                                    <div style="font-weight:bold; font-size:14px; color:#333; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start;">
+                                        <span style="flex-grow:1; margin-right:10px;">${t.defaut}</span>
+                                        <button onclick="editFullTicket('${safeId}', '${safeDef}')" style="background:none; border:1px solid #ddd; padding:4px 8px; border-radius:4px; font-size:10px; cursor:pointer; flex-shrink:0;">Éditer ✏️</button>
+                                    </div>
+                                    <div id="${idDiv}">
+                                        <span style="font-size:10px; padding:3px 8px; border-radius:12px; background:${borderCol}20; color:${borderCol}; font-weight:bold; display:inline-block; margin-bottom:8px;">STATUT : ${t.statut.toUpperCase()}</span>
+                                        ${details}
+                                    </div>
+                                </div>`;
+                        }).join('') + histHtml;
+                    }
+                } 
+                else {
+                    let badges = `<span class="badge"><b>Modèle:</b> ${getV(p, keyType)}</span> <span class="badge"><b>Rép:</b> ${getV(p, keyRep)}</span> <span class="badge"><b>Trans:</b> ${getV(p, keyTransfo)}</span> <span class="badge"><b>Vanne:</b> ${getV(p, keyVanne)}</span> <span class="badge"><b>Module:</b> ${getV(p, keyModule)}</span>`;
+                    let fullDataHTML = `<details style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">➕ Caractéristiques Complètes</summary><div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:8px;">`;
+                    p.fullData.forEach(item => { if(!item.k.toLowerCase().includes('xy') && !item.k.toLowerCase().includes('gps')) { fullDataHTML += `<div style="border-bottom:1px solid #f0f0f0; padding-bottom:4px;"><span style="color:#7f8c8d;">${item.k} :</span> <b style="color:#2c3e50; float:right;">${item.v}</b></div>`; } });
+                    fullDataHTML += `</div></details>`;
+                    mainContent = `<div style="margin-bottom:10px;">${badges}</div>${fullDataHTML}`;
+                    if (active.length > 0) mainContent += `<div style="margin-top:15px; padding:10px; background:#fdf0ed; border-radius:6px; font-size:12px; color:#e74c3c; font-weight:bold; border:1px solid #fadbd8;">⚠️ Ce canon a ${active.length} défaut(s) en cours.</div>`;
+                }
+
+                let editBtn = (mainTheme === 'type' && !isMultiSelect) ? `<button class="btn-action-primary" onclick="startEdit('${p.id}')">✏️ Éditer ce canon</button>` : '';
+
+                listDiv.innerHTML += `
+                    <div class="sel-details">
+                        <div class="sel-details-header"><span>📍 Canon <b>${p.id}</b></span><span style="font-weight:normal; font-size:12px; background:#e0e6ed; padding:4px 10px; border-radius:12px; color:#34495e;">${getV(p, keyPiste)}</span></div>
+                        <div class="sel-details-body">${mainContent}${editBtn}</div>
+                    </div>`;
+                    
+                if(mainTheme === 'historique' && !isMultiSelect) setTimeout(() => drawPisteCompareChart(p), 50);
+            });
+        }
+
+        function getColorByFilter(ratio, props) {
             const inter = (c1,c2,f) => { let r=c1.slice(); for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`;};
-            if (window.mainTheme === 'defauts') { let act = window.getActiveTickets(props.id); if (act.length === 0) return '#bdc3c7'; if (act.some(t => t.statut.includes('faire'))) return '#e74c3c'; return '#f39c12'; }
-            if (window.mainTheme === 'historique') { if (window.histMetric === 'eau') return inter([173,216,230], [41,128,185], ratio); if (window.histMetric === 'air') return inter([250,219,94], [211,84,0], ratio); if (window.histMetric === 'temps') return inter([171,235,198], [39,174,96], ratio); }
-            if (window.mainTheme === 'repeteur') return window.repColors[window.getV(props, window.keyRep)] || '#7f8c8d';
-            if (window.mainTheme === 'transfo') return window.transfoColors[window.getV(props, window.keyTransfo)] || '#7f8c8d';
-            let typeVal = window.getV(props, window.keyType).toLowerCase();
+            if (mainTheme === 'defauts') { let act = getActiveTickets(props.id); if (act.length === 0) return '#bdc3c7'; if (act.some(t => t.statut.includes('faire'))) return '#e74c3c'; return '#f39c12'; }
+            if (mainTheme === 'historique') { if (histMetric === 'eau') return inter([173,216,230], [41,128,185], ratio); if (histMetric === 'air') return inter([250,219,94], [211,84,0], ratio); if (histMetric === 'temps') return inter([171,235,198], [39,174,96], ratio); }
+            if (mainTheme === 'repeteur') return repColors[getV(props, keyRep)] || '#7f8c8d';
+            if (mainTheme === 'transfo') return transfoColors[getV(props, keyTransfo)] || '#7f8c8d';
+            let typeVal = getV(props, keyType).toLowerCase();
             if (["demak lenko", "demac lenko"].includes(typeVal)) return "#0000FF";
             if (["sufag", "street", "taurus", "taurax", "peak"].includes(typeVal)) return "#008000";
-            return window.technoColors[typeVal] || "#FFD700";
-        };
+            return technoColors[typeVal] || "#FFD700";
+        }
 
-        window.updateLegend = function() {
-            if (window.mainTheme === 'defauts') { document.getElementById('legend-defauts').innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'urgent')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'encours')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'ras')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;}
-            else if (window.mainTheme === 'type') { document.getElementById('legend-type').innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('type', 'demac')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'sufag')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #008000;"></div> Sufag / Peak</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'techno')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: linear-gradient(to right, #f1c40f, #e67e22);"></div> Technoalpin</div>`;}
-            else if (window.mainTheme === 'repeteur') { let h=''; Object.keys(window.repColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('repeteur', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.repColors[k]};"></div> Répéteur ${k}</div>`); document.getElementById('legend-repeteur').innerHTML = h;}
-            else if (window.mainTheme === 'transfo') { let h=''; Object.keys(window.transfoColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('transfo', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.transfoColors[k]};"></div> Transfo ${k}</div>`); document.getElementById('legend-transfo').innerHTML = h;}
-            else if (window.mainTheme === 'historique') {
+        function updateLegend() {
+            if (mainTheme === 'defauts') { document.getElementById('legend-defauts').innerHTML = `<div class="legend-item" onmouseenter="highlightLegend('defauts', 'urgent')" onmouseleave="resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="highlightLegend('defauts', 'encours')" onmouseleave="resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="highlightLegend('defauts', 'ras')" onmouseleave="resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;}
+            else if (mainTheme === 'type') { document.getElementById('legend-type').innerHTML = `<div class="legend-item" onmouseenter="highlightLegend('type', 'demac')" onmouseleave="resetHighlight()"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item" onmouseenter="highlightLegend('type', 'sufag')" onmouseleave="resetHighlight()"><div class="color-box" style="background: #008000;"></div> Sufag / Peak</div><div class="legend-item" onmouseenter="highlightLegend('type', 'techno')" onmouseleave="resetHighlight()"><div class="color-box" style="background: linear-gradient(to right, #f1c40f, #e67e22);"></div> Technoalpin</div>`;}
+            else if (mainTheme === 'repeteur') { let h=''; Object.keys(repColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="highlightLegend('repeteur', '${k.replace(/'/g, "\\'")}')" onmouseleave="resetHighlight()"><div class="color-box" style="background: ${repColors[k]};"></div> Répéteur ${k}</div>`); document.getElementById('legend-repeteur').innerHTML = h;}
+            else if (mainTheme === 'transfo') { let h=''; Object.keys(transfoColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="highlightLegend('transfo', '${k.replace(/'/g, "\\'")}')" onmouseleave="resetHighlight()"><div class="color-box" style="background: ${transfoColors[k]};"></div> Transfo ${k}</div>`); document.getElementById('legend-transfo').innerHTML = h;}
+            else if (mainTheme === 'historique') {
                 let hL = document.getElementById('legend-historique');
-                if (window.histMetric === 'eau') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #add8e6, #2980b9);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`;
-                else if (window.histMetric === 'air') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
-                else if (window.histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
+                if (histMetric === 'eau') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #add8e6, #2980b9);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`;
+                else if (histMetric === 'air') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
+                else if (histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
             }
-        };
+        }
 
-        window.updateMap = function() {
-            if(!window.geojsonLayer) return;
-            let s = window.saisonsList[window.histSeasonIdx];
+        function updateMap() {
+            if(!geojsonLayer) return;
+            let s = saisonsList[histSeasonIdx];
 
-            window.geojsonLayer.eachLayer(function(layer) {
+            geojsonLayer.eachLayer(function(layer) {
                 const p = layer.feature.properties; let vis = true;
                 
-                if (window.currentPistes && !window.currentPistes.includes('all')) { if (!window.currentPistes.includes(window.getV(p, window.keyPiste))) vis = false; }
-                if (window.currentTypes && !window.currentTypes.includes('all')) { if (!window.currentTypes.includes(window.getV(p, window.keyType).toLowerCase())) vis = false; }
-                if (window.currentVannes && !window.currentVannes.includes('all')) { if (!window.currentVannes.includes(window.getV(p, window.keyVanne))) vis = false; }
-                if (window.currentModules && !window.currentModules.includes('all')) { if (!window.currentModules.includes(window.getV(p, window.keyModule))) vis = false; }
+                if (currentPistes && !currentPistes.includes('all')) { if (!currentPistes.includes(getV(p, keyPiste))) vis = false; }
+                if (currentTypes && !currentTypes.includes('all')) { if (!currentTypes.includes(getV(p, keyType).toLowerCase())) vis = false; }
+                if (currentVannes && !currentVannes.includes('all')) { if (!currentVannes.includes(getV(p, keyVanne))) vis = false; }
+                if (currentModules && !currentModules.includes('all')) { if (!currentModules.includes(getV(p, keyModule))) vis = false; }
 
-                window.activeFilters.forEach(filt => {
-                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
-                        let val = window.getV(p, filt.key);
-                        if(!filt.vals.includes(val)) vis = false;
-                    }
+                activeFilters.forEach(filt => {
+                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; }
                 });
 
                 let val = 0;
-                if (window.mainTheme === 'historique') {
-                    val = p.historique[s] ? p.historique[s][window.histMetric] : 0;
-                    if (val < window.currentMinThreshold[window.histMetric] || val > window.currentMaxThreshold[window.histMetric]) vis = false;
+                if (mainTheme === 'historique') {
+                    val = p.historique[s] ? p.historique[s][histMetric] : 0;
+                    if (val < currentMinThreshold[histMetric] || val > currentMaxThreshold[histMetric]) vis = false;
                 }
 
                 if (!vis) {
@@ -1299,17 +1419,17 @@
                     if (!map.hasLayer(layer)) map.addLayer(layer);
 
                     let rad = 12; let ratio = 0;
-                    if (window.mainTheme === 'historique') { let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
+                    if (mainTheme === 'historique') { let maxVal = absoluteMaxes[histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
                     
-                    let bg = window.getColorByFilter(ratio, p);
+                    let bg = getColorByFilter(ratio, p);
                     let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
 
-                    let isSel = window.selectedCannonsMap.has(p.id); let isEdit = (window.currentlyEditingId === p.id);
+                    let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
                     if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
                     else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
                     else { layer.setZIndexOffset(0); }
 
-                    let actClass = (window.mainTheme === 'defauts' && window.getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
+                    let actClass = (mainTheme === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
 
                     layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
                     
@@ -1320,11 +1440,41 @@
                     }
                 }
             });
-        };
+        }
 
-        // KICK-START MANUEL EN FORCANT L'ÉVÉNEMENT (PLAN B SÉCURITÉ)
-        if (document.readyState === "complete" || document.readyState === "interactive") {
-            setTimeout(window.onload, 100);
+        // ==============================================================
+        // 11. DEMARRAGE DE L'APPLICATION (BOOTLOADER DE FORCE)
+        // ==============================================================
+        async function bootApp() {
+            if(window.bootAttempt > 0) return;
+            window.bootAttempt = 1;
+            try {
+                setStep(0, "Initialisation de la carte...");
+                
+                let retries = 0;
+                while ((typeof L === 'undefined' || typeof JSZip === 'undefined') && retries < 50) {
+                    await new Promise(r => setTimeout(r, 100));
+                    retries++;
+                }
+
+                if (typeof L === 'undefined') throw new Error("Les outils de la carte n'ont pas pu être téléchargés. Un pare-feu bloque l'accès.");
+
+                satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+                map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
+                L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+                initLocalDB();
+                await fetchGoogleSheetsData();
+            } catch (err) {
+                showCrash(err.message, "Boot Principal");
+            }
+        }
+
+        // Lancement dès que le navigateur permet d'interagir
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootApp);
+        } else {
+            bootApp();
         }
 
     </script>
