@@ -6,7 +6,7 @@
     <title>GMAO Neige - Mode Expert BI</title>
     
     <script>
-        window.onerror = function(message, source, lineno, colno, error) {
+        window.onerror = function(message, source, lineno) {
             document.getElementById('loading-spinner').style.display = 'none';
             document.getElementById('loading-title').innerText = "🛑 CRASH SYSTÈME";
             document.getElementById('loading-title').style.color = "#e74c3c";
@@ -22,22 +22,20 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* BASE & LAYOUT */
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; overflow: hidden; }
         #app-container { display: flex; height: 100%; width: 100%; position: relative; }
         
         #loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;}
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #error-box { display: none; background: #fdf0ed; border: 2px solid #e74c3c; padding: 20px; border-radius: 8px; max-width: 600px; color: #c0392b; margin-top:20px; text-align: left;}
+        
+        #error-box { display: none; background: #fdf0ed; border: 2px solid #e74c3c; padding: 20px; border-radius: 8px; max-width: 600px; color: #c0392b; margin-top:20px; text-align:left;}
 
-        /* BOUTON MENU & LEGENDE FLOTTANTE GAUCHE */
         #toggle-menu-btn { position: absolute; top: 15px; left: 15px; z-index: 3000; background: #2c3e50; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; }
         #toggle-menu-btn:hover { background: #34495e; }
         
         #floating-legend-box { position: absolute; top: 65px; left: 15px; z-index: 2000; background: rgba(255,255,255,0.95); border: 1px solid #e1e8ed; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 220px; }
 
-        /* BANDEAU GAUCHE (RETRACTABLE) */
         #sidebar { width: 360px; flex-shrink: 0; background: #fff; display: flex; flex-direction: column; z-index: 2500; overflow-y: auto; box-shadow: 2px 0 15px rgba(0,0,0,0.08); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; height: 100%; left: 0; padding-top: 60px;}
         #sidebar.collapsed { transform: translateX(-100%); }
         .sidebar-header-bg { background: #f8f9fa; padding: 10px 20px; border-bottom: 1px solid #eee; font-weight: bold; color: #2c3e50; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
@@ -58,19 +56,16 @@
         input[type=range] { width: 100%; margin: 0; accent-color: #3498db;}
         .val-badge { color: #e74c3c; font-weight: bold; }
         
-        /* FILTRES DYNAMIQUES */
         .dynamic-filter-slot { background: #fff; border: 1px solid #e1e8ed; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
         .filter-select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; color: #333; margin-bottom: 8px; outline: none; background:#f9f9f9;}
         .checkbox-list { max-height: 120px; overflow-y: auto; padding: 5px; font-size: 12px; color: #555; }
         .checkbox-list label { display: block; margin-bottom: 6px; cursor: pointer; }
 
-        /* LÉGENDE */
         .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color:#444; font-weight:bold;}
         .color-box { width: 12px; height: 12px; border-radius: 3px;}
         .gradient-bar { height: 10px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
         .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; font-weight:bold;}
 
-        /* CARTE */
         #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
         #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; z-index: 1; }
 
@@ -78,11 +73,9 @@
         .cannon-circle { border-radius: 50%; color: white; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-sizing: border-box; box-shadow: 0px 3px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; transition: 0.2s;}
         .cannon-circle:hover { transform: scale(1.2); z-index: 1000 !important; cursor: pointer; }
 
-        /* BOUTON MULTI */
         #btn-multi-toggle { position: absolute; top: 15px; right: 15px; z-index: 1000; background: white; border: 2px solid rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.3s; }
         #btn-multi-toggle.active { background: #3498db; color: white; border-color: #2980b9; }
 
-        /* BANDEAU DROIT */
         #right-sidebar { position: absolute; top: 0; right: 0; bottom: 0; width: 450px; background: #fff; z-index: 2001; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: -5px 0 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
         #right-sidebar.open { transform: translateX(0); }
         .right-header { background: #fff; border-bottom:1px solid #eee; padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; color:#2c3e50;}
@@ -97,12 +90,9 @@
         .hist-card { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 15px; border-radius: 8px; text-align: center; margin-bottom:15px; border:1px solid #b0c4de;}
         
         .piste-chart-container { background: #fff; border:1px solid #eee; padding:15px; border-radius:6px; margin-top:15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
-        .piste-chart-wrapper { height: 160px; position:relative; margin-top:10px;}
-        
         .btn-action-primary { background: #3498db; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-top: 15px; width: 100%; font-weight: bold; transition: 0.2s;}
         .btn-action-primary:hover { background: #2980b9; }
 
-        /* VUE EDITION */
         .edit-input { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 4px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background:#fff;}
         .edit-label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase;}
         #dynamic-edit-fields { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 6px; max-height: 45vh; overflow-y: auto;}
@@ -113,6 +103,8 @@
         .comp-body { padding: 20px; max-height: 70vh; overflow-y: auto; background: #f4f6f8; }
         .comp-controls { display: flex; gap: 15px; background: #fff; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ddd; align-items: flex-end;}
         .comp-chart-box { background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 15px; height: 200px; position: relative;}
+
+        @media (max-width: 768px) { #sidebar { width: 85%; } #right-sidebar { width: 85%; } #compare-modal { width: 95%; } }
     </style>
 </head>
 <body>
@@ -120,9 +112,9 @@
 
     <div id="loading-overlay">
         <div class="spinner" id="loading-spinner"></div>
-        <h2 style="color:#3498db; margin:0;" id="loading-title">GMAO AppSheet...</h2>
-        <p style="color:#666; font-weight:bold; font-size:16px;" id="loading-desc">Initialisation en cours</p>
-        <p style="color:#888; font-size:12px;" id="loading-step">Étape 0/4</p>
+        <h2 style="color:#3498db; margin:0;" id="loading-title">Connexion à la Base...</h2>
+        <p style="color:#666; font-weight:bold; font-size:16px;" id="loading-desc">Veuillez patienter</p>
+        <p style="color:#888; font-size:12px;" id="loading-step">Étape 1/4</p>
         <div id="error-box"><p id="error-msg"></p></div>
     </div>
 
@@ -157,7 +149,6 @@
 
         <div id="sidebar" class="open">
             <div class="sidebar-header-bg">Outils d'Analyse</div>
-
             <details class="panel-section" open>
                 <summary>1. Thème de la carte</summary>
                 <div class="section-content radio-group">
@@ -168,7 +159,6 @@
                     <label class="radio-card" style="background:#eafaf1; border-color:#2ecc71;"><input type="radio" name="main_theme" value="historique"> 📊 Historique Volumes</label>
                 </div>
             </details>
-
             <div id="hist-controls" style="display:none; background:#eafaf1; padding:15px; border-bottom:1px solid #d5f5e3;">
                 <div style="font-weight:bold; font-size:12px; color:#27ae60; margin-bottom:10px;">DONNÉE À AFFICHER :</div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:12px; font-weight:bold; color:#333;">
@@ -180,9 +170,8 @@
                     <div class="slider-label">Voyage temporel : <span id="season-display" style="color:#27ae60; font-size:14px;">-</span></div>
                     <input type="range" id="season-slider" min="0" max="0" value="0">
                 </div>
-                <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal()">📊 Comparer 2 Saisons (Global)</button>
+                <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal()">📊 Comparer 2 Saisons</button>
             </div>
-
             <details class="panel-section" open>
                 <summary>2. Filtres sur-mesure (Max 4)</summary>
                 <div class="section-content" id="dynamic-filters-container"></div>
@@ -190,7 +179,7 @@
         </div>
 
         <div id="map-container">
-            <button id="btn-multi-toggle" onclick="toggleMultiSelect()">🔲 Sélection Multiple : OFF</button>
+            <button id="btn-multi-toggle" onclick="toggleMultiSelect()">🔲 Multi-Sélection : OFF</button>
             <div id="map"></div>
         </div>
 
@@ -203,7 +192,7 @@
             <div class="right-content">
                 <div id="view-selection">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;" id="multi-tools">
-                        <span style="font-size:13px; color:#555;"><b id="sel-count">0</b> canon(s) sélectionné(s)</span>
+                        <span style="font-size:13px; color:#555;"><b id="sel-count">0</b> canon(s) ciblé(s)</span>
                         <button onclick="clearSelection()" style="background:#bdc3c7; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">Tout vider ✕</button>
                     </div>
                     <div id="selected-list"></div>
@@ -215,17 +204,13 @@
                             <input type="checkbox" id="allow-move-chk"> Autoriser le déplacement géographique du point
                         </label>
                     </div>
-                    
                     <h3 style="margin-top:0; color:#3498db; border-bottom:2px solid #eee; padding-bottom:10px;">Édition Canon <span id="edit-id-display"></span></h3>
                     <input type="hidden" id="edit-id">
-                    
                     <div style="display:flex; gap:10px; margin-bottom: 15px;">
                         <div style="flex:1;"><div class="edit-label">Latitude</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input" style="background:#fdfdfd;"></div>
                         <div style="flex:1;"><div class="edit-label">Longitude</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input" style="background:#fdfdfd;"></div>
                     </div>
-                    
                     <div id="dynamic-edit-fields"></div>
-                    
                     <div style="display:flex; gap:10px; margin-top:20px;">
                         <button onclick="cancelEdit()" style="flex:1; background:#ecf0f1; color:#333; padding:12px; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">Annuler</button>
                         <button id="btn-save-edit" style="flex:2; background:#27ae60; color:white; padding:12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
@@ -236,9 +221,9 @@
     </div>
 
     <script>
-        // ======= VÉRIFIEZ QUE L'URL EST BIEN LA VÔTRE =======
+        // ======= VÉRIFIEZ L'URL APPS SCRIPT =======
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
-        // =====================================================
+        // ===========================================
         
         let snowCannons = { "type": "FeatureCollection", "features": [] };
         let rawTickets = []; let saisonsList = []; 
@@ -263,35 +248,24 @@
             document.getElementById('loading-desc').innerText = desc;
         }
 
-        function showError(msg) {
-            document.getElementById('loading-spinner').style.display = 'none';
-            document.getElementById('loading-title').innerText = "🛑 Erreur détectée";
-            document.getElementById('loading-title').style.color = "#e74c3c";
-            document.getElementById('loading-desc').style.display = 'none';
-            document.getElementById('loading-step').style.display = 'none';
-            document.getElementById('error-box').style.display = 'block';
-            document.getElementById('error-msg').innerHTML = msg;
-        }
-
         const getIdx = (headers, nomsCherches) => {
             let i = headers.findIndex(h => nomsCherches.some(n => h && h.includes(n)));
             return i !== -1 ? i : -1;
         };
 
-        // LECTURE DES DONNEES (AVEC TRACEUR D'ÉTAPES)
+        // LECTURE BLINDÉE
         async function fetchGoogleSheetsData() {
             try {
-                setStep(1, "Connexion au serveur Google...");
+                setStep(1, "Téléchargement des données Google Sheets...");
                 const response = await fetch(GOOGLE_API_URL);
-                if (!response.ok) throw new Error("Google a refusé l'accès. (Erreur " + response.status + ")");
+                if (!response.ok) throw new Error("Accès refusé par Google.");
                 
                 let textData = await response.text();
                 let data;
-                try { data = JSON.parse(textData); } catch(e) { throw new Error("Les données reçues sont invalides. (Erreur de format JSON)"); }
+                try { data = JSON.parse(textData); } catch(e) { throw new Error("Format de données invalide renvoyé par Apps Script."); }
                 
-                setStep(2, "Analyse de la base Général...");
-                if (!data || !data.general) throw new Error(`L'onglet principal n'a pas été renvoyé par le script.`);
-                if (data.general.length < 2) throw new Error(`Le Tableau Général semble vide. Vérifiez qu'il contient bien des données sous la ligne 1.`);
+                setStep(2, "Analyse et nettoyage du Tableau Général...");
+                if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
                 
                 const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
                 const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
@@ -301,9 +275,9 @@
                     return idx !== -1 ? originalHeaders[idx] : null;
                 };
 
-                const idxId = 2; // Forcé sur Colonne C
+                const idxId = 2; // Colonne C confirmée !
                 const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
-                if (idxXY === -1) throw new Error("La colonne 'xy' (coordonnées GPS) est introuvable dans le Tableau Général.");
+                if (idxXY === -1) throw new Error("Colonne 'xy' introuvable.");
 
                 keyPiste = findCol(['pistes', 'piste']);
                 keyType = findCol(['type canon', 'type']);
@@ -325,17 +299,18 @@
                 data.general.slice(1).forEach(row => {
                     let idRaw = row[idxId];
                     if (idRaw == null || idRaw === "") return;
-                    let id = idRaw.toString().replace(/[^0-9]/g, ''); 
+                    let id = idRaw.toString().replace(/^YA\s*/i, '').trim(); 
                     if (!id) return;
 
                     let lat = 0, lng = 0;
                     if (row[idxXY]) {
-                        let xyStr = row[idxXY].toString().replace(/;/g, ',').replace(/\//g, ',');
-                        if (!xyStr.includes(',') && xyStr.includes(' ')) xyStr = xyStr.replace(' ', ',');
-                        let parts = xyStr.split(',');
-                        if (parts.length >= 2) { 
-                            lat = parseFloat(parts[0].trim().replace(',', '.')); 
-                            lng = parseFloat(parts[1].trim().replace(',', '.')); 
+                        // Extraction agressive des coordonnées pour être sûr à 100%
+                        let txt = String(row[idxXY]).replace(/,/g, '.'); // Tout en points
+                        let matches = txt.match(/-?\d+\.\d+/g); // Cherche les décimaux
+                        if (!matches || matches.length < 2) matches = txt.match(/-?\d+/g); // Cherche entiers sinon
+                        if (matches && matches.length >= 2) { 
+                            lat = parseFloat(matches[0]); 
+                            lng = parseFloat(matches[1]); 
                         }
                     }
                     if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
@@ -350,12 +325,12 @@
                     dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
                 });
 
-                if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté dans la colonne 'xy'.");
+                if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté dans tout le tableau.");
 
-                setStep(3, "Analyse de l'Historique...");
+                setStep(3, "Calcul de l'Historique de consommation...");
                 if (data.historique && data.historique.length > 1) {
                     const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim());
-                    const idxCanons = 1; // Colonne B
+                    const idxCanons = 1; // Colonne B "ref"
                     let colsEau = {}, colsAir = {}, colsTemps = {};
                     let saisonsSet = new Set();
 
@@ -372,7 +347,7 @@
                     data.historique.slice(1).forEach(row => {
                         let rawId = row[idxCanons];
                         if (rawId != null && rawId !== "") {
-                            let id = rawId.toString().replace(/[^0-9]/g, '');
+                            let id = rawId.toString().replace(/^YA\s*/i, '').trim();
                             if (id && dictGeneral[id]) {
                                 saisonsList.forEach(s => {
                                     dictGeneral[id].historique[s] = { eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 };
@@ -382,7 +357,7 @@
                     });
                 }
 
-                setStep(4, "Analyse des Tickets de panne...");
+                setStep(4, "Préparation des Tickets de panne...");
                 if (data.tickets && data.tickets.length > 1) {
                     const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
                     const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
@@ -398,7 +373,7 @@
                             return {
                                 statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""),
                                 date: (idxTDate>-1 && row[idxTDate] != null ? row[idxTDate] : ""),
-                                idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/[^0-9]/g, '') : ""), 
+                                idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/^YA\s*/i, '').trim() : ""), 
                                 defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Défaut non spécifié"),
                                 fullData: fullTData
                             };
@@ -407,18 +382,25 @@
                 }
 
                 Object.values(dictGeneral).forEach(canon => {
-                    if (canon.lat !== 0 && canon.lng !== 0 && !isNaN(canon.lat)) { 
+                    if (canon.lat !== 0 && !isNaN(canon.lat)) { 
                         snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon });
                     }
                 });
 
-                document.getElementById('loading-overlay').style.display = 'none';
-                try { initApp(); } catch(err) { showError("Erreur lors du rendu de la carte : " + err.message); }
+                // MESSAGE DE SUCCÈS CLAIR
+                document.getElementById('loading-spinner').style.display = 'none';
+                document.getElementById('loading-title').innerText = "✅ Chargement Réussi";
+                document.getElementById('loading-title').style.color = "#27ae60";
+                document.getElementById('loading-step').style.display = 'none';
+                document.getElementById('loading-desc').innerText = `${snowCannons.features.length} canons placés.`;
+                
+                setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; initApp(); }, 1200);
 
-            } catch (error) { showError(error.message); }
+            } catch (error) { 
+                console.error(error);
+                showError(error.message); 
+            }
         }
-
-        fetchGoogleSheetsData();
 
         function getV(p, key) { if(!key) return "N/A"; let o = p.fullData.find(x => x.k === key); return o ? o.v.toString() : "N/A"; }
         function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); }
@@ -620,7 +602,6 @@
             }, 50);
         }
 
-        // FICHES CANON
         function renderSelectionPanel() {
             if(selectedCannonsMap.size === 0) { triggerGlobalFilterChart(); return; }
             document.getElementById('sel-count').innerText = selectedCannonsMap.size;
@@ -737,7 +718,6 @@
             });
         }
 
-        // COMPARAISON GLOBALE MODAL
         window.openGlobalCompareModal = function() {
             let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2');
             s1.innerHTML = ""; s2.innerHTML = "";
@@ -851,8 +831,7 @@
                 
                 activeFilters.forEach(filt => {
                     if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
-                        let propItem = p.fullData.find(x => x.k === filt.key);
-                        let val = propItem ? propItem.v.toString() : "";
+                        let val = getV(p, filt.key);
                         if(!filt.vals.includes(val)) vis = false;
                     }
                 });
