@@ -28,7 +28,6 @@
         #loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;}
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
         #error-box { display: none; background: #fdf0ed; border: 2px solid #e74c3c; padding: 20px; border-radius: 8px; max-width: 600px; color: #c0392b; margin-top:20px; text-align:left;}
 
         #toggle-menu-btn { position: absolute; top: 15px; left: 15px; z-index: 3000; background: #2c3e50; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; }
@@ -97,7 +96,6 @@
         .edit-label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase;}
         #dynamic-edit-fields { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 6px; max-height: 45vh; overflow-y: auto;}
 
-        /* FENETRE COMPARAISON MODAL */
         #compare-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 700px; max-width: 90%; background: white; z-index: 9999; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid #ccc; flex-direction: column; overflow: hidden; }
         .comp-header { background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: bold; }
         .comp-body { padding: 20px; max-height: 70vh; overflow-y: auto; background: #f4f6f8; }
@@ -114,7 +112,6 @@
         <div class="spinner" id="loading-spinner"></div>
         <h2 style="color:#3498db; margin:0;" id="loading-title">Connexion à la Base...</h2>
         <p style="color:#666; font-weight:bold; font-size:16px;" id="loading-desc">Veuillez patienter</p>
-        <p style="color:#888; font-size:12px;" id="loading-step">Étape 1/4</p>
         <div id="error-box"><p id="error-msg"></p></div>
     </div>
 
@@ -133,7 +130,6 @@
     </div>
 
     <div id="app-container">
-        
         <button id="toggle-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">☰ Menu</button>
         
         <div id="floating-legend-box">
@@ -172,8 +168,23 @@
                 </div>
                 <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal()">📊 Comparer 2 Saisons</button>
             </div>
+            
             <details class="panel-section" open>
-                <summary>2. Filtres sur-mesure (Max 4)</summary>
+                <summary>2. Filtres Rapides</summary>
+                <div class="section-content" style="padding-top: 5px;">
+                    <b style="font-size:12px;">Pistes :</b>
+                    <div class="checkbox-list" id="piste-checkboxes"><label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes</b></label><div id="individual-pistes"></div></div>
+                    <b style="font-size:12px;">Type Canon :</b>
+                    <div class="checkbox-list" id="type-checkboxes"><label><input type="checkbox" id="check-all-types" checked> <b>Tous</b></label><div id="individual-types"></div></div>
+                    <b style="font-size:12px;">Vanne :</b>
+                    <div class="checkbox-list" id="vanne-checkboxes"><label><input type="checkbox" id="check-all-vannes" checked> <b>Toutes</b></label><div id="individual-vannes"></div></div>
+                    <b style="font-size:12px;">Module :</b>
+                    <div class="checkbox-list" id="module-checkboxes"><label><input type="checkbox" id="check-all-modules" checked> <b>Tous</b></label><div id="individual-modules"></div></div>
+                </div>
+            </details>
+
+            <details class="panel-section">
+                <summary>3. Filtres sur-mesure (Max 4)</summary>
                 <div class="section-content" id="dynamic-filters-container"></div>
             </details>
         </div>
@@ -233,8 +244,11 @@
         let absoluteMaxes = { eau: 0, air: 0, temps: 0 }; 
         let currentMaxThreshold = { eau: 100, air: 100, temps: 100 }; 
         let currentMinThreshold = { eau: 0, air: 0, temps: 0 };
-        let activeFilters = [ {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]} ];
         
+        // Filtres
+        let activeFilters = [ {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]} ];
+        let currentPistes = ['all'], currentTypes = ['all'], currentVannes = ['all'], currentModules = ['all'];
+
         const map = L.map('map', {zoomControl: false}).setView([42.766, 0.564], 14);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 }).addTo(map);
@@ -243,17 +257,12 @@
         
         let keyPiste = "", keyType = "", keyRep = "", keyTransfo = "", keyVanne = "", keyModule = "";
 
-        function setStep(step, desc) {
-            document.getElementById('loading-step').innerText = "Étape " + step + "/4";
-            document.getElementById('loading-desc').innerText = desc;
-        }
-
+        function updateDesc(text) { document.getElementById('loading-desc').innerText = text; }
         function showError(msg) {
             document.getElementById('loading-spinner').style.display = 'none';
             document.getElementById('loading-title').innerText = "🛑 Erreur détectée";
             document.getElementById('loading-title').style.color = "#e74c3c";
             document.getElementById('loading-desc').style.display = 'none';
-            document.getElementById('loading-step').style.display = 'none';
             document.getElementById('error-box').style.display = 'block';
             document.getElementById('error-msg').innerHTML = msg;
         }
@@ -263,48 +272,32 @@
             return i !== -1 ? i : -1;
         };
 
-        // FETCH AVEC TIMEOUT ET ANTI-CACHE
-        async function fetchWithTimeout(resource, options = {}) {
-            const { timeout = 15000 } = options;
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
-            // Ajout d'un paramètre t= timestamp pour esquiver le cache du navigateur
-            const noCacheUrl = resource + (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-            const response = await fetch(noCacheUrl, { ...options, signal: controller.signal });
-            clearTimeout(id);
-            return response;
-        }
-
+        // LECTURE BLINDÉE
         async function fetchGoogleSheetsData() {
             try {
-                setStep(1, "Connexion au serveur Google...");
-                const response = await fetchWithTimeout(GOOGLE_API_URL);
-                if (!response.ok) throw new Error("Accès refusé. Le script est-il bien public ?");
+                updateDesc("Téléchargement des données Google Sheets...");
+                const response = await fetch(GOOGLE_API_URL + "?t=" + new Date().getTime());
+                if (!response.ok) throw new Error("Accès refusé par Google.");
+                
                 let textData = await response.text();
                 let data;
-                try { data = JSON.parse(textData); } catch(e) { throw new Error("Les données reçues sont bloquées ou l'URL du script n'est pas la bonne."); }
+                try { data = JSON.parse(textData); } catch(e) { throw new Error("Format de données invalide renvoyé par Apps Script."); }
                 
-                setStep(2, "Analyse de la base Général...");
+                updateDesc("Nettoyage du Tableau Général...");
                 if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
                 
                 const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
                 const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
                 
-                const findCol = (keywords) => {
-                    let idx = genHeaders.findIndex(h => keywords.some(k => h.includes(k)));
-                    return idx !== -1 ? originalHeaders[idx] : null;
-                };
+                const findCol = (keywords) => { let idx = genHeaders.findIndex(h => keywords.some(k => h.includes(k))); return idx !== -1 ? originalHeaders[idx] : null; };
 
-                const idxId = 2; // Forcé sur Colonne C
+                const idxId = 2; // Colonne C
                 const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
-                if (idxXY === -1) throw new Error("La colonne 'xy' (coordonnées GPS) est introuvable.");
+                if (idxXY === -1) throw new Error("Colonne 'xy' (GPS) introuvable.");
 
-                keyPiste = findCol(['pistes', 'piste']);
-                keyType = findCol(['type canon', 'type']);
+                keyPiste = findCol(['pistes', 'piste']); keyType = findCol(['type canon', 'type']);
                 keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']);
-                keyTransfo = findCol(['transfo']);
-                keyVanne = findCol(['vanne']);
-                keyModule = findCol(['module']);
+                keyTransfo = findCol(['transfo']); keyVanne = findCol(['vanne']); keyModule = findCol(['module']);
 
                 originalHeaders.forEach(h => {
                     let hl = h.toLowerCase();
@@ -324,12 +317,14 @@
 
                     let lat = 0, lng = 0;
                     if (row[idxXY]) {
-                        let xyStr = row[idxXY].toString().replace(/;/g, ',').replace(/\//g, ',');
-                        if (!xyStr.includes(',') && xyStr.includes(' ')) xyStr = xyStr.replace(' ', ',');
-                        let parts = xyStr.split(',');
-                        if (parts.length >= 2) { 
-                            lat = parseFloat(parts[0].trim().replace(',', '.')); 
-                            lng = parseFloat(parts[1].trim().replace(',', '.')); 
+                        // Extraction agressive des coordonnées pour être sûr à 100%
+                        let txt = String(row[idxXY]).replace(/,/g, '.'); 
+                        let matches = txt.match(/-?\d+(?:\.\d+)?/g);
+                        if (matches && matches.length >= 2) { 
+                            lat = parseFloat(matches[0]); 
+                            lng = parseFloat(matches[1]); 
+                            // Correction France auto-inversion
+                            if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; }
                         }
                     }
                     if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
@@ -344,13 +339,12 @@
                     dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
                 });
 
-                if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté dans la colonne 'xy'.");
+                if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté dans la colonne 'xy'. Format requis : Latitude, Longitude");
 
-                setStep(3, "Analyse de l'Historique...");
+                updateDesc("Calcul de l'Historique...");
                 if (data.historique && data.historique.length > 1) {
                     const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim());
                     const idxCanons = 1; // Colonne B "ref"
-                    
                     let colsEau = {}, colsAir = {}, colsTemps = {};
                     let saisonsSet = new Set();
 
@@ -377,7 +371,7 @@
                     });
                 }
 
-                setStep(4, "Analyse des Tickets de panne...");
+                updateDesc("Préparation des Pannes...");
                 if (data.tickets && data.tickets.length > 1) {
                     const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
                     const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
@@ -408,20 +402,13 @@
                 });
 
                 document.getElementById('loading-spinner').style.display = 'none';
-                document.getElementById('loading-title').innerText = "✅ Chargement Réussi !";
+                document.getElementById('loading-title').innerText = "✅ Chargement Réussi";
                 document.getElementById('loading-title').style.color = "#27ae60";
-                document.getElementById('loading-step').style.display = 'none';
-                document.getElementById('loading-desc').innerText = `${snowCannons.features.length} canons prêts.`;
+                document.getElementById('loading-desc').innerText = `${snowCannons.features.length} canons placés.`;
                 
-                setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; initApp(); }, 1000);
+                setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; initApp(); }, 1200);
 
-            } catch (error) { 
-                if(error.name === 'AbortError') {
-                    showError("Délai d'attente dépassé (Timeout). Google met trop de temps à répondre. Réessayez ou vérifiez l'URL de votre script.");
-                } else {
-                    showError(error.message); 
-                }
-            }
+            } catch (error) { showError(error.message); }
         }
 
         fetchGoogleSheetsData();
@@ -432,69 +419,86 @@
         function getHistoryTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); }
 
         function initApp() {
-            function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
-            let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}
-            const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
-            function generatePalette(arr, s = 0.7, l = 0.5) { let pal = {}; arr.forEach((item, i) => { pal[item] = hslToHex(i / arr.length, s, l); }); return pal; }
+            try {
+                function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
+                let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}
+                const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
+                function generatePalette(arr, s = 0.7, l = 0.5) { let pal = {}; arr.forEach((item, i) => { pal[item] = hslToHex(i / arr.length, s, l); }); return pal; }
 
-            let tSet = new Set(), rSet = new Set(), trSet = new Set();
-            snowCannons.features.forEach(f => {
-                let p = f.properties;
-                let t = getV(p, keyType); if(t!=="N/A") tSet.add(t.toLowerCase().trim()); 
-                let r = getV(p, keyRep); if(r!=="N/A") rSet.add(r.trim()); 
-                let tr = getV(p, keyTransfo); if(tr!=="N/A") trSet.add(tr.trim()); 
-            });
+                let tSet = new Set(), rSet = new Set(), trSet = new Set(), pSet = new Set(), vSet = new Set(), mSet = new Set();
+                snowCannons.features.forEach(f => {
+                    let p = f.properties;
+                    let t = getV(p, keyType); if(t!=="N/A") tSet.add(t.toLowerCase().trim()); 
+                    let r = getV(p, keyRep); if(r!=="N/A") rSet.add(r.trim()); 
+                    let tr = getV(p, keyTransfo); if(tr!=="N/A") trSet.add(tr.trim()); 
+                    let pi = getV(p, keyPiste); if(pi!=="N/A") pSet.add(pi.trim());
+                    let va = getV(p, keyVanne); if(va!=="N/A") vSet.add(va.trim());
+                    let mo = getV(p, keyModule); if(mo!=="N/A") mSet.add(mo.trim());
+                });
 
-            Array.from(tSet).sort().forEach((t, i) => { technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
-            repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
+                Array.from(tSet).sort().forEach((t, i) => { technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
+                repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
 
-            snowCannons.features.forEach(f => {
-                let typeLower = getV(f.properties, keyType).toLowerCase().trim(); let color = "#FFD700";
-                if (["demak lenko", "demac lenko"].includes(typeLower)) color = "#0000FF";
-                else if (["sufag", "street", "taurus", "taurax", "peak"].includes(typeLower)) color = "#008000";
-                else color = technoColors[typeLower] || "#FFD700";
-                f.properties.couleur_defaut = color;
-            });
+                snowCannons.features.forEach(f => {
+                    let typeLower = getV(f.properties, keyType).toLowerCase().trim(); let color = "#FFD700";
+                    if (["demak lenko", "demac lenko"].includes(typeLower)) color = "#0000FF";
+                    else if (["sufag", "street", "taurus", "taurax", "peak"].includes(typeLower)) color = "#008000";
+                    else color = technoColors[typeLower] || "#FFD700";
+                    f.properties.couleur_defaut = color;
+                });
 
-            let dlHtml = "";
-            for(let header in columnValuesSets) {
-                let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-');
-                dlHtml += `<datalist id="${safeId}">${Array.from(columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`;
-            }
-            document.getElementById('datalists-container').innerHTML = dlHtml;
-
-            if (saisonsList.length > 0) {
-                let sld = document.getElementById('season-slider');
-                sld.max = saisonsList.length - 1; sld.value = histSeasonIdx;
-                document.getElementById('season-display').innerText = saisonsList[histSeasonIdx];
-            }
-
-            generateDynamicFiltersUI();
-            calculateMaxes();
-
-            geojsonLayer = L.geoJSON(snowCannons, {
-                pointToLayer: function (feature, latlng) { return L.marker(latlng, { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div></div>` }) }); },
-                onEachFeature: function (feature, layer) {
-                    layer.on('click', function(e) {
-                        L.DomEvent.stopPropagation(e);
-                        if (currentlyEditingId) return; 
-                        const id = feature.properties.id;
-                        if (!isMultiSelect) selectedCannonsMap.clear(); 
-                        if (selectedCannonsMap.has(id)) selectedCannonsMap.delete(id); else selectedCannonsMap.set(id, layer);
-                        updateMap(); renderSelectionPanel();
-                        if (selectedCannonsMap.size > 0) document.getElementById('right-sidebar').classList.add('open');
-                        else document.getElementById('right-sidebar').classList.remove('open');
-                    });
+                let dlHtml = "";
+                for(let header in columnValuesSets) {
+                    let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-');
+                    dlHtml += `<datalist id="${safeId}">${Array.from(columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`;
                 }
-            }).addTo(map);
+                document.getElementById('datalists-container').innerHTML = dlHtml;
 
-            if (snowCannons.features.length > 0) {
-                let bounds = geojsonLayer.getBounds();
-                if(bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+                if (saisonsList.length > 0) {
+                    let sld = document.getElementById('season-slider');
+                    sld.max = saisonsList.length - 1; sld.value = histSeasonIdx;
+                    document.getElementById('season-display').innerText = saisonsList[histSeasonIdx];
+                }
+
+                // Initialisation des filtres standards
+                function buildCbs(id, set, cls) { const c = document.getElementById(id); c.innerHTML = ''; [...set].sort().forEach(v => { let l=document.createElement('label'); let cb=document.createElement('input'); cb.type='checkbox'; cb.className=cls; cb.value=v; l.appendChild(cb); l.appendChild(document.createTextNode(' '+v)); c.appendChild(l); }); }
+                buildCbs('individual-pistes', pSet, 'piste-cb'); buildCbs('individual-types', tSet, 'type-cb'); buildCbs('individual-vannes', vSet, 'vanne-cb'); buildCbs('individual-modules', mSet, 'module-cb');
+
+                function setupCbs(allId, cls, cbk) { const aBtn = document.getElementById(allId); const cbs = document.querySelectorAll('.'+cls); const getVals = () => aBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); aBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); cbk(getVals()); }); cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) aBtn.checked=false; else if(Array.from(cbs).every(x=>!x.checked)) aBtn.checked=true; cbk(getVals()); })); }
+                setupCbs('check-all-pistes', 'piste-cb', vals => { currentPistes = vals; updateMap(); triggerGlobalFilterChart(); }); 
+                setupCbs('check-all-types', 'type-cb', vals => { currentTypes = vals; updateMap(); triggerGlobalFilterChart(); }); 
+                setupCbs('check-all-vannes', 'vanne-cb', vals => { currentVannes = vals; updateMap(); triggerGlobalFilterChart(); }); 
+                setupCbs('check-all-modules', 'module-cb', vals => { currentModules = vals; updateMap(); triggerGlobalFilterChart(); });
+
+                generateDynamicFiltersUI();
+                calculateMaxes();
+
+                geojsonLayer = L.geoJSON(snowCannons, {
+                    pointToLayer: function (feature, latlng) { return L.marker(latlng, { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div></div>` }) }); },
+                    onEachFeature: function (feature, layer) {
+                        layer.on('click', function(e) {
+                            L.DomEvent.stopPropagation(e);
+                            if (currentlyEditingId) return; 
+                            const id = feature.properties.id;
+                            if (!isMultiSelect) selectedCannonsMap.clear(); 
+                            if (selectedCannonsMap.has(id)) selectedCannonsMap.delete(id); else selectedCannonsMap.set(id, layer);
+                            updateMap(); renderSelectionPanel();
+                            if (selectedCannonsMap.size > 0) document.getElementById('right-sidebar').classList.add('open');
+                            else document.getElementById('right-sidebar').classList.remove('open');
+                        });
+                    }
+                }).addTo(map);
+
+                if (snowCannons.features.length > 0) {
+                    let bounds = geojsonLayer.getBounds();
+                    if(bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+                }
+                
+                attachEvents();
+                updateLegend(); updateMap();
+            } catch(e) {
+                showError("Erreur lors de la construction de la carte : " + e.message);
             }
-            
-            attachEvents();
-            updateLegend(); updateMap();
         }
 
         function generateDynamicFiltersUI() {
@@ -575,7 +579,6 @@
             renderSelectionPanel();
         }
 
-        // SAUVEGARDE
         document.getElementById('btn-save-edit').addEventListener('click', async () => {
             if (!currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); btn.innerText = "⏳ Envoi..."; btn.disabled = true;
@@ -604,8 +607,12 @@
 
         function triggerGlobalFilterChart() {
             if (selectedCannonsMap.size > 0 || currentlyEditingId) return;
-            let hasFilters = activeFilters.some(f => f.key && f.vals.length > 0 && !f.vals.includes('all'));
-            if (!hasFilters) { document.getElementById('right-sidebar').classList.remove('open'); return; }
+            
+            // Verifier si un filtre est actif (statique ou dynamique)
+            let hasDyn = activeFilters.some(f => f.key && f.vals.length > 0 && !f.vals.includes('all'));
+            let hasStat = !currentPistes.includes('all') || !currentTypes.includes('all') || !currentVannes.includes('all') || !currentModules.includes('all');
+            
+            if (!hasDyn && !hasStat) { document.getElementById('right-sidebar').classList.remove('open'); return; }
 
             document.getElementById('right-header').classList.remove('editing'); document.getElementById('right-title').innerText = "📊 Analyse des Filtres";
             
@@ -847,48 +854,58 @@
         }
 
         function updateMap() {
-            if(!geojsonLayer) return;
-            let s = saisonsList[histSeasonIdx];
+            try {
+                if(!geojsonLayer) return;
+                let s = saisonsList[histSeasonIdx];
 
-            geojsonLayer.eachLayer(function(layer) {
-                const p = layer.feature.properties; let vis = true;
-                
-                activeFilters.forEach(filt => {
-                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
-                        let val = getV(p, filt.key);
-                        if(!filt.vals.includes(val)) vis = false;
+                geojsonLayer.eachLayer(function(layer) {
+                    const p = layer.feature.properties; let vis = true;
+                    
+                    // Filtres statiques de base
+                    if (currentPistes && !currentPistes.includes('all')) { if (!currentPistes.includes(getV(p, keyPiste))) vis = false; }
+                    if (currentTypes && !currentTypes.includes('all')) { if (!currentTypes.includes(getV(p, keyType).toLowerCase())) vis = false; }
+                    if (currentVannes && !currentVannes.includes('all')) { if (!currentVannes.includes(getV(p, keyVanne))) vis = false; }
+                    if (currentModules && !currentModules.includes('all')) { if (!currentModules.includes(getV(p, keyModule))) vis = false; }
+
+                    activeFilters.forEach(filt => {
+                        if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
+                            let val = getV(p, filt.key);
+                            if(!filt.vals.includes(val)) vis = false;
+                        }
+                    });
+
+                    let val = 0;
+                    if (mainTheme === 'historique') {
+                        val = p.historique[s] ? p.historique[s][histMetric] : 0;
+                        if (val < currentMinThreshold[histMetric] || val > currentMaxThreshold[histMetric]) vis = false;
+                    }
+
+                    if (!vis) {
+                        p._isVisible = false;
+                        if(layer._icon) layer._icon.style.display = 'none';
+                    } else {
+                        p._isVisible = true;
+                        let rad = 12; let ratio = 0;
+                        if (mainTheme === 'historique') { let maxVal = absoluteMaxes[histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
+                        
+                        let bg = getColorByFilter(ratio, p);
+                        let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
+
+                        let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
+                        if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
+                        else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
+                        else { layer.setZIndexOffset(0); }
+
+                        let actClass = (mainTheme === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
+
+                        layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
+                        if(layer._icon) layer._icon.style.display = 'block';
                     }
                 });
-
-                let val = 0;
-                if (mainTheme === 'historique') {
-                    val = p.historique[s] ? p.historique[s][histMetric] : 0;
-                    if (val < currentMinThreshold[histMetric] || val > currentMaxThreshold[histMetric]) vis = false;
-                }
-
-                if (!vis) {
-                    layer.setOpacity(0); p._isVisible = false;
-                    if(layer._icon) layer._icon.style.display = 'none';
-                } else {
-                    p._isVisible = true;
-                    let rad = 12; let ratio = 0;
-                    if (mainTheme === 'historique') { let maxVal = absoluteMaxes[histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
-                    
-                    let bg = getColorByFilter(ratio, p);
-                    let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
-
-                    let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
-                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
-                    else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
-                    else { layer.setZIndexOffset(0); }
-
-                    let actClass = (mainTheme === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
-
-                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
-                    layer.setOpacity(1);
-                    if(layer._icon) layer._icon.style.display = 'block';
-                }
-            });
+            } catch(e) {
+                console.error(e);
+                showError("Erreur d'affichage : " + e.message);
+            }
         }
     </script>
 </body>
