@@ -30,11 +30,11 @@
         });
     </script>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
     
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; overflow: hidden; }
@@ -712,6 +712,249 @@
             window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][window.histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
         };
 
+        window.renderSelectionPanel = function() {
+            if(window.selectedCannonsMap.size === 0) { window.triggerGlobalFilterChart(); return; }
+            document.getElementById('sel-count').innerText = window.selectedCannonsMap.size;
+            let listDiv = document.getElementById('selected-list'); listDiv.innerHTML = "";
+            document.getElementById('right-title').innerText = "📌 Fiche Canon";
+            
+            window.selectedCannonsMap.forEach((layer, id) => {
+                const p = layer.feature.properties;
+                let active = window.getActiveTickets(p.id); let history = window.getHistoryTickets(p.id);
+                let mainContent = ""; let histHtml = "";
+
+                if (history.length > 0) {
+                    histHtml = `<details class="ticket-history"><summary>📁 Historique d'interventions passées (${history.length})</summary><ul style="padding-left:15px; margin-top:10px;">`;
+                    history.forEach(t => {
+                        let dateStr = isNaN(new Date(t.date).getTime()) ? (t.date || "Inconnue") : new Date(t.date).toLocaleDateString('fr-FR');
+                        let cause = t.fullData.find(x => x.k.toLowerCase().includes('cause') || x.k.toLowerCase().includes('intervention'));
+                        histHtml += `<li style="margin-bottom:8px; font-size:11.5px; border-bottom:1px solid #eee; padding-bottom:5px;"><b>${dateStr}</b> - <span style="color:#e74c3c;">${t.defaut}</span> <br><span style="color:#666;">Intervention : ${cause ? cause.v : "Non précisée"}</span></li>`;
+                    });
+                    histHtml += `</ul></details>`;
+                }
+
+                if (window.mainTheme === 'historique') {
+                    let s = window.saisonsList[window.histSeasonIdx]; let hd = p.historique[s] || {eau:0, air:0, temps:0};
+                    mainContent = `
+                        <div class="hist-card">
+                            <div style="font-size:14px; color:#555; margin-bottom:10px; text-transform:uppercase;">Saison <b>${s}</b></div>
+                            <div style="display:flex; justify-content: space-around;">
+                                <div><div style="font-size:24px; font-weight:bold; color:#2980b9;">${hd.eau}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">m³ Eau</div></div>
+                                <div><div style="font-size:24px; font-weight:bold; color:#e67e22;">${hd.air}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Air</div></div>
+                                <div><div style="font-size:24px; font-weight:bold; color:#27ae60;">${hd.temps}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Heures</div></div>
+                            </div>
+                        </div>
+                        <div class="piste-chart-container">
+                            <div style="font-size:12px; font-weight:bold; color:#34495e; text-align:center;">Comparatif sur la piste (${window.getV(p, window.keyPiste)})</div>
+                            <div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart-${p.id}"></canvas></div>
+                        </div>
+                        <div class="piste-chart-container" style="background:#fafbfc;">
+                            <div style="font-size:11px; font-weight:bold; color:#555; text-align:center;">➕ Comparer avec une autre saison : 
+                                <select onchange="window.drawSecondPisteChart('${p.id}', this.value)" style="padding:4px; border-radius:4px; border:1px solid #ccc; outline:none;">
+                                    <option value="">-- Choisir --</option>
+                                    ${window.saisonsList.filter(x => x !== s).map(x => `<option value="${x}">${x}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart2-${p.id}"></canvas></div>
+                        </div>`;
+                } 
+                else if (window.mainTheme === 'defauts') {
+                    if (active.length === 0) { mainContent = `<div style="background:#eafaf1; color:#27ae60; padding:15px; border-radius:6px; text-align:center; font-weight:bold; border:1px solid #d5f5e3; margin-bottom:15px;">✅ Aucun défaut en cours</div>${histHtml}`; } 
+                    else {
+                        mainContent = active.map(t => {
+                            let borderCol = t.statut.includes('faire') ? '#e74c3c' : '#f39c12';
+                            let safeDef = t.defaut.replace(/'/g, "\\'");
+                            let safeId = p.id.replace(/'/g, "\\'");
+                            let idDiv = `ticket-edit-${safeId}-${t.defaut.replace(/[^a-zA-Z0-9]/g, "")}`;
+                            
+                            let details = t.fullData.map(d => {
+                                let kLow = d.k.toLowerCase();
+                                if (kLow.includes('defaut') || kLow.includes('n°') || kLow === 'id' || kLow.includes('etat') || kLow.includes('état')) return '';
+                                return `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #f9f9f9; padding:5px 0; font-size:12px;"><span style="color:#7f8c8d;">${d.k}</span><span style="font-weight:600; text-align:right; max-width:65%; color:#2c3e50;">${d.v}</span></div>`;
+                            }).join('');
+
+                            return `
+                                <div class="ticket-card" style="border-left-color:${borderCol};">
+                                    <div style="font-weight:bold; font-size:14px; color:#333; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start;">
+                                        <span style="flex-grow:1; margin-right:10px;">${t.defaut}</span>
+                                        <button onclick="window.editFullTicket('${safeId}', '${safeDef}')" style="background:none; border:1px solid #ddd; padding:4px 8px; border-radius:4px; font-size:10px; cursor:pointer; flex-shrink:0;">Éditer ✏️</button>
+                                    </div>
+                                    <div id="${idDiv}">
+                                        <span style="font-size:10px; padding:3px 8px; border-radius:12px; background:${borderCol}20; color:${borderCol}; font-weight:bold; display:inline-block; margin-bottom:8px;">STATUT : ${t.statut.toUpperCase()}</span>
+                                        ${details}
+                                    </div>
+                                </div>`;
+                        }).join('') + histHtml;
+                    }
+                } 
+                else {
+                    let badges = `<span class="badge"><b>Modèle:</b> ${window.getV(p, window.keyType)}</span> <span class="badge"><b>Rép:</b> ${window.getV(p, window.keyRep)}</span> <span class="badge"><b>Trans:</b> ${window.getV(p, window.keyTransfo)}</span> <span class="badge"><b>Vanne:</b> ${window.getV(p, window.keyVanne)}</span> <span class="badge"><b>Module:</b> ${window.getV(p, window.keyModule)}</span>`;
+                    let fullDataHTML = `<details style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">➕ Caractéristiques Complètes</summary><div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:8px;">`;
+                    p.fullData.forEach(item => { if(!item.k.toLowerCase().includes('xy') && !item.k.toLowerCase().includes('gps')) { fullDataHTML += `<div style="border-bottom:1px solid #f0f0f0; padding-bottom:4px;"><span style="color:#7f8c8d;">${item.k} :</span> <b style="color:#2c3e50; float:right;">${item.v}</b></div>`; } });
+                    fullDataHTML += `</div></details>`;
+                    mainContent = `<div style="margin-bottom:10px;">${badges}</div>${fullDataHTML}`;
+                    if (active.length > 0) mainContent += `<div style="margin-top:15px; padding:10px; background:#fdf0ed; border-radius:6px; font-size:12px; color:#e74c3c; font-weight:bold; border:1px solid #fadbd8;">⚠️ Ce canon a ${active.length} défaut(s) en cours.</div>`;
+                }
+
+                let editBtn = (window.mainTheme === 'type' && !window.isMultiSelect) ? `<button class="btn-action-primary" onclick="window.startEdit('${p.id}')">✏️ Éditer ce canon</button>` : '';
+
+                listDiv.innerHTML += `
+                    <div class="sel-details">
+                        <div class="sel-details-header"><span>📍 Canon <b>${p.id}</b></span><span style="font-weight:normal; font-size:12px; background:#e0e6ed; padding:4px 10px; border-radius:12px; color:#34495e;">${window.getV(p, window.keyPiste)}</span></div>
+                        <div class="sel-details-body">${mainContent}${editBtn}</div>
+                    </div>`;
+                    
+                if(window.mainTheme === 'historique' && !window.isMultiSelect) setTimeout(() => window.drawPisteCompareChart(p), 50);
+            });
+        };
+
+        window.triggerGlobalFilterChart = function() {
+            if (window.selectedCannonsMap.size > 0 || window.currentlyEditingId) return;
+            let hasDyn = window.activeFilters.some(f => f.key && f.vals.length > 0 && !f.vals.includes('all'));
+            let hasStat = !window.currentPistes.includes('all') || !window.currentTypes.includes('all') || !window.currentVannes.includes('all') || !window.currentModules.includes('all');
+            
+            let visibleCannons = window.snowCannons.features.filter(f => f.properties._isVisible);
+            
+            let html = `<div style="background:#eafaf1; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px; border:1px solid #d5f5e3;"><span style="font-size:24px; font-weight:bold; color:#27ae60;">${visibleCannons.length}</span><br><span style="font-size:12px; color:#555; text-transform:uppercase;">Canons affichés</span></div>`;
+
+            let chartLabels = []; let chartData = []; let chartColors = []; let chartType = 'bar';
+            let chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+            if (window.mainTheme === 'defauts') {
+                document.getElementById('right-title').innerText = "📊 Analyse : Défauts";
+                let activeList = [];
+                let cUrgent = 0, cEnCours = 0, cRas = 0;
+                visibleCannons.forEach(f => {
+                    let p = f.properties;
+                    let acts = window.getActiveTickets(p.id);
+                    if(acts.length === 0) { cRas++; }
+                    else {
+                        acts.forEach(t => {
+                            if(t.statut.includes('faire')) cUrgent++; else cEnCours++;
+                            activeList.push({id: p.id, piste: window.getV(p, window.keyPiste), ticket: t});
+                        });
+                    }
+                });
+
+                chartLabels = ['À faire', 'En cours', 'RAS'];
+                chartData = [cUrgent, cEnCours, cRas];
+                chartColors = ['#e74c3c', '#f39c12', '#bdc3c7'];
+                chartType = 'doughnut';
+
+                let total = cUrgent + cEnCours + cRas;
+                let faultPerc = total > 0 ? (((cUrgent + cEnCours) / total) * 100).toFixed(1) : 0;
+
+                chartOptions.plugins.legend = { position: 'right', labels: { boxWidth: 12, font: {size: 11} } };
+                chartOptions.plugins.tooltip = {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.parsed || 0;
+                            let total = context.chart._metasets[context.datasetIndex].total;
+                            let perc = total > 0 ? ((value/total)*100).toFixed(1) : 0;
+                            return `${label} : ${value} (${perc}%)`;
+                        }
+                    }
+                };
+
+                html += `<div class="piste-chart-container">
+                            <div style="text-align:center; font-size:16px; font-weight:bold; color:#e74c3c; margin-bottom:5px;">Taux de pannes : ${faultPerc}%</div>
+                            <div style="height:180px;position:relative;"><canvas id="global-filter-chart"></canvas></div>
+                         </div>`;
+                
+                html += `<div style="font-size:13px; font-weight:bold; margin-top:15px; border-bottom:2px solid #eee; padding-bottom:5px;">Liste détaillée des défauts :</div>`;
+                if (activeList.length === 0) {
+                    html += `<div style="font-size:12px; color:#7f8c8d; text-align:center; padding:10px;">Aucun défaut sur les canons affichés.</div>`;
+                } else {
+                    activeList.sort((a,b) => {
+                        let wA = a.ticket.statut.includes('faire') ? 1 : 0;
+                        let wB = b.ticket.statut.includes('faire') ? 1 : 0;
+                        return wB - wA;
+                    });
+                    let listHtml = activeList.map(item => {
+                        let color = item.ticket.statut.includes('faire') ? '#e74c3c' : '#f39c12';
+                        return `<div style="border-left:3px solid ${color}; background:#fff; padding:8px; margin-top:8px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <b style="color:#2c3e50;">Canon ${item.id}</b> <span style="color:#7f8c8d; font-size:10px;">(${item.piste})</span><br>
+                                <span style="color:${color}; font-weight:bold;">${item.ticket.defaut}</span>
+                            </div>
+                            <button onclick="window.focusCannon('${item.id}');" style="background:none; border:1px solid #ddd; border-radius:4px; cursor:pointer; font-size:10px; padding:4px 8px;">Cibler 📍</button>
+                        </div>`; 
+                    }).join('');
+                    html += `<div style="max-height: 40vh; overflow-y: auto; padding-right:5px;">${listHtml}</div>`;
+                }
+            } 
+            else if (window.mainTheme === 'type' || window.mainTheme === 'repeteur' || window.mainTheme === 'transfo') {
+                let key = window.mainTheme === 'type' ? window.keyType : (window.mainTheme === 'repeteur' ? window.keyRep : window.keyTransfo);
+                let title = window.mainTheme === 'type' ? 'Types de canon' : (window.mainTheme === 'repeteur' ? 'Répéteurs' : 'Transformateurs');
+                document.getElementById('right-title').innerText = "📊 Analyse : " + title;
+                
+                let counts = {};
+                visibleCannons.forEach(f => {
+                    let v = window.getV(f.properties, key);
+                    counts[v] = (counts[v] || 0) + 1;
+                });
+                chartLabels = Object.keys(counts).sort();
+                chartData = chartLabels.map(k => counts[k]);
+                
+                if (window.mainTheme === 'type') {
+                    chartColors = chartLabels.map(k => {
+                        let kL = k.toLowerCase();
+                        if(["demak lenko", "demac lenko"].includes(kL)) return '#0000FF';
+                        if(["sufag", "street", "taurus", "taurax", "peak"].includes(kL)) return '#008000';
+                        return window.technoColors[kL] || '#FFD700';
+                    });
+                } else if (window.mainTheme === 'repeteur') {
+                    chartColors = chartLabels.map(k => window.repColors[k] || '#3498db');
+                } else {
+                    chartColors = chartLabels.map(k => window.transfoColors[k] || '#3498db');
+                }
+
+                html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Répartition par ${title}</div><div style="height:200px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
+            } 
+            else if (window.mainTheme === 'historique') {
+                document.getElementById('right-title').innerText = "📊 Analyse : Historique";
+                let s = window.saisonsList[window.histSeasonIdx];
+                let metricName = window.histMetric === 'eau' ? 'Eau (m³)' : (window.histMetric === 'air' ? 'Air' : 'Temps (h)');
+                
+                let isSinglePiste = (window.currentPistes.length === 1 && window.currentPistes[0] !== 'all');
+                
+                if (isSinglePiste || visibleCannons.length <= 40) {
+                    let sorted = [...visibleCannons].sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
+                    chartLabels = sorted.map(c => c.properties.id);
+                    chartData = sorted.map(c => c.properties.historique[s] ? c.properties.historique[s][window.histMetric] : 0);
+                    chartColors = '#3498db';
+                    let pisteName = isSinglePiste ? window.currentPistes[0] : "Canons";
+                    html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Détail par canon (${metricName}) - ${pisteName}</div><div style="height:250px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                } else {
+                    let pisteTotals = {};
+                    visibleCannons.forEach(f => {
+                        let p = window.getV(f.properties, window.keyPiste);
+                        let val = f.properties.historique[s] ? f.properties.historique[s][window.histMetric] : 0;
+                        pisteTotals[p] = (pisteTotals[p] || 0) + val;
+                    });
+                    chartLabels = Object.keys(pisteTotals).sort();
+                    chartData = chartLabels.map(k => pisteTotals[k]);
+                    chartColors = '#2980b9';
+                    html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Total ${metricName} par Piste (Saison ${s})</div><div style="height:250px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                }
+            }
+
+            document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none';
+            document.getElementById('selected-list').innerHTML = html; 
+
+            setTimeout(() => {
+                let ctx = document.getElementById('global-filter-chart'); if(!ctx) return;
+                if(window.chartInstances['global-filter-chart']) window.chartInstances['global-filter-chart'].destroy();
+                
+                window.chartInstances['global-filter-chart'] = new Chart(ctx.getContext('2d'), { 
+                    type: chartType, 
+                    data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors, borderRadius: chartType==='bar'?4:0 }] }, 
+                    options: chartOptions 
+                });
+            }, 50);
+        };
+
         // ==============================================================
         // 7. GESTION BASE DE DONNÉES LOCALE (INDEXEDDB)
         // ==============================================================
@@ -727,7 +970,6 @@
                     window.localDB = event.target.result;
                     window.loadSavedLayersFromDB(); 
                 };
-                request.onerror = function(e) { console.warn("IndexedDB refusé."); };
             } catch(e) {}
         };
 
@@ -1234,7 +1476,7 @@
             }
             
             window.attachEvents();
-            window.updateLegend(); window.updateMap();
+            window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
         };
 
         window.generateDynamicFiltersUI = function() {
@@ -1409,7 +1651,6 @@
                 try {
                     let satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
                     map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
-                    L.control.zoom({ position: 'bottomright' }).addTo(map);
                     window.initLocalDB();
                     window.fetchGoogleSheetsData();
                 } catch(e) {
