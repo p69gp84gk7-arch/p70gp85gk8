@@ -6,22 +6,22 @@
     <title>GMAO Neige - Mode Expert BI</title>
     
     <script>
-        window.onerror = function(message, source, lineno) {
+        function showCrash(msg, line) {
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('loading-spinner').style.display = 'none';
             document.getElementById('loading-title').innerText = "🛑 CRASH SYSTÈME";
-            document.getElementById('loading-title').style.color = "#e74c3c";
-            document.getElementById('loading-desc').style.display = 'none';
+            if(document.getElementById('loading-desc')) document.getElementById('loading-desc').style.display = 'none';
+            if(document.getElementById('loading-step')) document.getElementById('loading-step').style.display = 'none';
             document.getElementById('error-box').style.display = 'block';
-            document.getElementById('error-msg').innerHTML = "<b>Erreur technique :</b> " + message + "<br><b>Ligne :</b> " + lineno;
-            return true;
-        };
+            document.getElementById('error-msg').innerHTML = "<b>Erreur technique :</b> " + msg + (line ? "<br><b>Ligne :</b> " + line : "");
+        }
+        window.onerror = function(message, source, lineno) { showCrash(message, lineno); return true; };
+        window.addEventListener('unhandledrejection', function(event) { showCrash(event.reason ? event.reason.message : "Erreur asynchrone bloquée", "Réseau/Promesse"); });
     </script>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
     
@@ -69,7 +69,7 @@
 
         .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color:#34495e; font-weight:600;}
         .color-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #ccc;}
-        .gradient-bar { height: 10px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
+        .gradient-bar { height: 12px; border-radius: 4px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
         .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; font-weight:bold;}
 
         #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
@@ -110,7 +110,7 @@
         .comp-controls { display: flex; gap: 15px; background: #fff; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ddd; align-items: flex-end;}
         .comp-chart-box { background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 15px; height: 200px; position: relative;}
 
-        /* CALQUES KML/KMZ - UI AJOUTÉE POUR COULEUR ET EPAISSEUR */
+        /* CALQUES KML/KMZ - UI COULEUR & EPAISSEUR */
         .kml-layer-item { display:flex; align-items:center; background:#fff; padding:8px 10px; border:1px solid #ddd; border-radius:4px; margin-bottom:8px; font-size:12px; font-weight:bold; }
         .layer-color-picker { width:24px; height:24px; padding:0; border:none; border-radius:4px; cursor:pointer; flex-shrink:0; outline:1px solid #ccc;}
         .layer-weight-picker { width:35px; height:22px; padding:2px; border:1px solid #ccc; border-radius:4px; text-align:center; font-size:12px; margin-left:5px;}
@@ -119,14 +119,13 @@
     </style>
 </head>
 <body>
-    
     <div id="datalists-container"></div> 
 
     <div id="loading-overlay">
         <div class="spinner" id="loading-spinner"></div>
-        <h2 style="color:#3498db; margin:0;" id="loading-title">Connexion à la Base...</h2>
+        <h2 style="color:#3498db; margin:0;" id="loading-title">Démarrage du système...</h2>
         <p style="color:#666; font-weight:bold; font-size:16px;" id="loading-desc">Veuillez patienter</p>
-        <p style="color:#888; font-size:12px;" id="loading-step">Initialisation</p>
+        <p style="color:#888; font-size:12px;" id="loading-step">Préparation de la carte</p>
         <div id="error-box"><p id="error-msg"></p></div>
     </div>
 
@@ -154,7 +153,6 @@
             <details class="panel-section" open>
                 <summary>1. Thème & Légende</summary>
                 <div class="section-content" style="padding-top: 10px;">
-                    
                     <div class="theme-block">
                         <label class="radio-card" id="lbl-defauts" style="border-radius: 6px 6px 0 0; margin-bottom: 0; border-color: #3498db;"><input type="radio" name="main_theme" value="defauts" checked> 🚨 Défauts en cours</label>
                         <div class="theme-details" id="details-defauts" style="display: block; border-color: #3498db;">
@@ -247,11 +245,11 @@
                     <hr style="margin:15px 0; border-top:1px dashed #ccc;">
                     
                     <p style="font-size:11px; color:#666; margin-bottom:10px; line-height:1.4;">
-                        <b>2. Import Manuel depuis votre PC :</b><br>
+                        <b>2. Import Manuel depuis PC/Mobile :</b><br>
                         (Sera sauvegardé dans ce navigateur)
                     </p>
                     <input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="handleKMLUpload(event)">
-                    <button class="btn-action-primary" style="margin-top:0; background:#8e44ad;" onclick="document.getElementById('kml-upload').click()">📂 Parcourir...</button>
+                    <button class="btn-action-primary" style="margin-top:0; background:#8e44ad;" onclick="document.getElementById('kml-upload').click()">📂 Importer / Parcourir...</button>
                     <div id="custom-layers-list" style="margin-top:15px;"></div>
                 </div>
             </details>
@@ -304,12 +302,13 @@
 
     <script>
         // =======================================================
-        // 1. VARIABLES GLOBALES & FONCTIONS VITALES (ANTI-ERREURS)
+        // 1. VARIABLES GLOBALES & FONCTIONS VITALES 
         // =======================================================
         
-        // ⚠️ REMETTRE VOTRE URL ICI ⚠️
+        // ⚠️ LIEN GOOGLE APPS SCRIPT ⚠️
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
         
+        let map, satLayer, topoLayer;
         let snowCannons = { "type": "FeatureCollection", "features": [] };
         let rawTickets = []; let saisonsList = []; let cloudKmzLayers = [];
         let isMultiSelect = false; let columnValuesSets = {}; let availableColumns = [];
@@ -325,9 +324,9 @@
         const defaultColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
         let keyPiste = "", keyType = "", keyRep = "", keyTransfo = "", keyVanne = "", keyModule = "";
 
-        // LA FONCTION GETV EST BIEN DÉCLARÉE TOUT EN HAUT POUR EVITER LE BUG
+        // FONCTIONS SECURISEES PLACÉES EN HAUT
         const getV = function(p, key) { 
-            if(!key) return "N/A"; 
+            if(!key || !p || !p.fullData) return "N/A"; 
             let o = p.fullData.find(x => x.k === key); 
             return o ? o.v.toString().trim() : "N/A"; 
         };
@@ -335,33 +334,52 @@
         const getActiveTickets = function(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
         const getHistoryTickets = function(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
 
-        // ==========================================
-        // 2. INITIALISATION CARTE
-        // ==========================================
-        const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
-        const topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
-        const map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
-        let currentMapMode = 'sat';
+        // ==============================================================
+        // 2. FONCTION DE DEMARRAGE PRINCIPALE (SÉCURISÉE)
+        // ==============================================================
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Initialisation Leaflet prioritaire
+                if (typeof L === 'undefined') throw new Error("Leaflet (la carte) n'a pas pu se charger. Vérifiez votre pare-feu.");
+                if (typeof JSZip === 'undefined') throw new Error("Les outils KMZ (JSZip) ne se sont pas chargés.");
+
+                satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+                topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+                map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
+                L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+                // Lancement Base Locale
+                initLocalDB();
+
+                // Lancement Google Sheets
+                await fetchGoogleSheetsData();
+
+            } catch (err) {
+                showCrash(err.message, "Moteur Démarrage");
+            }
+        });
 
         // ==============================================================
-        // 3. BASE DE DONNEES LOCALE (INDEXEDDB) POUR LES KMZ PERSONNELS
+        // 3. BASE DE DONNEES LOCALE (INDEXEDDB) 
         // ==============================================================
         let localDB;
-        try {
-            const request = indexedDB.open("GMAONeigeDB", 2);
-            request.onupgradeneeded = function(event) {
-                localDB = event.target.result;
-                if (!localDB.objectStoreNames.contains("kmz_layers")) {
-                    localDB.createObjectStore("kmz_layers", { keyPath: "id" });
-                }
-            };
-            request.onsuccess = function(event) {
-                localDB = event.target.result;
-                loadSavedLayersFromDB(); 
-            };
-        } catch(e) {
-            console.warn("IndexedDB non disponible.");
+        function initLocalDB() {
+            try {
+                if (!window.indexedDB) { console.warn("IndexedDB non supporté par ce navigateur."); return; }
+                const request = window.indexedDB.open("GMAONeigeDB", 2);
+                request.onupgradeneeded = function(event) {
+                    localDB = event.target.result;
+                    if (!localDB.objectStoreNames.contains("kmz_layers")) {
+                        localDB.createObjectStore("kmz_layers", { keyPath: "id" });
+                    }
+                };
+                request.onsuccess = function(event) {
+                    localDB = event.target.result;
+                    loadSavedLayersFromDB(); 
+                };
+            } catch(e) {
+                console.warn("Erreur IndexedDB : " + e.message);
+            }
         }
 
         function saveLayerToDB(id, name, geojson, color, weight) {
@@ -402,188 +420,179 @@
         }
 
         // ==========================================
-        // 4. LECTURE DES DONNEES GOOGLE SHEETS
+        // 4. RESEAU ET LECTURE DONNEES
         // ==========================================
         function setStep(step, desc) {
-            document.getElementById('loading-step').innerText = "Étape " + step + "/4";
-            document.getElementById('loading-desc').innerText = desc;
+            let elStep = document.getElementById('loading-step');
+            let elDesc = document.getElementById('loading-desc');
+            if (elStep) elStep.innerText = "Étape " + step + "/4";
+            if (elDesc) elDesc.innerText = desc;
         }
 
         async function fetchWithTimeout(resource, options = {}) {
-            const { timeout = 15000 } = options;
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
             const noCacheUrl = resource + (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-            const response = await fetch(noCacheUrl, { ...options, signal: controller.signal });
-            clearTimeout(id);
-            return response;
+            if (window.AbortController) {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), 15000);
+                const response = await fetch(noCacheUrl, { ...options, signal: controller.signal });
+                clearTimeout(id);
+                return response;
+            } else {
+                return await fetch(noCacheUrl, options);
+            }
         }
 
         async function fetchGoogleSheetsData() {
-            try {
-                setStep(1, "Connexion au serveur Google...");
-                const response = await fetchWithTimeout(GOOGLE_API_URL);
-                if (!response.ok) throw new Error("Accès refusé. Le script est-il bien public ?");
-                let textData = await response.text();
-                let data;
-                try { data = JSON.parse(textData); } catch(e) { throw new Error("Les données reçues sont bloquées."); }
-                
-                setStep(2, "Analyse de la base Général...");
-                if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
-                
-                const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
-                const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
-                
-                const findCol = (keywords) => { let idx = genHeaders.findIndex(h => keywords.some(k => h.includes(k))); return idx !== -1 ? originalHeaders[idx] : null; };
+            setStep(1, "Connexion au serveur Google...");
+            const response = await fetchWithTimeout(GOOGLE_API_URL);
+            if (!response.ok) throw new Error("Accès refusé. Le script est-il bien public ?");
+            
+            let textData = await response.text();
+            let data;
+            try { data = JSON.parse(textData); } catch(e) { throw new Error("Les données reçues sont bloquées."); }
+            
+            setStep(2, "Analyse de la base Général...");
+            if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
+            
+            const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
+            const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
+            
+            const findCol = (keywords) => { let idx = genHeaders.findIndex(h => keywords.some(k => h.includes(k))); return idx !== -1 ? originalHeaders[idx] : null; };
 
-                const idxId = 2; // Forcé sur Colonne C
-                const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
-                if (idxXY === -1) throw new Error("La colonne 'xy' (coordonnées GPS) est introuvable.");
+            const idxId = 2; // Forcé sur Colonne C
+            const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
+            if (idxXY === -1) throw new Error("La colonne 'xy' (coordonnées GPS) est introuvable.");
 
-                keyPiste = findCol(['pistes', 'piste']); keyType = findCol(['type canon', 'type']);
-                keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']);
-                keyTransfo = findCol(['transfo']); keyVanne = findCol(['vanne']); keyModule = findCol(['module']);
+            keyPiste = findCol(['pistes', 'piste']); keyType = findCol(['type canon', 'type']);
+            keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']);
+            keyTransfo = findCol(['transfo']); keyVanne = findCol(['vanne']); keyModule = findCol(['module']);
 
-                originalHeaders.forEach(h => {
-                    let hl = h.toLowerCase();
-                    if(!hl.includes('xy') && !hl.includes('gps') && !hl.includes('photo')) {
-                        availableColumns.push(h); columnValuesSets[h] = new Set();
-                    }
-                });
-
-                let dictGeneral = {};
-                let validPointsCount = 0;
-
-                data.general.slice(1).forEach(row => {
-                    let idRaw = row[idxId];
-                    if (idRaw == null || idRaw === "") return;
-                    let id = idRaw.toString().replace(/^YA\s*/i, '').trim(); 
-                    if (!id) return;
-
-                    let lat = 0, lng = 0;
-                    if (row[idxXY]) {
-                        let txt = String(row[idxXY]).replace(/,/g, '.'); 
-                        let matches = txt.match(/-?\d+(?:\.\d+)?/g);
-                        if (matches && matches.length >= 2) { 
-                            lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); 
-                            if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; }
-                        }
-                    }
-
-                    let fullData = [];
-                    originalHeaders.forEach((head, i) => { 
-                        let val = (i < row.length && row[i] != null && row[i] !== "") ? row[i].toString() : "N/A";
-                        fullData.push({k: head, v: val}); 
-                        if(val !== "N/A" && columnValuesSets[head]) columnValuesSets[head].add(val.trim());
-                    });
-
-                    if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
-                    dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
-                });
-
-                if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté.");
-
-                setStep(3, "Analyse de l'Historique...");
-                if (data.historique && data.historique.length > 1) {
-                    const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim());
-                    const idxCanons = 1; // Colonne B
-                    
-                    let colsEau = {}, colsAir = {}, colsTemps = {};
-                    let saisonsSet = new Set();
-
-                    histHeaders.forEach((h, i) => {
-                        let match = h.match(/(eau|air|marche).*?(\d{2}\/\d{2})/i);
-                        if (match) {
-                            let t = match[1].toLowerCase(); let s = match[2]; saisonsSet.add(s);
-                            if (t.includes('eau')) colsEau[s] = i; if (t.includes('air')) colsAir[s] = i; if (t.includes('marche')) colsTemps[s] = i;
-                        }
-                    });
-                    saisonsList = Array.from(saisonsSet).sort((a,b) => parseInt(a.split('/')[0]) - parseInt(b.split('/')[0]));
-                    histSeasonIdx = saisonsList.length > 0 ? saisonsList.length - 1 : 0;
-
-                    data.historique.slice(1).forEach(row => {
-                        let rawId = row[idxCanons];
-                        if (rawId != null && rawId !== "") {
-                            let id = rawId.toString().replace(/^YA\s*/i, '').trim();
-                            if (id && dictGeneral[id]) {
-                                saisonsList.forEach(s => {
-                                    dictGeneral[id].historique[s] = { eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 };
-                                });
-                            }
-                        }
-                    });
+            originalHeaders.forEach(h => {
+                let hl = h.toLowerCase();
+                if(!hl.includes('xy') && !hl.includes('gps') && !hl.includes('photo')) {
+                    availableColumns.push(h); columnValuesSets[h] = new Set();
                 }
+            });
 
-                setStep(4, "Préparation des Tickets & GitHub...");
-                if (data.tickets && data.tickets.length > 1) {
-                    const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
-                    const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
-                    const idxTEtat = tHeaders.findIndex(h => h.includes('état') || h.includes('etat'));
-                    const idxTDate = tHeaders.findIndex(h => h.includes('date'));
-                    const idxTRegard = tHeaders.findIndex(h => h.includes('n°regard') || h.includes('regard'));
-                    const idxTDefaut = tHeaders.findIndex(h => h.includes('defaut') || h.includes('défaut'));
+            let dictGeneral = {};
+            let validPointsCount = 0;
 
-                    if(idxTRegard > -1) {
-                        rawTickets = data.tickets.slice(1).map(row => {
-                            let fullTData = [];
-                            originalTHeaders.forEach((h, i) => { if (i < row.length && row[i] != null && row[i] !== "") fullTData.push({k: h, v: row[i]}); });
-                            return {
-                                statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""),
-                                date: (idxTDate>-1 && row[idxTDate] != null ? row[idxTDate] : ""),
-                                idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/^YA\s*/i, '').trim() : ""), 
-                                defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Défaut non spécifié"),
-                                fullData: fullTData
-                            };
-                        });
+            data.general.slice(1).forEach(row => {
+                let idRaw = row[idxId];
+                if (idRaw == null || idRaw === "") return;
+                let id = idRaw.toString().replace(/^YA\s*/i, '').trim(); 
+                if (!id) return;
+
+                let lat = 0, lng = 0;
+                if (row[idxXY]) {
+                    let txt = String(row[idxXY]).replace(/,/g, '.'); 
+                    let matches = txt.match(/-?\d+(?:\.\d+)?/g);
+                    if (matches && matches.length >= 2) { 
+                        lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); 
+                        if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; }
                     }
                 }
 
-                if (data.kmz && data.kmz.length > 0) {
-                    cloudKmzLayers = data.kmz.map((k, index) => {
-                        let col = defaultColors[index % defaultColors.length];
-                        return { ...k, isVisible: false, leafletLayer: null, color: col, weight: 4 };
-                    });
-                }
-
-                Object.values(dictGeneral).forEach(canon => {
-                    if (canon.lat !== 0 && !isNaN(canon.lat)) { 
-                        snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon });
-                    }
+                let fullData = [];
+                originalHeaders.forEach((head, i) => { 
+                    let val = (i < row.length && row[i] != null && row[i] !== "") ? row[i].toString() : "N/A";
+                    fullData.push({k: head, v: val}); 
+                    if(val !== "N/A" && columnValuesSets[head]) columnValuesSets[head].add(val.trim());
                 });
 
-                document.getElementById('loading-spinner').style.display = 'none';
-                document.getElementById('loading-title').innerText = "✅ Chargement Réussi !";
-                document.getElementById('loading-title').style.color = "#27ae60";
-                document.getElementById('loading-step').style.display = 'none';
-                document.getElementById('loading-desc').innerHTML = `${snowCannons.features.length} canons placés.`;
-                
-                setTimeout(() => { 
-                    try {
-                        initApp(); 
-                        document.getElementById('loading-overlay').style.display = 'none';
-                    } catch(err) {
-                        document.getElementById('error-box').style.display = 'block';
-                        document.getElementById('error-msg').innerHTML = "Erreur UI : " + err.message; 
-                    }
-                }, 1200);
+                if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
+                dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
+            });
 
-            } catch (error) { 
-                document.getElementById('loading-spinner').style.display = 'none';
-                document.getElementById('loading-title').innerText = "🛑 Erreur détectée";
-                document.getElementById('loading-title').style.color = "#e74c3c";
-                document.getElementById('loading-desc').style.display = 'none';
-                document.getElementById('loading-step').style.display = 'none';
-                document.getElementById('error-box').style.display = 'block';
-                if(error.name === 'AbortError') { document.getElementById('error-msg').innerHTML = "Délai d'attente dépassé (Timeout). Google met trop de temps à répondre."; } 
-                else { document.getElementById('error-msg').innerHTML = error.message; }
+            if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté dans la colonne 'xy'.");
+
+            setStep(3, "Analyse de l'Historique...");
+            if (data.historique && data.historique.length > 1) {
+                const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim());
+                const idxCanons = 1; 
+                
+                let colsEau = {}, colsAir = {}, colsTemps = {};
+                let saisonsSet = new Set();
+
+                histHeaders.forEach((h, i) => {
+                    let match = h.match(/(eau|air|marche).*?(\d{2}\/\d{2})/i);
+                    if (match) {
+                        let t = match[1].toLowerCase(); let s = match[2]; saisonsSet.add(s);
+                        if (t.includes('eau')) colsEau[s] = i; if (t.includes('air')) colsAir[s] = i; if (t.includes('marche')) colsTemps[s] = i;
+                    }
+                });
+                saisonsList = Array.from(saisonsSet).sort((a,b) => parseInt(a.split('/')[0]) - parseInt(b.split('/')[0]));
+                histSeasonIdx = saisonsList.length > 0 ? saisonsList.length - 1 : 0;
+
+                data.historique.slice(1).forEach(row => {
+                    let rawId = row[idxCanons];
+                    if (rawId != null && rawId !== "") {
+                        let id = rawId.toString().replace(/^YA\s*/i, '').trim();
+                        if (id && dictGeneral[id]) {
+                            saisonsList.forEach(s => {
+                                dictGeneral[id].historique[s] = { eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 };
+                            });
+                        }
+                    }
+                });
             }
+
+            setStep(4, "Préparation des Tickets & GitHub...");
+            if (data.tickets && data.tickets.length > 1) {
+                const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
+                const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
+                const idxTEtat = tHeaders.findIndex(h => h.includes('état') || h.includes('etat'));
+                const idxTDate = tHeaders.findIndex(h => h.includes('date'));
+                const idxTRegard = tHeaders.findIndex(h => h.includes('n°regard') || h.includes('regard'));
+                const idxTDefaut = tHeaders.findIndex(h => h.includes('defaut') || h.includes('défaut'));
+
+                if(idxTRegard > -1) {
+                    rawTickets = data.tickets.slice(1).map(row => {
+                        let fullTData = [];
+                        originalTHeaders.forEach((h, i) => { if (i < row.length && row[i] != null && row[i] !== "") fullTData.push({k: h, v: row[i]}); });
+                        return {
+                            statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""),
+                            date: (idxTDate>-1 && row[idxTDate] != null ? row[idxTDate] : ""),
+                            idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/^YA\s*/i, '').trim() : ""), 
+                            defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Défaut non spécifié"),
+                            fullData: fullTData
+                        };
+                    });
+                }
+            }
+
+            if (data.kmz && data.kmz.length > 0) {
+                cloudKmzLayers = data.kmz.map((k, index) => {
+                    let col = defaultColors[index % defaultColors.length];
+                    return { ...k, isVisible: false, leafletLayer: null, color: col, weight: 4 };
+                });
+            }
+
+            Object.values(dictGeneral).forEach(canon => {
+                if (canon.lat !== 0 && !isNaN(canon.lat)) { 
+                    snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon });
+                }
+            });
+
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('loading-title').innerText = "✅ Chargement Réussi !";
+            document.getElementById('loading-title').style.color = "#27ae60";
+            document.getElementById('loading-step').style.display = 'none';
+            document.getElementById('loading-desc').innerHTML = `${snowCannons.features.length} canons placés.`;
+            
+            setTimeout(() => { 
+                try {
+                    buildApplicationUI(); 
+                    document.getElementById('loading-overlay').style.display = 'none';
+                } catch(err) {
+                    showCrash(err.message, "Génération Interface");
+                }
+            }, 800);
         }
 
         // ==========================================
         // 5. GESTION DES CALQUES (COULEUR & EPAISSEUR)
         // ==========================================
-        
-        // Fonction universelle pour créer le style Leaflet des KML
         function buildGeoJsonStyle(hexColor, weight) {
             let finalWeight = weight ? parseInt(weight) : 4;
             return {
@@ -598,7 +607,7 @@
         }
 
         async function fetchGitHubKMZ(url) {
-            const response = await fetch(url);
+            const response = await fetchWithTimeout(url);
             if (!response.ok) throw new Error("GitHub refuse l'accès. Vérifiez que le dépôt est public et l'URL Raw.");
             
             let kmlString = "";
@@ -612,12 +621,12 @@
             } else {
                 kmlString = await response.text();
             }
+
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(kmlString, "text/xml");
             return toGeoJSON.kml(xmlDoc);
         }
 
-        // ---- CLOUD LAYERS (GITHUB) ----
         function renderCloudLayersList() {
             const container = document.getElementById('cloud-layers-container');
             container.innerHTML = "";
@@ -688,7 +697,6 @@
             }
         }
 
-        // ---- LOCAL LAYERS (PC) ----
         async function handleKMLUpload(event) {
             const file = event.target.files[0];
             if(!file) return;
@@ -793,9 +801,9 @@
         }
 
         // ==========================================
-        // 6. INITIALISATION & UI LOGIC
+        // 6. CONSTRUCTION UI (FILTRES, LÉGENDES)
         // ==========================================
-        function initApp() {
+        function buildApplicationUI() {
             function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
             let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}
             const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
@@ -1187,10 +1195,7 @@
                     if (currentModules && !currentModules.includes('all')) { if (!currentModules.includes(getV(p, keyModule))) vis = false; }
 
                     activeFilters.forEach(filt => {
-                        if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
-                            let val = getV(p, filt.key);
-                            if(!filt.vals.includes(val)) vis = false;
-                        }
+                        if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; }
                     });
 
                     let val = 0;
@@ -1224,6 +1229,7 @@
                 });
             } catch(e) { console.error(e); }
         }
+
     </script>
 </body>
 </html>
