@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
     
@@ -69,7 +70,7 @@
 
         .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color:#34495e; font-weight:600;}
         .color-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #ccc;}
-        .gradient-bar { height: 12px; border-radius: 4px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
+        .gradient-bar { height: 10px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
         .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; font-weight:bold;}
 
         #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
@@ -130,7 +131,7 @@
     </div>
 
     <div id="compare-modal">
-        <div class="comp-header"><span>📊 Comparaison Globale de Saisons</span><button onclick="document.getElementById('compare-modal').style.display='none'" style="background:none;border:none;color:white;cursor:pointer;font-size:24px;">&times;</button></div>
+        <div class="comp-header"><span>📊 Comparaison Globale de Saisons</span><button onclick="openGlobalCompareModal(false)" style="background:none;border:none;color:white;cursor:pointer;font-size:24px;">&times;</button></div>
         <div class="comp-body">
             <div class="comp-controls">
                 <div style="flex:1;"><div class="edit-label">Donnée</div><select id="comp-metric" class="edit-input" style="margin:0;"><option value="eau">Eau (m³)</option><option value="air">Air</option><option value="temps">Temps de marche</option></select></div>
@@ -153,6 +154,7 @@
             <details class="panel-section" open>
                 <summary>1. Thème & Légende</summary>
                 <div class="section-content" style="padding-top: 10px;">
+                    
                     <div class="theme-block">
                         <label class="radio-card" id="lbl-defauts" style="border-radius: 6px 6px 0 0; margin-bottom: 0; border-color: #3498db;"><input type="radio" name="main_theme" value="defauts" checked> 🚨 Défauts en cours</label>
                         <div class="theme-details" id="details-defauts" style="display: block; border-color: #3498db;">
@@ -209,7 +211,7 @@
                                 <input type="range" id="slider-max" min="0" max="100" value="100">
                             </div>
 
-                            <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal()">📊 Comparer 2 Saisons</button>
+                            <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal(true)">📊 Comparer 2 Saisons</button>
                         </div>
                     </div>
                 </div>
@@ -245,7 +247,7 @@
                     <hr style="margin:15px 0; border-top:1px dashed #ccc;">
                     
                     <p style="font-size:11px; color:#666; margin-bottom:10px; line-height:1.4;">
-                        <b>2. Import Manuel depuis PC/Mobile :</b><br>
+                        <b>2. Import Manuel depuis votre PC :</b><br>
                         (Sera sauvegardé dans ce navigateur)
                     </p>
                     <input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="handleKMLUpload(event)">
@@ -293,7 +295,7 @@
                     <div id="dynamic-edit-fields"></div>
                     <div style="display:flex; gap:10px; margin-top:20px;">
                         <button onclick="cancelEdit()" style="flex:1; background:#ecf0f1; color:#333; padding:12px; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">Annuler</button>
-                        <button id="btn-save-edit" style="flex:2; background:#27ae60; color:white; padding:12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
+                        <button id="btn-save-edit" onclick="saveEditData()" style="flex:2; background:#27ae60; color:white; padding:12px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
                     </div>
                 </div>
             </div>
@@ -302,7 +304,7 @@
 
     <script>
         // =======================================================
-        // 1. VARIABLES GLOBALES & FONCTIONS VITALES 
+        // 1. CONFIGURATION & VARIABLES GLOBALES 
         // =======================================================
         
         // ⚠️ LIEN GOOGLE APPS SCRIPT ⚠️
@@ -324,62 +326,195 @@
         const defaultColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
         let keyPiste = "", keyType = "", keyRep = "", keyTransfo = "", keyVanne = "", keyModule = "";
 
-        // FONCTIONS SECURISEES PLACÉES EN HAUT
-        const getV = function(p, key) { 
+        // =======================================================
+        // 2. FONCTIONS DE LECTURE (SÉCURISÉES)
+        // =======================================================
+        function getV(p, key) { 
             if(!key || !p || !p.fullData) return "N/A"; 
             let o = p.fullData.find(x => x.k === key); 
             return o ? o.v.toString().trim() : "N/A"; 
-        };
-        const getTicketsForCanon = function(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); };
-        const getActiveTickets = function(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
-        const getHistoryTickets = function(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
+        }
+        function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); }
+        function getActiveTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); }
+        function getHistoryTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); }
 
         // ==============================================================
-        // 2. FONCTION DE DEMARRAGE PRINCIPALE (SÉCURISÉE)
+        // 3. TOUTES LES FONCTIONS DES BOUTONS DE L'INTERFACE (GLOBALES)
+        // ==============================================================
+        
+        function toggleMapMode() {
+            if (!map) return;
+            const btn = document.getElementById('btn-map-mode');
+            if (currentMapMode === 'sat') {
+                map.removeLayer(satLayer); map.addLayer(topoLayer); currentMapMode = 'topo';
+                btn.innerHTML = "🛰️ Vue Satellite Standard"; btn.classList.add('active');
+            } else {
+                map.removeLayer(topoLayer); map.addLayer(satLayer); currentMapMode = 'sat';
+                btn.innerHTML = "🗺️ Vue Topographie / 3D"; btn.classList.remove('active');
+            }
+        }
+
+        function toggleMultiSelect() {
+            isMultiSelect = !isMultiSelect; const btn = document.getElementById('btn-multi-toggle');
+            if(isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; } 
+            else { btn.classList.remove('active'); btn.innerText = "🔲 Multi-Sélection : OFF"; if(selectedCannonsMap.size > 1) clearSelection(); }
+            renderSelectionPanel();
+        }
+
+        function closeRightSidebar() { 
+            document.getElementById('right-sidebar').classList.remove('open'); 
+            if(currentlyEditingId) cancelEdit(); 
+            clearSelection(); 
+        }
+
+        function clearSelection() { 
+            selectedCannonsMap.clear(); 
+            updateMap(); 
+            renderSelectionPanel(); 
+            triggerGlobalFilterChart(); 
+        }
+
+        function cancelEdit() {
+            currentlyEditingId = null; 
+            document.getElementById('view-selection').style.display = 'block'; 
+            document.getElementById('view-edit').style.display = 'none';
+            document.getElementById('right-header').classList.remove('editing'); 
+            document.getElementById('right-title').innerText = "📌 Fiche Détaillée";
+            updateMap(); renderSelectionPanel();
+        }
+
+        async function saveEditData() {
+            if (!currentlyEditingId) return;
+            const btn = document.getElementById('btn-save-edit'); btn.innerText = "⏳ Envoi..."; btn.disabled = true;
+            let fieldsObj = {}; document.querySelectorAll('.dyn-field').forEach(inp => { fieldsObj[inp.getAttribute('data-key')] = inp.value; });
+            const payload = { id: document.getElementById('edit-id').value, lat: parseFloat(document.getElementById('edit-lat').value), lng: parseFloat(document.getElementById('edit-lng').value), fields: fieldsObj };
+
+            try {
+                const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const result = await response.json();
+                if(result.status === "success") {
+                    const layer = selectedCannonsMap.get(currentlyEditingId); const p = layer.feature.properties;
+                    p.fullData.forEach(item => { if(fieldsObj[item.k] !== undefined) item.v = fieldsObj[item.k]; });
+                    let tLower = getV(p, keyType).toLowerCase().trim();
+                    if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = technoColors[tLower] || "#FFD700";
+                    layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lng]);
+                    cancelEdit();
+                } else alert("Erreur Google : " + result.message);
+            } catch (err) { alert("Échec réseau."); }
+            btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
+        }
+
+        function startEdit(id) {
+            currentlyEditingId = id; const layer = selectedCannonsMap.get(id); const p = layer.feature.properties;
+            document.getElementById('edit-id-display').innerText = p.id; document.getElementById('edit-id').value = p.id;
+            document.getElementById('edit-lat').value = layer.getLatLng().lat.toFixed(7); document.getElementById('edit-lng').value = layer.getLatLng().lng.toFixed(7);
+            
+            let formContainer = document.getElementById('dynamic-edit-fields'); formContainer.innerHTML = "";
+            p.fullData.forEach(item => {
+                let kLow = item.k.toLowerCase();
+                if(kLow.includes('regard') || kLow.includes('xy') || kLow.includes('gps')) return;
+                let safeId = "dl-" + item.k.replace(/[^a-zA-Z0-9]/g, '-');
+                formContainer.innerHTML += `<div style="margin-bottom:10px;"><div class="edit-label">${item.k}</div><input type="text" class="edit-input dyn-field" data-key="${item.k}" value="${item.v}" list="${safeId}"></div>`;
+            });
+
+            document.getElementById('allow-move-chk').checked = false; 
+            document.getElementById('view-selection').style.display = 'none'; document.getElementById('view-edit').style.display = 'block';
+            document.getElementById('right-header').classList.add('editing'); document.getElementById('right-title').innerText = "✏️ Édition Complète";
+            updateMap(); 
+        }
+
+        function openGlobalCompareModal(show) {
+            let m = document.getElementById('compare-modal');
+            if(!show) { m.style.display = 'none'; return; }
+            let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2');
+            s1.innerHTML = ""; s2.innerHTML = "";
+            saisonsList.forEach((s, i) => {
+                s1.innerHTML += `<option value="${s}" ${i===0?'selected':''}>${s}</option>`;
+                s2.innerHTML += `<option value="${s}" ${i===1?'selected':''}>${s}</option>`;
+            });
+            m.style.display = 'flex';
+            renderGlobalComparison();
+        }
+
+        function renderGlobalComparison() {
+            let s1 = document.getElementById('comp-s1').value; let s2 = document.getElementById('comp-s2').value;
+            let metric = document.getElementById('comp-metric').value;
+            document.getElementById('comp-title-1').innerText = `Saison ${s1} - ${metric.toUpperCase()}`;
+            document.getElementById('comp-title-2').innerText = `Saison ${s2} - ${metric.toUpperCase()}`;
+
+            let pistes = Array.from(columnValuesSets[keyPiste] || []).sort();
+            let d1 = [], d2 = [];
+
+            pistes.forEach(p => {
+                let sum1 = 0; let sum2 = 0;
+                snowCannons.features.forEach(f => {
+                    if (getV(f.properties, keyPiste) === p) {
+                        if(f.properties.historique[s1]) sum1 += f.properties.historique[s1][metric];
+                        if(f.properties.historique[s2]) sum2 += f.properties.historique[s2][metric];
+                    }
+                });
+                d1.push(sum1); d2.push(sum2);
+            });
+
+            if(chartInstances['c1']) chartInstances['c1'].destroy();
+            chartInstances['c1'] = new Chart(document.getElementById('comp-canvas-1').getContext('2d'), { type: 'bar', data: { labels: pistes, datasets: [{ data: d1, backgroundColor: '#3498db' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            
+            if(chartInstances['c2']) chartInstances['c2'].destroy();
+            chartInstances['c2'] = new Chart(document.getElementById('comp-canvas-2').getContext('2d'), { type: 'bar', data: { labels: pistes, datasets: [{ data: d2, backgroundColor: '#e67e22' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+        }
+
+        function drawSecondPisteChart(targetId, seasonStr) {
+            let canvasId = `chart2-${targetId}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
+            if(chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
+            if(!seasonStr) return;
+            let targetCannon = snowCannons.features.find(f => f.properties.id === targetId).properties;
+            let pName = getV(targetCannon, keyPiste);
+            let pisteCannons = snowCannons.features.filter(f => getV(f.properties, keyPiste) === pName && f.properties.historique[seasonStr]);
+            pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
+            let bgColors = pisteCannons.map(f => f.properties.id === targetId ? '#e74c3c' : '#9b59b6');
+            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
+        }
+
+
+        // ==============================================================
+        // 4. DEMARRAGE ASYNCHRONE DE L'APPLICATION 
         // ==============================================================
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                // Initialisation Leaflet prioritaire
-                if (typeof L === 'undefined') throw new Error("Leaflet (la carte) n'a pas pu se charger. Vérifiez votre pare-feu.");
-                if (typeof JSZip === 'undefined') throw new Error("Les outils KMZ (JSZip) ne se sont pas chargés.");
+                if (typeof L === 'undefined') throw new Error("Leaflet (la carte) n'a pas pu se charger.");
+                if (typeof JSZip === 'undefined') throw new Error("L'outil ZIP (pour KMZ) ne s'est pas chargé.");
 
                 satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
                 topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
                 map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
                 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-                // Lancement Base Locale
                 initLocalDB();
-
-                // Lancement Google Sheets
                 await fetchGoogleSheetsData();
 
             } catch (err) {
-                showCrash(err.message, "Moteur Démarrage");
+                showCrash(err.message, "Démarrage Principal");
             }
         });
 
+
         // ==============================================================
-        // 3. BASE DE DONNEES LOCALE (INDEXEDDB) 
+        // 5. BASE DE DONNEES LOCALE (INDEXEDDB) 
         // ==============================================================
         let localDB;
         function initLocalDB() {
             try {
-                if (!window.indexedDB) { console.warn("IndexedDB non supporté par ce navigateur."); return; }
+                if (!window.indexedDB) return;
                 const request = window.indexedDB.open("GMAONeigeDB", 2);
                 request.onupgradeneeded = function(event) {
                     localDB = event.target.result;
-                    if (!localDB.objectStoreNames.contains("kmz_layers")) {
-                        localDB.createObjectStore("kmz_layers", { keyPath: "id" });
-                    }
+                    if (!localDB.objectStoreNames.contains("kmz_layers")) localDB.createObjectStore("kmz_layers", { keyPath: "id" });
                 };
                 request.onsuccess = function(event) {
                     localDB = event.target.result;
                     loadSavedLayersFromDB(); 
                 };
-            } catch(e) {
-                console.warn("Erreur IndexedDB : " + e.message);
-            }
+            } catch(e) {}
         }
 
         function saveLayerToDB(id, name, geojson, color, weight) {
@@ -401,10 +536,7 @@
             const req = store.get(id);
             req.onsuccess = function() {
                 let data = req.result;
-                if(data) {
-                    Object.assign(data, updates);
-                    store.put(data);
-                }
+                if(data) { Object.assign(data, updates); store.put(data); }
             };
         }
 
@@ -413,14 +545,13 @@
             const tx = localDB.transaction("kmz_layers", "readonly");
             const req = tx.objectStore("kmz_layers").getAll();
             req.onsuccess = function() {
-                req.result.forEach(item => { 
-                    addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); 
-                });
+                req.result.forEach(item => { addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); });
             };
         }
 
+
         // ==========================================
-        // 4. RESEAU ET LECTURE DONNEES
+        // 6. RECUPERATION DES DONNEES GOOGLE SHEETS
         // ==========================================
         function setStep(step, desc) {
             let elStep = document.getElementById('loading-step');
@@ -445,13 +576,13 @@
         async function fetchGoogleSheetsData() {
             setStep(1, "Connexion au serveur Google...");
             const response = await fetchWithTimeout(GOOGLE_API_URL);
-            if (!response.ok) throw new Error("Accès refusé. Le script est-il bien public ?");
+            if (!response.ok) throw new Error("Accès refusé.");
             
             let textData = await response.text();
             let data;
-            try { data = JSON.parse(textData); } catch(e) { throw new Error("Les données reçues sont bloquées."); }
+            try { data = JSON.parse(textData); } catch(e) { throw new Error("Format de données invalide depuis Google."); }
             
-            setStep(2, "Analyse de la base Général...");
+            setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
             
             const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
@@ -459,9 +590,9 @@
             
             const findCol = (keywords) => { let idx = genHeaders.findIndex(h => keywords.some(k => h.includes(k))); return idx !== -1 ? originalHeaders[idx] : null; };
 
-            const idxId = 2; // Forcé sur Colonne C
+            const idxId = 2; 
             const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
-            if (idxXY === -1) throw new Error("La colonne 'xy' (coordonnées GPS) est introuvable.");
+            if (idxXY === -1) throw new Error("La colonne 'xy' est introuvable.");
 
             keyPiste = findCol(['pistes', 'piste']); keyType = findCol(['type canon', 'type']);
             keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']);
@@ -504,7 +635,7 @@
                 dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
             });
 
-            if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté dans la colonne 'xy'.");
+            if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté.");
 
             setStep(3, "Analyse de l'Historique...");
             if (data.historique && data.historique.length > 1) {
@@ -537,7 +668,7 @@
                 });
             }
 
-            setStep(4, "Préparation des Tickets & GitHub...");
+            setStep(4, "Préparation des Pannes & GitHub...");
             if (data.tickets && data.tickets.length > 1) {
                 const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
                 const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
@@ -577,12 +708,12 @@
             document.getElementById('loading-spinner').style.display = 'none';
             document.getElementById('loading-title').innerText = "✅ Chargement Réussi !";
             document.getElementById('loading-title').style.color = "#27ae60";
-            document.getElementById('loading-step').style.display = 'none';
+            if (document.getElementById('loading-step')) document.getElementById('loading-step').style.display = 'none';
             document.getElementById('loading-desc').innerHTML = `${snowCannons.features.length} canons placés.`;
             
             setTimeout(() => { 
                 try {
-                    buildApplicationUI(); 
+                    initApp(); 
                     document.getElementById('loading-overlay').style.display = 'none';
                 } catch(err) {
                     showCrash(err.message, "Génération Interface");
@@ -591,7 +722,7 @@
         }
 
         // ==========================================
-        // 5. GESTION DES CALQUES (COULEUR & EPAISSEUR)
+        // 7. GESTION DES CALQUES KML/KMZ (COULEUR & EPAISSEUR)
         // ==========================================
         function buildGeoJsonStyle(hexColor, weight) {
             let finalWeight = weight ? parseInt(weight) : 4;
@@ -608,7 +739,7 @@
 
         async function fetchGitHubKMZ(url) {
             const response = await fetchWithTimeout(url);
-            if (!response.ok) throw new Error("GitHub refuse l'accès. Vérifiez que le dépôt est public et l'URL Raw.");
+            if (!response.ok) throw new Error("GitHub refuse l'accès. Vérifiez l'URL.");
             
             let kmlString = "";
             if (url.toLowerCase().endsWith('.kmz')) {
@@ -678,7 +809,7 @@
                 statusSpan.innerText = " ✅";
             } catch(err) {
                 statusSpan.innerText = " ❌";
-                alert("Impossible de charger le calque " + layerObj.nom + " : " + err.message);
+                alert("Impossible de charger " + layerObj.nom + " : " + err.message);
                 cbx.checked = false;
             }
             cbx.disabled = false;
@@ -717,7 +848,7 @@
                         const arrayBuffer = await file.arrayBuffer();
                         const zip = await JSZip.loadAsync(arrayBuffer);
                         const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-                        if (!kmlFile) throw new Error("Aucun fichier KML trouvé à l'intérieur du KMZ.");
+                        if (!kmlFile) throw new Error("Aucun KML dans le KMZ.");
                         kmlString = await kmlFile.async("string");
                     } else if (fileName.toLowerCase().endsWith('.kml')) {
                         kmlString = await file.text();
@@ -735,7 +866,7 @@
                     document.getElementById('loading-overlay').style.display = 'none';
                 } catch (err) {
                     document.getElementById('loading-overlay').style.display = 'none';
-                    alert("Erreur lors de l'import : " + err.message);
+                    alert("Erreur : " + err.message);
                 }
                 event.target.value = ""; 
             }, 100);
@@ -801,9 +932,9 @@
         }
 
         // ==========================================
-        // 6. CONSTRUCTION UI (FILTRES, LÉGENDES)
+        // 8. CONSTRUCTION UI & FILTRES GENERAUX
         // ==========================================
-        function buildApplicationUI() {
+        function initApp() {
             function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
             let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}
             const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
@@ -856,7 +987,7 @@
             setupCbs('check-all-vannes', 'vanne-cb', vals => { currentVannes = vals; updateMap(); triggerGlobalFilterChart(); }); 
             setupCbs('check-all-modules', 'module-cb', vals => { currentModules = vals; updateMap(); triggerGlobalFilterChart(); });
 
-            generateDynamicFiltersUI();
+            window.generateDynamicFiltersUI();
             renderCloudLayersList();
             calculateMaxes();
 
@@ -885,7 +1016,7 @@
             updateLegend(); updateMap();
         }
 
-        function generateDynamicFiltersUI() {
+        window.generateDynamicFiltersUI = function() {
             let container = document.getElementById('dynamic-filters-container'); container.innerHTML = "";
             let optionsHTML = `<option value="">-- Choisir un critère --</option>` + availableColumns.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
             for(let i=0; i<4; i++) {
@@ -893,7 +1024,7 @@
             }
         }
 
-        function renderCheckboxesForFilter(idx, colName) {
+        window.renderCheckboxesForFilter = function(idx, colName) {
             let cbxContainer = document.getElementById(`filter-cbx-${idx}`);
             if(!colName) { cbxContainer.style.display = 'none'; activeFilters[idx] = {key:"", vals:[]}; updateMap(); triggerGlobalFilterChart(); return; }
             
@@ -966,37 +1097,6 @@
             document.getElementById('slider-min').value = 0; document.getElementById('slider-max').value = absoluteMaxes[histMetric] || 1;
             document.getElementById('val-min').innerText = 0; document.getElementById('val-max').innerText = absoluteMaxes[histMetric] || 1;
         }
-
-        function toggleMultiSelect() {
-            isMultiSelect = !isMultiSelect; const btn = document.getElementById('btn-multi-toggle');
-            if(isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; } 
-            else { btn.classList.remove('active'); btn.innerText = "🔲 Multi-Sélection : OFF"; if(selectedCannonsMap.size > 1) clearSelection(); }
-            renderSelectionPanel();
-        }
-
-        document.getElementById('btn-save-edit').addEventListener('click', async () => {
-            if (!currentlyEditingId) return;
-            const btn = document.getElementById('btn-save-edit'); btn.innerText = "⏳ Envoi..."; btn.disabled = true;
-            let fieldsObj = {}; document.querySelectorAll('.dyn-field').forEach(inp => { fieldsObj[inp.getAttribute('data-key')] = inp.value; });
-            const payload = { id: document.getElementById('edit-id').value, lat: parseFloat(document.getElementById('edit-lat').value), lng: parseFloat(document.getElementById('edit-lng').value), fields: fieldsObj };
-
-            try {
-                const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) });
-                const result = await response.json();
-                if(result.status === "success") {
-                    const layer = selectedCannonsMap.get(currentlyEditingId); const p = layer.feature.properties;
-                    p.fullData.forEach(item => { if(fieldsObj[item.k] !== undefined) item.v = fieldsObj[item.k]; });
-                    let tLower = getV(p, keyType).toLowerCase().trim();
-                    if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = technoColors[tLower] || "#FFD700";
-                    layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lng]);
-                    cancelEdit();
-                } else alert("Erreur Google : " + result.message);
-            } catch (err) { alert("Échec réseau."); }
-            btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
-        });
-
-        function closeRightSidebar() { document.getElementById('right-sidebar').classList.remove('open'); if(currentlyEditingId) cancelEdit(); clearSelection(); }
-        function clearSelection() { selectedCannonsMap.clear(); updateMap(); renderSelectionPanel(); triggerGlobalFilterChart(); }
 
         function triggerGlobalFilterChart() {
             if (selectedCannonsMap.size > 0 || currentlyEditingId) return;
@@ -1100,62 +1200,6 @@
             });
         }
 
-        function drawPisteCompareChart(targetCannon) {
-            let canvasId = `chart-${targetCannon.id}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
-            if(chartInstances[canvasId]) chartInstances[canvasId].destroy();
-            let s = saisonsList[histSeasonIdx]; let pName = getV(targetCannon, keyPiste);
-            let pisteCannons = snowCannons.features.filter(f => getV(f.properties, keyPiste) === pName && f.properties.historique[s]);
-            pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
-            let bgColors = pisteCannons.map(f => f.properties.id === targetCannon.id ? '#e74c3c' : '#3498db');
-            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[s][histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
-        }
-
-        window.drawSecondPisteChart = function(targetId, seasonStr) {
-            let canvasId = `chart2-${targetId}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
-            if(chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
-            if(!seasonStr) return;
-            let targetCannon = snowCannons.features.find(f => f.properties.id === targetId).properties;
-            let pName = getV(targetCannon, keyPiste);
-            let pisteCannons = snowCannons.features.filter(f => getV(f.properties, keyPiste) === pName && f.properties.historique[seasonStr]);
-            pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
-            let bgColors = pisteCannons.map(f => f.properties.id === targetId ? '#e74c3c' : '#9b59b6');
-            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
-        }
-
-        window.openGlobalCompareModal = function() {
-            let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2');
-            s1.innerHTML = ""; s2.innerHTML = "";
-            saisonsList.forEach((s, i) => { s1.innerHTML += `<option value="${s}" ${i===0?'selected':''}>${s}</option>`; s2.innerHTML += `<option value="${s}" ${i===1?'selected':''}>${s}</option>`; });
-            document.getElementById('compare-modal').style.display = 'flex';
-            renderGlobalComparison();
-        }
-
-        window.renderGlobalComparison = function() {
-            let s1 = document.getElementById('comp-s1').value; let s2 = document.getElementById('comp-s2').value;
-            let metric = document.getElementById('comp-metric').value;
-            document.getElementById('comp-title-1').innerText = `Saison ${s1} - ${metric.toUpperCase()}`;
-            document.getElementById('comp-title-2').innerText = `Saison ${s2} - ${metric.toUpperCase()}`;
-
-            let pistes = Array.from(columnValuesSets[keyPiste] || []).sort();
-            let d1 = [], d2 = [];
-
-            pistes.forEach(p => {
-                let sum1 = 0; let sum2 = 0;
-                snowCannons.features.forEach(f => {
-                    if (getV(f.properties, keyPiste) === p) {
-                        if(f.properties.historique[s1]) sum1 += f.properties.historique[s1][metric];
-                        if(f.properties.historique[s2]) sum2 += f.properties.historique[s2][metric];
-                    }
-                });
-                d1.push(sum1); d2.push(sum2);
-            });
-
-            if(chartInstances['c1']) chartInstances['c1'].destroy();
-            chartInstances['c1'] = new Chart(document.getElementById('comp-canvas-1').getContext('2d'), { type: 'bar', data: { labels: pistes, datasets: [{ data: d1, backgroundColor: '#3498db' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-            if(chartInstances['c2']) chartInstances['c2'].destroy();
-            chartInstances['c2'] = new Chart(document.getElementById('comp-canvas-2').getContext('2d'), { type: 'bar', data: { labels: pistes, datasets: [{ data: d2, backgroundColor: '#e67e22' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-        }
-
         function getColorByFilter(ratio, props) {
             const inter = (c1,c2,f) => { let r=c1.slice(); for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`;};
             if (mainTheme === 'defauts') { let act = getActiveTickets(props.id); if (act.length === 0) return '#bdc3c7'; if (act.some(t => t.statut.includes('faire'))) return '#e74c3c'; return '#f39c12'; }
@@ -1182,54 +1226,54 @@
         }
 
         function updateMap() {
-            try {
-                if(!geojsonLayer) return;
-                let s = saisonsList[histSeasonIdx];
+            if(!geojsonLayer) return;
+            let s = saisonsList[histSeasonIdx];
 
-                geojsonLayer.eachLayer(function(layer) {
-                    const p = layer.feature.properties; let vis = true;
-                    
-                    if (currentPistes && !currentPistes.includes('all')) { if (!currentPistes.includes(getV(p, keyPiste))) vis = false; }
-                    if (currentTypes && !currentTypes.includes('all')) { if (!currentTypes.includes(getV(p, keyType).toLowerCase())) vis = false; }
-                    if (currentVannes && !currentVannes.includes('all')) { if (!currentVannes.includes(getV(p, keyVanne))) vis = false; }
-                    if (currentModules && !currentModules.includes('all')) { if (!currentModules.includes(getV(p, keyModule))) vis = false; }
+            geojsonLayer.eachLayer(function(layer) {
+                const p = layer.feature.properties; let vis = true;
+                
+                if (currentPistes && !currentPistes.includes('all')) { if (!currentPistes.includes(getV(p, keyPiste))) vis = false; }
+                if (currentTypes && !currentTypes.includes('all')) { if (!currentTypes.includes(getV(p, keyType).toLowerCase())) vis = false; }
+                if (currentVannes && !currentVannes.includes('all')) { if (!currentVannes.includes(getV(p, keyVanne))) vis = false; }
+                if (currentModules && !currentModules.includes('all')) { if (!currentModules.includes(getV(p, keyModule))) vis = false; }
 
-                    activeFilters.forEach(filt => {
-                        if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; }
-                    });
-
-                    let val = 0;
-                    if (mainTheme === 'historique') {
-                        val = p.historique[s] ? p.historique[s][histMetric] : 0;
-                        if (val < currentMinThreshold[histMetric] || val > currentMaxThreshold[histMetric]) vis = false;
-                    }
-
-                    if (!vis) {
-                        p._isVisible = false;
-                        if (map.hasLayer(layer)) map.removeLayer(layer);
-                    } else {
-                        p._isVisible = true;
-                        if (!map.hasLayer(layer)) map.addLayer(layer);
-
-                        let rad = 12; let ratio = 0;
-                        if (mainTheme === 'historique') { let maxVal = absoluteMaxes[histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
-                        
-                        let bg = getColorByFilter(ratio, p);
-                        let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
-
-                        let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
-                        if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
-                        else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
-                        else { layer.setZIndexOffset(0); }
-
-                        let actClass = (mainTheme === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
-
-                        layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
+                activeFilters.forEach(filt => {
+                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
+                        let val = getV(p, filt.key);
+                        if(!filt.vals.includes(val)) vis = false;
                     }
                 });
-            } catch(e) { console.error(e); }
-        }
 
+                let val = 0;
+                if (mainTheme === 'historique') {
+                    val = p.historique[s] ? p.historique[s][histMetric] : 0;
+                    if (val < currentMinThreshold[histMetric] || val > currentMaxThreshold[histMetric]) vis = false;
+                }
+
+                if (!vis) {
+                    p._isVisible = false;
+                    if (map.hasLayer(layer)) map.removeLayer(layer);
+                } else {
+                    p._isVisible = true;
+                    if (!map.hasLayer(layer)) map.addLayer(layer);
+
+                    let rad = 12; let ratio = 0;
+                    if (mainTheme === 'historique') { let maxVal = absoluteMaxes[histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
+                    
+                    let bg = getColorByFilter(ratio, p);
+                    let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
+
+                    let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
+                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
+                    else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
+                    else { layer.setZIndexOffset(0); }
+
+                    let actClass = (mainTheme === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
+
+                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
+                }
+            });
+        }
     </script>
 </body>
 </html>
