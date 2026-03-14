@@ -32,11 +32,11 @@
         
         #error-box { display: none; background: #fdf0ed; border: 2px solid #e74c3c; padding: 20px; border-radius: 8px; max-width: 600px; color: #c0392b; margin-top:20px; text-align:left;}
 
-        /* BOUTON MENU RETRACTABLE */
         #toggle-menu-btn { position: absolute; top: 15px; left: 15px; z-index: 3000; background: #2c3e50; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; }
         #toggle-menu-btn:hover { background: #34495e; }
+        
+        #floating-legend-box { position: absolute; top: 65px; left: 15px; z-index: 2000; background: rgba(255,255,255,0.95); border: 1px solid #e1e8ed; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 220px; }
 
-        /* BANDEAU GAUCHE */
         #sidebar { width: 360px; flex-shrink: 0; background: #fff; display: flex; flex-direction: column; z-index: 2500; overflow-y: auto; box-shadow: 2px 0 15px rgba(0,0,0,0.08); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; height: 100%; left: 0; padding-top: 60px;}
         #sidebar.collapsed { transform: translateX(-100%); }
         .sidebar-header-bg { background: #f8f9fa; padding: 10px 20px; border-bottom: 1px solid #eee; font-weight: bold; color: #2c3e50; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
@@ -54,7 +54,7 @@
 
         .slider-container { margin-top: 10px; }
         .slider-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #555; }
-        input[type=range] { width: 100%; margin: 0; accent-color: #3498db; cursor: pointer;}
+        input[type=range] { width: 100%; margin: 0; accent-color: #3498db;}
         .val-badge { color: #e74c3c; font-weight: bold; }
         
         .dynamic-filter-slot { background: #fff; border: 1px solid #e1e8ed; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
@@ -62,10 +62,9 @@
         .checkbox-list { max-height: 120px; overflow-y: auto; padding: 5px; font-size: 12px; color: #555; }
         .checkbox-list label { display: block; margin-bottom: 6px; cursor: pointer; }
 
-        /* LÉGENDE INTÉGRÉE */
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color:#34495e; font-weight:600;}
-        .color-box { width: 14px; height: 14px; border-radius: 3px;}
-        .gradient-bar { height: 12px; border-radius: 4px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color:#444; font-weight:bold;}
+        .color-box { width: 12px; height: 12px; border-radius: 3px;}
+        .gradient-bar { height: 10px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
         .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; font-weight:bold;}
 
         #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
@@ -78,7 +77,6 @@
         #btn-multi-toggle { position: absolute; top: 15px; right: 15px; z-index: 1000; background: white; border: 2px solid rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.3s; }
         #btn-multi-toggle.active { background: #3498db; color: white; border-color: #2980b9; }
 
-        /* BANDEAU DROIT (FICHES CANON) */
         #right-sidebar { position: absolute; top: 0; right: 0; bottom: 0; width: 450px; background: #fff; z-index: 2001; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: -5px 0 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
         #right-sidebar.open { transform: translateX(0); }
         .right-header { background: #fff; border-bottom:1px solid #eee; padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; color:#2c3e50;}
@@ -111,7 +109,8 @@
     </style>
 </head>
 <body>
-    <datalist id="list-suggestions"></datalist>
+    
+    <div id="datalists-container"></div> 
 
     <div id="loading-overlay">
         <div class="spinner" id="loading-spinner"></div>
@@ -139,47 +138,42 @@
         
         <button id="toggle-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">☰ Menu</button>
         
+        <div id="floating-legend-box">
+            <div style="font-weight:800; font-size:12px; margin-bottom:8px; color:#2c3e50; text-transform:uppercase; border-bottom:1px solid #eee; padding-bottom:5px;">Légende & Seuils</div>
+            <div id="legend-content"></div>
+            <div id="slider-container" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #eee;">
+                <div class="slider-label">Cacher en dessous de : <span id="val-min" class="val-badge">0</span></div>
+                <input type="range" id="slider-min" min="0" max="100" value="0">
+                <div class="slider-label" style="margin-top:8px;">Cacher au dessus de : <span id="val-max" class="val-badge" style="color:#3498db;">100</span></div>
+                <input type="range" id="slider-max" min="0" max="100" value="100">
+            </div>
+        </div>
+
         <div id="sidebar" class="open">
             <div class="sidebar-header-bg">Outils d'Analyse</div>
-            
             <details class="panel-section" open>
-                <summary>1. Thème & Légende</summary>
-                <div class="section-content">
-                    <div class="radio-group">
-                        <label class="radio-card"><input type="radio" name="main_theme" value="defauts" checked> 🚨 Défauts en cours</label>
-                        <label class="radio-card"><input type="radio" name="main_theme" value="type"> ⚙️ Type de canon (Édition)</label>
-                        <label class="radio-card"><input type="radio" name="main_theme" value="repeteur"> 📡 Répéteurs</label>
-                        <label class="radio-card"><input type="radio" name="main_theme" value="transfo"> ⚡ Transformateurs</label>
-                        <label class="radio-card" style="background:#eafaf1; border-color:#2ecc71;"><input type="radio" name="main_theme" value="historique"> 📊 Historique Volumes</label>
-                    </div>
-
-                    <div id="hist-controls" style="display:none; background:#fff; padding:15px; border-radius:6px; border:1px solid #d5f5e3; margin-top:12px;">
-                        <div style="font-weight:bold; font-size:12px; color:#27ae60; margin-bottom:10px;">DONNÉE À AFFICHER :</div>
-                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:12px; font-weight:bold; color:#333;">
-                            <label><input type="radio" name="hist_metric" value="eau" checked> 💧 Eau</label>
-                            <label><input type="radio" name="hist_metric" value="air"> 💨 Air</label>
-                            <label><input type="radio" name="hist_metric" value="temps"> ⏱️ Heures</label>
-                        </div>
-                        <div class="slider-container" style="margin-top:0; padding:0; border:none; box-shadow:none; background:transparent;">
-                            <div class="slider-label">Voyage temporel : <span id="season-display" style="color:#27ae60; font-size:14px;">-</span></div>
-                            <input type="range" id="season-slider" min="0" max="0" value="0">
-                        </div>
-                        <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal()">📊 Comparer 2 Saisons</button>
-                    </div>
-
-                    <div id="legend-wrapper" style="margin-top:15px; padding:15px; background:#fdfdfe; border:1px solid #e1e8ed; border-radius:6px;">
-                        <div style="font-weight:800; font-size:11px; margin-bottom:10px; color:#7f8c8d; text-transform:uppercase;">Légende des couleurs</div>
-                        <div id="legend-content"></div>
-                        
-                        <div id="slider-container" style="display:none; margin-top:15px; padding-top:12px; border-top:1px dashed #eee;">
-                            <div class="slider-label">Cacher en dessous de : <span id="val-min" class="val-badge">0</span></div>
-                            <input type="range" id="slider-min" min="0" max="100" value="0">
-                            <div class="slider-label" style="margin-top:12px;">Cacher au dessus de : <span id="val-max" class="val-badge" style="color:#3498db;">100</span></div>
-                            <input type="range" id="slider-max" min="0" max="100" value="100">
-                        </div>
-                    </div>
+                <summary>1. Thème de la carte</summary>
+                <div class="section-content radio-group">
+                    <label class="radio-card"><input type="radio" name="main_theme" value="defauts" checked> 🚨 Défauts en cours</label>
+                    <label class="radio-card"><input type="radio" name="main_theme" value="type"> ⚙️ Type de canon (Édition)</label>
+                    <label class="radio-card"><input type="radio" name="main_theme" value="repeteur"> 📡 Répéteurs</label>
+                    <label class="radio-card"><input type="radio" name="main_theme" value="transfo"> ⚡ Transformateurs</label>
+                    <label class="radio-card" style="background:#eafaf1; border-color:#2ecc71;"><input type="radio" name="main_theme" value="historique"> 📊 Historique Volumes</label>
                 </div>
             </details>
+            <div id="hist-controls" style="display:none; background:#eafaf1; padding:15px; border-bottom:1px solid #d5f5e3;">
+                <div style="font-weight:bold; font-size:12px; color:#27ae60; margin-bottom:10px;">DONNÉE À AFFICHER :</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:12px; font-weight:bold; color:#333;">
+                    <label><input type="radio" name="hist_metric" value="eau" checked> 💧 Eau</label>
+                    <label><input type="radio" name="hist_metric" value="air"> 💨 Air</label>
+                    <label><input type="radio" name="hist_metric" value="temps"> ⏱️ Heures</label>
+                </div>
+                <div class="slider-container" style="margin-top:0; padding:0; border:none; box-shadow:none; background:transparent;">
+                    <div class="slider-label">Voyage temporel : <span id="season-display" style="color:#27ae60; font-size:14px;">-</span></div>
+                    <input type="range" id="season-slider" min="0" max="0" value="0">
+                </div>
+                <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal()">📊 Comparer 2 Saisons</button>
+            </div>
             
             <details class="panel-section" open>
                 <summary>2. Filtres Rapides</summary>
@@ -244,9 +238,8 @@
     </div>
 
     <script>
-        // ======= VÉRIFIEZ L'URL APPS SCRIPT =======
+        // L'URL de votre Google Apps Script
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
-        // ===========================================
         
         let snowCannons = { "type": "FeatureCollection", "features": [] };
         let rawTickets = []; let saisonsList = []; 
@@ -487,12 +480,20 @@
                 f.properties.couleur_defaut = color;
             });
 
+            // SÉCURITÉ : CRÉATION DYNAMIQUE DU CONTENEUR DE DATALISTS S'IL N'EXISTE PAS
+            let dlContainer = document.getElementById('datalists-container');
+            if (!dlContainer) {
+                dlContainer = document.createElement('div');
+                dlContainer.id = 'datalists-container';
+                document.body.appendChild(dlContainer);
+            }
+
             let dlHtml = "";
             for(let header in columnValuesSets) {
                 let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-');
                 dlHtml += `<datalist id="${safeId}">${Array.from(columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`;
             }
-            document.getElementById('datalists-container').innerHTML = dlHtml;
+            dlContainer.innerHTML = dlHtml;
 
             if (saisonsList.length > 0) {
                 let sld = document.getElementById('season-slider');
