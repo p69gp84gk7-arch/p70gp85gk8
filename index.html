@@ -15,16 +15,27 @@
             document.getElementById('error-box').style.display = 'block';
             document.getElementById('error-msg').innerHTML = "<b>Erreur technique :</b> " + msg + (line ? "<br><b>Ligne :</b> " + line : "");
         }
-        window.onerror = function(message, source, lineno) { showCrash(message, lineno); return true; };
-        window.addEventListener('unhandledrejection', function(event) { showCrash(event.reason ? event.reason.message : "Erreur asynchrone bloquée", "Réseau/Promesse"); });
+        
+        window.onerror = function(message, source, lineno) { 
+            // Ignorer les erreurs fantômes des extensions Chrome/Firefox ou des CDN
+            if (message === 'Script error.' || message.indexOf('Script error') > -1) {
+                console.warn("Erreur fantôme ignorée (probablement une extension du navigateur).");
+                return false; 
+            }
+            showCrash(message, lineno); 
+            return true; 
+        };
+        
+        window.addEventListener('unhandledrejection', function(event) { 
+            showCrash(event.reason ? event.reason.message : "Erreur asynchrone bloquée", "Réseau/Promesse"); 
+        });
     </script>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js" crossorigin="anonymous"></script>
     
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; overflow: hidden; }
@@ -126,7 +137,7 @@
         <div class="spinner" id="loading-spinner"></div>
         <h2 style="color:#3498db; margin:0;" id="loading-title">Démarrage du système...</h2>
         <p style="color:#666; font-weight:bold; font-size:16px;" id="loading-desc">Veuillez patienter</p>
-        <p style="color:#888; font-size:12px;" id="loading-step">Préparation de la carte</p>
+        <p style="color:#888; font-size:12px;" id="loading-step">Préparation</p>
         <div id="error-box"><p id="error-msg"></p></div>
     </div>
 
@@ -154,7 +165,6 @@
             <details class="panel-section" open>
                 <summary>1. Thème & Légende</summary>
                 <div class="section-content" style="padding-top: 10px;">
-                    
                     <div class="theme-block">
                         <label class="radio-card" id="lbl-defauts" style="border-radius: 6px 6px 0 0; margin-bottom: 0; border-color: #3498db;"><input type="radio" name="main_theme" value="defauts" checked> 🚨 Défauts en cours</label>
                         <div class="theme-details" id="details-defauts" style="display: block; border-color: #3498db;">
@@ -247,7 +257,7 @@
                     <hr style="margin:15px 0; border-top:1px dashed #ccc;">
                     
                     <p style="font-size:11px; color:#666; margin-bottom:10px; line-height:1.4;">
-                        <b>2. Import Manuel depuis votre PC :</b><br>
+                        <b>2. Import Manuel depuis PC/Mobile :</b><br>
                         (Sera sauvegardé dans ce navigateur)
                     </p>
                     <input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="handleKMLUpload(event)">
@@ -329,20 +339,40 @@
         // =======================================================
         // 2. FONCTIONS DE LECTURE (SÉCURISÉES)
         // =======================================================
-        function getV(p, key) { 
+        const getV = function(p, key) { 
             if(!key || !p || !p.fullData) return "N/A"; 
             let o = p.fullData.find(x => x.k === key); 
             return o ? o.v.toString().trim() : "N/A"; 
-        }
-        function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); }
-        function getActiveTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); }
-        function getHistoryTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); }
+        };
+        const getTicketsForCanon = function(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); };
+        const getActiveTickets = function(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
+        const getHistoryTickets = function(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
 
         // ==============================================================
-        // 3. TOUTES LES FONCTIONS DES BOUTONS DE L'INTERFACE (GLOBALES)
+        // 3. FONCTION DE DEMARRAGE (LANCEMENT APRES CHARGEMENT HTML)
         // ==============================================================
-        
-        function toggleMapMode() {
+        window.onload = async function() {
+            try {
+                if (typeof L === 'undefined') throw new Error("La carte n'a pas pu se charger (Bloqué par votre réseau ?).");
+                if (typeof JSZip === 'undefined') throw new Error("Les outils KMZ ne se sont pas chargés.");
+
+                satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+                topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+                map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
+                L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+                initLocalDB();
+                await fetchGoogleSheetsData();
+
+            } catch (err) {
+                showCrash(err.message, "Moteur Démarrage");
+            }
+        };
+
+        // ==============================================================
+        // 4. TOUTES LES FONCTIONS DES BOUTONS DE L'INTERFACE
+        // ==============================================================
+        window.toggleMapMode = function() {
             if (!map) return;
             const btn = document.getElementById('btn-map-mode');
             if (currentMapMode === 'sat') {
@@ -352,38 +382,38 @@
                 map.removeLayer(topoLayer); map.addLayer(satLayer); currentMapMode = 'sat';
                 btn.innerHTML = "🗺️ Vue Topographie / 3D"; btn.classList.remove('active');
             }
-        }
+        };
 
-        function toggleMultiSelect() {
+        window.toggleMultiSelect = function() {
             isMultiSelect = !isMultiSelect; const btn = document.getElementById('btn-multi-toggle');
             if(isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; } 
             else { btn.classList.remove('active'); btn.innerText = "🔲 Multi-Sélection : OFF"; if(selectedCannonsMap.size > 1) clearSelection(); }
             renderSelectionPanel();
-        }
+        };
 
-        function closeRightSidebar() { 
+        window.closeRightSidebar = function() { 
             document.getElementById('right-sidebar').classList.remove('open'); 
             if(currentlyEditingId) cancelEdit(); 
             clearSelection(); 
-        }
+        };
 
-        function clearSelection() { 
+        window.clearSelection = function() { 
             selectedCannonsMap.clear(); 
             updateMap(); 
             renderSelectionPanel(); 
             triggerGlobalFilterChart(); 
-        }
+        };
 
-        function cancelEdit() {
+        window.cancelEdit = function() {
             currentlyEditingId = null; 
             document.getElementById('view-selection').style.display = 'block'; 
             document.getElementById('view-edit').style.display = 'none';
             document.getElementById('right-header').classList.remove('editing'); 
             document.getElementById('right-title').innerText = "📌 Fiche Détaillée";
             updateMap(); renderSelectionPanel();
-        }
+        };
 
-        async function saveEditData() {
+        window.saveEditData = async function() {
             if (!currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); btn.innerText = "⏳ Envoi..."; btn.disabled = true;
             let fieldsObj = {}; document.querySelectorAll('.dyn-field').forEach(inp => { fieldsObj[inp.getAttribute('data-key')] = inp.value; });
@@ -402,9 +432,9 @@
                 } else alert("Erreur Google : " + result.message);
             } catch (err) { alert("Échec réseau."); }
             btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
-        }
+        };
 
-        function startEdit(id) {
+        window.startEdit = function(id) {
             currentlyEditingId = id; const layer = selectedCannonsMap.get(id); const p = layer.feature.properties;
             document.getElementById('edit-id-display').innerText = p.id; document.getElementById('edit-id').value = p.id;
             document.getElementById('edit-lat').value = layer.getLatLng().lat.toFixed(7); document.getElementById('edit-lng').value = layer.getLatLng().lng.toFixed(7);
@@ -421,9 +451,9 @@
             document.getElementById('view-selection').style.display = 'none'; document.getElementById('view-edit').style.display = 'block';
             document.getElementById('right-header').classList.add('editing'); document.getElementById('right-title').innerText = "✏️ Édition Complète";
             updateMap(); 
-        }
+        };
 
-        function openGlobalCompareModal(show) {
+        window.openGlobalCompareModal = function(show) {
             let m = document.getElementById('compare-modal');
             if(!show) { m.style.display = 'none'; return; }
             let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2');
@@ -434,9 +464,9 @@
             });
             m.style.display = 'flex';
             renderGlobalComparison();
-        }
+        };
 
-        function renderGlobalComparison() {
+        window.renderGlobalComparison = function() {
             let s1 = document.getElementById('comp-s1').value; let s2 = document.getElementById('comp-s2').value;
             let metric = document.getElementById('comp-metric').value;
             document.getElementById('comp-title-1').innerText = `Saison ${s1} - ${metric.toUpperCase()}`;
@@ -461,9 +491,9 @@
             
             if(chartInstances['c2']) chartInstances['c2'].destroy();
             chartInstances['c2'] = new Chart(document.getElementById('comp-canvas-2').getContext('2d'), { type: 'bar', data: { labels: pistes, datasets: [{ data: d2, backgroundColor: '#e67e22' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-        }
+        };
 
-        function drawSecondPisteChart(targetId, seasonStr) {
+        window.drawSecondPisteChart = function(targetId, seasonStr) {
             let canvasId = `chart2-${targetId}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
             if(chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
             if(!seasonStr) return;
@@ -473,35 +503,12 @@
             pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
             let bgColors = pisteCannons.map(f => f.properties.id === targetId ? '#e74c3c' : '#9b59b6');
             chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
-        }
-
-
-        // ==============================================================
-        // 4. DEMARRAGE ASYNCHRONE DE L'APPLICATION 
-        // ==============================================================
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                if (typeof L === 'undefined') throw new Error("Leaflet (la carte) n'a pas pu se charger.");
-                if (typeof JSZip === 'undefined') throw new Error("L'outil ZIP (pour KMZ) ne s'est pas chargé.");
-
-                satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
-                topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
-                map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
-                L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-                initLocalDB();
-                await fetchGoogleSheetsData();
-
-            } catch (err) {
-                showCrash(err.message, "Démarrage Principal");
-            }
-        });
+        };
 
 
         // ==============================================================
         // 5. BASE DE DONNEES LOCALE (INDEXEDDB) 
         // ==============================================================
-        let localDB;
         function initLocalDB() {
             try {
                 if (!window.indexedDB) return;
@@ -712,17 +719,13 @@
             document.getElementById('loading-desc').innerHTML = `${snowCannons.features.length} canons placés.`;
             
             setTimeout(() => { 
-                try {
-                    initApp(); 
-                    document.getElementById('loading-overlay').style.display = 'none';
-                } catch(err) {
-                    showCrash(err.message, "Génération Interface");
-                }
+                initAppUI(); 
+                document.getElementById('loading-overlay').style.display = 'none';
             }, 800);
         }
 
         // ==========================================
-        // 7. GESTION DES CALQUES KML/KMZ (COULEUR & EPAISSEUR)
+        // 7. GESTION DES CALQUES KML/KMZ
         // ==========================================
         function buildGeoJsonStyle(hexColor, weight) {
             let finalWeight = weight ? parseInt(weight) : 4;
@@ -809,7 +812,7 @@
                 statusSpan.innerText = " ✅";
             } catch(err) {
                 statusSpan.innerText = " ❌";
-                alert("Impossible de charger " + layerObj.nom + " : " + err.message);
+                alert("Impossible de charger le calque " + layerObj.nom + " : " + err.message);
                 cbx.checked = false;
             }
             cbx.disabled = false;
@@ -828,7 +831,7 @@
             }
         }
 
-        async function handleKMLUpload(event) {
+        window.handleKMLUpload = async function(event) {
             const file = event.target.files[0];
             if(!file) return;
             
@@ -848,7 +851,7 @@
                         const arrayBuffer = await file.arrayBuffer();
                         const zip = await JSZip.loadAsync(arrayBuffer);
                         const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-                        if (!kmlFile) throw new Error("Aucun KML dans le KMZ.");
+                        if (!kmlFile) throw new Error("Aucun fichier KML trouvé à l'intérieur du KMZ.");
                         kmlString = await kmlFile.async("string");
                     } else if (fileName.toLowerCase().endsWith('.kml')) {
                         kmlString = await file.text();
@@ -866,7 +869,7 @@
                     document.getElementById('loading-overlay').style.display = 'none';
                 } catch (err) {
                     document.getElementById('loading-overlay').style.display = 'none';
-                    alert("Erreur : " + err.message);
+                    alert("Erreur lors de l'import : " + err.message);
                 }
                 event.target.value = ""; 
             }, 100);
@@ -934,7 +937,7 @@
         // ==========================================
         // 8. CONSTRUCTION UI & FILTRES GENERAUX
         // ==========================================
-        function initApp() {
+        function initAppUI() {
             function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
             let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}
             const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
@@ -1098,7 +1101,7 @@
             document.getElementById('val-min').innerText = 0; document.getElementById('val-max').innerText = absoluteMaxes[histMetric] || 1;
         }
 
-        function triggerGlobalFilterChart() {
+        window.triggerGlobalFilterChart = function() {
             if (selectedCannonsMap.size > 0 || currentlyEditingId) return;
             let hasDyn = activeFilters.some(f => f.key && f.vals.length > 0 && !f.vals.includes('all'));
             let hasStat = !currentPistes.includes('all') || !currentTypes.includes('all') || !currentVannes.includes('all') || !currentModules.includes('all');
@@ -1121,7 +1124,7 @@
             }, 50);
         }
 
-        function renderSelectionPanel() {
+        window.renderSelectionPanel = function() {
             if(selectedCannonsMap.size === 0) { triggerGlobalFilterChart(); return; }
             document.getElementById('sel-count').innerText = selectedCannonsMap.size;
             let listDiv = document.getElementById('selected-list'); listDiv.innerHTML = "";
@@ -1225,7 +1228,7 @@
             }
         }
 
-        function updateMap() {
+        window.updateMap = function() {
             if(!geojsonLayer) return;
             let s = saisonsList[histSeasonIdx];
 
