@@ -10,205 +10,172 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; background: #eee; overflow: hidden; }
+        /* BASE & LAYOUT */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; overflow: hidden; }
         #app-container { display: flex; height: 100%; width: 100%; position: relative; }
         
         #loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;}
-        .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #0078A8; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        #error-box { display: none; background: #fdf0ed; border: 2px solid #e74c3c; padding: 20px; border-radius: 8px; max-width: 600px; color: #c0392b; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top:20px;}
 
-        /* BANDEAU GAUCHE */
-        #sidebar { width: 340px; flex-shrink: 0; background: #f8f9fa; display: flex; flex-direction: column; z-index: 2000; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
-        .sidebar-header { background: #2c3e50; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .sidebar-header h2 { margin: 0; font-size: 16px; }
-        .close-btn { background: none; border: none; color: white; font-size: 28px; cursor: pointer; display: none; padding: 0; line-height: 1; }
+        /* BANDEAU GAUCHE - NOUVELLE ERGONOMIE */
+        #sidebar { width: 340px; flex-shrink: 0; background: #ffffff; display: flex; flex-direction: column; z-index: 2000; overflow-y: auto; box-shadow: 2px 0 15px rgba(0,0,0,0.08); transition: transform 0.3s ease; }
+        .sidebar-header { background: #fff; color: #2c3e50; padding: 20px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
         
-        details.panel-section { background: white; margin: 8px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        details.panel-section summary { background: #fff; padding: 12px 15px; font-size: 13px; font-weight: bold; color: #2c3e50; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; outline: none; border-radius: 8px; }
-        details[open].panel-section summary { border-bottom: 1px solid #eee; border-bottom-left-radius: 0; border-bottom-right-radius: 0; color: #0078A8; }
+        details.panel-section { background: transparent; margin: 0; border-bottom: 1px solid #f0f0f0; }
+        details.panel-section summary { background: #fff; padding: 15px 20px; font-size: 13px; font-weight: 600; color: #34495e; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; transition: 0.2s;}
+        details.panel-section summary:hover { background: #f8f9fa; color: #3498db; }
         details.panel-section summary::-webkit-details-marker { display: none; }
-        details.panel-section summary::after { content: '▼'; font-size: 12px; color: #888; transition: transform 0.3s; }
-        details[open].panel-section summary::after { transform: rotate(180deg); }
-        .section-content { padding: 15px; }
+        details.panel-section summary::after { content: '+'; font-size: 16px; color: #bdc3c7; transition: transform 0.3s; }
+        details[open].panel-section summary::after { content: '−'; color: #3498db; }
+        .section-content { padding: 15px 20px; background: #fafbfc; }
 
-        .radio-group label { display: block; margin-bottom: 8px; cursor: pointer; font-size: 13px; }
-        .checkbox-list { max-height: 140px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #fff; margin-bottom: 10px; }
-        .checkbox-list label { display: block; margin-bottom: 6px; font-size: 12px; cursor: pointer; }
+        /* CONTROLES RADIO & CHECKBOX */
+        .radio-group { display: flex; flex-direction: column; gap: 10px; }
+        .radio-card { display: flex; align-items: center; gap: 10px; background: #fff; padding: 10px 15px; border: 1px solid #e1e8ed; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 13px; font-weight: 500; color:#444;}
+        .radio-card:hover { border-color: #3498db; background: #f0f8ff; }
+        .radio-card input[type="radio"] { margin: 0; cursor: pointer; }
+
+        /* CURSEUR SAISONS & PLAGES */
+        .slider-container { margin-top: 15px; background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #e1e8ed; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+        .slider-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 8px; color: #555; }
+        input[type=range] { width: 100%; margin: 0; cursor: pointer; accent-color: #3498db;}
         
-        .range-control { margin-bottom: 10px; }
-        .range-control label { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #444; }
-        .range-control input[type=range] { width: 100%; margin: 0; }
-        .val-badge { color: #0078A8; font-weight: bold; }
+        /* FILTRES DYNAMIQUES */
+        .dynamic-filter-slot { background: #fff; border: 1px solid #e1e8ed; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+        .filter-select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; color: #333; margin-bottom: 8px; outline: none;}
+        .checkbox-list { max-height: 120px; overflow-y: auto; padding: 5px; font-size: 12px; color: #555; }
+        .checkbox-list label { display: block; margin-bottom: 5px; cursor: pointer; }
 
-        .season-menu { margin-left: 10px; border-left: 2px solid #0078A8; padding-left: 10px; margin-top: 5px; margin-bottom: 5px;}
-        .season-summary { font-size: 12px; font-weight: bold; cursor: pointer; padding: 5px 0; color: #555; }
+        /* LÉGENDE */
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color:#444;}
+        .color-box { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;}
+        .gradient-bar { height: 10px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #ddd; }
 
-        #legend-content { max-height: 180px; overflow-y: auto; padding-right: 5px;}
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 12px;}
-        .color-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #999; flex-shrink: 0;}
-        .gradient-bar { height: 12px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #999; }
-        .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; }
-        
-        #chart-modal { display: none; position: absolute; top: 15%; left: 360px; width: 600px; height: 400px; min-width: 300px; min-height: 200px; background: white; z-index: 9999; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); resize: both; overflow: hidden; flex-direction: column; border: 1px solid #ccc; }
-        #chart-modal-header { background: #2c3e50; color: white; padding: 8px 15px; cursor: move; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: bold; user-select: none;}
-        #chart-modal-body { flex-grow: 1; padding: 10px; position: relative; background: #fff; width: 100%; height: calc(100% - 35px); box-sizing: border-box;}
-        .btn-expand { background: #0078A8; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
-
+        /* CARTE */
         #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
         #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; z-index: 1; }
-        #btn-multi-toggle { position: absolute; top: 15px; right: 15px; z-index: 1000; background: white; border: 2px solid rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.3s; }
-        #btn-multi-toggle.active { background: #3498db; color: white; border-color: #2980b9; }
 
         .custom-cannon-icon { background: none; border: none; }
-        .cannon-circle { border-radius: 50%; color: white; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-sizing: border-box; box-shadow: 0px 2px 5px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;}
-        .cannon-circle:hover { transform: scale(1.15); z-index: 1000 !important; cursor: pointer; }
+        .cannon-circle { border-radius: 50%; color: white; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-sizing: border-box; box-shadow: 0px 3px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; transition: 0.2s;}
+        .cannon-circle:hover { transform: scale(1.2); z-index: 1000 !important; cursor: pointer; }
 
         /* BANDEAU DROIT (FICHES CANON) */
-        #right-sidebar { position: absolute; top: 0; right: 0; bottom: 0; width: 420px; background: #f8f9fa; z-index: 2001; transform: translateX(100%); transition: transform 0.3s ease; box-shadow: -2px 0 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+        #right-sidebar { position: absolute; top: 0; right: 0; bottom: 0; width: 420px; background: #fff; z-index: 2001; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: -5px 0 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
         #right-sidebar.open { transform: translateX(0); }
-        .right-header { background: #34495e; color: white; padding: 15px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;}
-        .right-header.editing { background: #e74c3c; }
-        .right-content { padding: 15px; overflow-y: auto; flex-grow: 1; }
+        .right-header { background: #fff; border-bottom:1px solid #eee; padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; color:#2c3e50;}
+        .right-content { padding: 20px; overflow-y: auto; flex-grow: 1; background: #f9fbfc;}
         
-        .sel-details { background: #fff; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden;}
-        .sel-details-header { padding: 12px 15px; font-size: 15px; background: #ecf0f1; border-bottom: 1px solid #e0e6ed; color: #2c3e50; display:flex; justify-content:space-between; align-items:center;}
+        .sel-details { background: #fff; margin-bottom: 20px; border: 1px solid #e1e8ed; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); overflow: hidden;}
+        .sel-details-header { padding: 15px; font-weight: bold; font-size: 15px; background: #fdfdfe; border-bottom: 1px solid #f0f0f0; color: #2c3e50; display:flex; justify-content:space-between; align-items:center;}
         .sel-details-body { padding: 15px; font-size: 13px; color: #444; line-height: 1.5; }
         
-        /* DESIGN LÉGER BADGES */
-        .badge { display: inline-block; background: #f0f3f5; color: #2c3e50; padding: 4px 8px; border-radius: 4px; font-size: 11.5px; margin: 0 4px 6px 0; border: 1px solid #e1e8ed; }
-        .badge b { font-weight: 600; color: #666; }
-
-        /* DESIGN TICKETS */
-        .ticket-card { background: #fff; border: 1px solid #eee; border-left: 4px solid #e74c3c; padding: 10px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .ticket-card-orange { border-left-color: #f39c12; }
+        .badge { display: inline-block; background: #f0f3f5; color: #2c3e50; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin: 0 4px 6px 0; border: 1px solid #e1e8ed; }
+        .ticket-alert { background: #fdf0ed; border-left: 4px solid #e74c3c; padding: 10px; margin: 12px 0; border-radius: 4px; }
+        .ticket-history { margin-top: 12px; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e1e8ed;}
         
-        /* DESIGN HISTORIQUE */
-        .hist-card { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom:10px;}
-        .hist-val { font-size: 22px; font-weight: bold; }
+        .btn-edit-small { background: #3498db; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-top: 15px; width: 100%; font-weight: bold; transition: 0.2s;}
+        .btn-edit-small:hover { background: #2980b9; }
         
-        .btn-edit-small { background: #e74c3c; color: white; border: none; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-top: 15px; width: 100%; font-weight: bold; transition: 0.2s;}
-        .btn-edit-small:hover { background: #c0392b; }
-        
-        /* FORMULAIRE ÉDITION */
-        .edit-input { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
-        .edit-label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase;}
-        .toggle-move { background:#fdf0ed; padding:10px; border:1px dashed #e74c3c; border-radius:4px; font-size:12px; font-weight:bold; color:#c0392b; cursor:pointer; display:flex; align-items:center; gap:8px;}
-        #dynamic-edit-fields { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; max-height: 45vh; overflow-y: auto;}
+        /* GRAPHIQUE COMPARATIF PISTE */
+        .piste-chart-container { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #eee; }
+        .piste-chart-wrapper { height: 180px; width: 100%; position: relative; margin-top: 10px;}
 
         @media (max-width: 768px) {
             #sidebar { position: absolute; height: 100%; width: 85%; transform: translateX(-100%); }
             #sidebar.open { transform: translateX(0); }
             #right-sidebar { width: 85%; }
-            #chart-modal { width: 90%; left: 5%; top: 5%; height: 50vh;}
-            #btn-menu-mobile { display: block; }
-            .close-btn { display: block; }
         }
     </style>
 </head>
 <body>
-    <div id="datalists-container"></div> 
-
-    <div id="loading-overlay">
+    <datalist id="list-suggestions"></datalist> <div id="loading-overlay">
         <div class="spinner" id="loading-spinner"></div>
         <h2 style="color:#0078A8; margin:0;" id="loading-title">GMAO AppSheet...</h2>
-        <p style="color:#666; font-weight:bold; max-width: 80%;" id="loading-desc">Initialisation en cours</p>
-        <div id="error-box">
-            <h3 style="margin-top:0;">🛑 Le chargement a échoué</h3>
-            <p id="error-msg" style="font-weight:bold; font-size:14px;"></p>
-        </div>
+        <p style="color:#666; font-weight:bold;" id="loading-desc">Initialisation en cours</p>
+        <div id="error-box"><p id="error-msg" style="font-weight:bold; font-size:14px;"></p></div>
     </div>
 
     <div id="app-container">
         
         <div id="sidebar" class="open">
-            <div class="sidebar-header"><h2>❄️ GMAO Neige</h2></div>
+            <div class="sidebar-header">
+                <h2>❄️ Tableau de Bord</h2>
+            </div>
 
             <details class="panel-section" open>
-                <summary>1. Légende & Plages</summary>
-                <div class="section-content" style="padding-top: 5px;">
-                    <div id="legend-content"></div>
-                    <div id="slider-container" style="display:none; margin-top:15px; padding-top: 10px; border-top: 1px dashed #ccc;">
-                        <div class="range-control"><label>Minimale : <span class="val-badge" id="val-min">0</span></label><input type="range" id="slider-min" min="0" max="100" value="0"></div>
-                        <div class="range-control"><label>Maximale : <span class="val-badge" id="val-max">100</span></label><input type="range" id="slider-max" min="0" max="100" value="100"></div>
+                <summary>Affichage Carte</summary>
+                <div class="section-content radio-group">
+                    <label class="radio-card"><input type="radio" name="main_theme" value="defauts" checked> 🚨 Défauts en cours</label>
+                    <label class="radio-card"><input type="radio" name="main_theme" value="type"> ⚙️ Type de canon</label>
+                    <label class="radio-card"><input type="radio" name="main_theme" value="repeteur"> 📡 Répéteurs</label>
+                    <label class="radio-card"><input type="radio" name="main_theme" value="transfo"> ⚡ Transformateurs</label>
+                    <label class="radio-card"><input type="radio" name="main_theme" value="historique"> 📊 Historique Enneigeurs</label>
+                </div>
+            </details>
+
+            <div id="hist-controls" style="display:none; background:#f0f8ff; padding:15px; border-bottom:1px solid #e1e8ed;">
+                <div style="font-weight:bold; font-size:12px; color:#34495e; margin-bottom:10px;">MESURE À AFFICHER :</div>
+                <div style="display:flex; gap:10px; margin-bottom:15px; font-size:12px;">
+                    <label><input type="radio" name="hist_metric" value="eau" checked> Eau (m³)</label>
+                    <label><input type="radio" name="hist_metric" value="air"> Air</label>
+                    <label><input type="radio" name="hist_metric" value="temps"> Tps Marche</label>
+                </div>
+                <div class="slider-container" style="padding:10px; margin:0;">
+                    <div class="slider-label">Saison : <span id="season-display" style="color:#e67e22;">-</span></div>
+                    <input type="range" id="season-slider" min="0" max="0" value="0">
+                </div>
+                <div class="slider-container" style="padding:10px; margin-top:10px;">
+                    <div class="slider-label">Filtre Min: <span id="val-min">0</span></div>
+                    <input type="range" id="slider-min" min="0" max="100" value="0">
+                    <div class="slider-label" style="margin-top:8px;">Filtre Max: <span id="val-max">100</span></div>
+                    <input type="range" id="slider-max" min="0" max="100" value="100">
+                </div>
+            </div>
+
+            <details class="panel-section" open>
+                <summary>Légende</summary>
+                <div class="section-content" id="legend-content"></div>
+            </details>
+
+            <details class="panel-section" open>
+                <summary>Filtres Paramétrables (Max 4)</summary>
+                <div class="section-content" id="dynamic-filters-container">
                     </div>
-                </div>
-            </details>
-
-            <details class="panel-section" open>
-                <summary>2. Thème de la carte</summary>
-                <div class="section-content radio-group" style="padding-top: 5px;">
-                    <label><input type="radio" name="layer" value="defauts" checked> 🚨 <b>Défauts en cours</b></label>
-                    <hr style="margin: 8px 0; border-top: 1px dashed #ccc;">
-                    <label><input type="radio" name="layer" value="type"> Type de canon</label>
-                    <label><input type="radio" name="layer" value="repeteur"> Répéteurs</label>
-                    <label><input type="radio" name="layer" value="transfo"> Transformateurs</label>
-                </div>
-            </details>
-
-            <details class="panel-section">
-                <summary>3. Historique Enneigeurs</summary>
-                <div class="section-content" style="padding-top: 5px;" id="dynamic-seasons-menu"></div>
-            </details>
-            
-            <details class="panel-section">
-                <summary>4. Filtres Avancés</summary>
-                <div class="section-content" style="padding-top: 5px;">
-                    <b style="font-size:12px;">Pistes :</b>
-                    <div class="checkbox-list" id="piste-checkboxes"><label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes</b></label><div id="individual-pistes"></div></div>
-                    <b style="font-size:12px;">Type Canon :</b>
-                    <div class="checkbox-list" id="type-checkboxes"><label><input type="checkbox" id="check-all-types" checked> <b>Tous</b></label><div id="individual-types"></div></div>
-                    <b style="font-size:12px;">Type Vanne :</b>
-                    <div class="checkbox-list" id="vanne-checkboxes"><label><input type="checkbox" id="check-all-vannes" checked> <b>Toutes</b></label><div id="individual-vannes"></div></div>
-                    <b style="font-size:12px;">Type Module :</b>
-                    <div class="checkbox-list" id="module-checkboxes"><label><input type="checkbox" id="check-all-modules" checked> <b>Tous</b></label><div id="individual-modules"></div></div>
-                </div>
-            </details>
-
-            <details class="panel-section" id="chart-section" open>
-                <summary>5. Analyse <button class="btn-expand" onclick="event.preventDefault(); toggleFullscreenChart();">Agrandir ⛶</button></summary>
-                <div class="section-content" id="original-chart-container" style="position: relative; height: 200px; width:100%; padding-top: 5px;">
-                    <div id="chart-wrapper" style="position: relative; width: 100%; height: 100%;"><canvas id="pisteChart"></canvas></div>
-                </div>
             </details>
         </div>
 
         <div id="map-container">
-            <button id="btn-multi-toggle" onclick="toggleMultiSelect()">🔲 Mode Multi-Sélection : OFF</button>
+            <button id="btn-multi-toggle" onclick="toggleMultiSelect()" style="display:none;">🔲 Sélection Multiple : OFF</button>
             <div id="map"></div>
         </div>
 
-        <div id="chart-modal"><div id="chart-modal-header"><span>📈 Analyse</span><button onclick="toggleFullscreenChart()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;">✖</button></div><div id="chart-modal-body"></div></div>
-
         <div id="right-sidebar">
             <div class="right-header" id="right-header">
-                <span id="right-title">📌 Fiche Canon</span>
-                <button onclick="closeRightSidebar()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+                <span id="right-title">📌 Analyse Détaillée</span>
+                <button onclick="closeRightSidebar()" style="background:none; border:none; color:#95a5a6; font-size:24px; cursor:pointer;">&times;</button>
             </div>
             
             <div class="right-content">
                 <div id="view-selection">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;" id="multi-tools">
-                        <span style="font-size:13px; color:#555;"><b id="sel-count">0</b> sélectionné(s)</span>
-                        <button onclick="clearSelection()" style="background:#95a5a6; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:11px;">Vider ✕</button>
-                    </div>
                     <div id="selected-list"></div>
                 </div>
 
                 <div id="view-edit" style="display:none;">
-                    <label class="toggle-move" style="margin-bottom:15px;"><input type="checkbox" id="allow-move-chk"> Autoriser le déplacement sur la carte</label>
-                    <h3 style="margin-top:0; color:#e74c3c;">Édition N°<span id="edit-id-display"></span></h3><input type="hidden" id="edit-id">
-                    
-                    <div style="display:flex; gap:10px; margin-bottom: 10px;">
-                        <div style="flex:1;"><div class="edit-label">Latitude (GPS)</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input" style="background:#fff3cd; font-weight:bold;"></div>
-                        <div style="flex:1;"><div class="edit-label">Longitude (GPS)</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input" style="background:#fff3cd; font-weight:bold;"></div>
+                    <div style="background:#fff3cd; color:#856404; padding:10px; border-radius:4px; font-size:12px; margin-bottom:15px; border:1px solid #ffeeba;">
+                        <input type="checkbox" id="allow-move-chk"> <b>Autoriser le déplacement du point sur la carte</b>
                     </div>
-                    
+                    <h3 style="margin-top:0; color:#3498db;">Édition Canon <span id="edit-id-display"></span></h3>
+                    <input type="hidden" id="edit-id">
+                    <div style="display:flex; gap:10px; margin-bottom:15px;">
+                        <div style="flex:1;"><div class="edit-label">Lat (GPS)</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input"></div>
+                        <div style="flex:1;"><div class="edit-label">Lng (GPS)</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input"></div>
+                    </div>
                     <div id="dynamic-edit-fields"></div>
                     
-                    <div style="display:flex; gap:10px; margin-top:15px;">
-                        <button onclick="cancelEdit()" style="flex:1; background:#95a5a6; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
+                    <div style="display:flex; gap:10px; margin-top:20px;">
+                        <button onclick="cancelEdit()" style="flex:1; background:#ecf0f1; color:#333; padding:10px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
                         <button id="btn-save-edit" style="flex:2; background:#27ae60; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✅ Sauvegarder</button>
                     </div>
                 </div>
@@ -224,13 +191,26 @@
         let saisonsList = []; 
         let isMultiSelect = false;
         let columnValuesSets = {}; 
+        let availableColumns = []; // Noms de colonnes pour les dropdowns filtres
+        
+        // ETATS DE FILTRAGE
+        let mainTheme = 'defauts';
+        let histMetric = 'eau';
+        let histSeasonIdx = 0; // Index dans saisonsList
+        let absoluteMaxes = { eau: 0, air: 0, temps: 0 }; 
+        let currentMax = 100; let currentMin = 0;
+
+        // 4 filtres dynamiques
+        let activeFilters = [ {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]} ];
         
         const map = L.map('map', {zoomControl: false}).setView([42.766, 0.564], 14);
         L.control.zoom({ position: 'bottomleft' }).addTo(map);
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 }).addTo(map);
         let geojsonLayer = null;
 
-        function updateDesc(text) { document.getElementById('loading-desc').innerText = text; }
+        // Dictionnaires graphiques Chart.js (pour les détruire et recréer proprement)
+        let chartInstances = {};
+
         function showError(msg) {
             document.getElementById('loading-spinner').style.display = 'none';
             document.getElementById('loading-title').innerText = "🛑 Erreur de lecture";
@@ -245,29 +225,39 @@
             return i !== -1 ? i : -1;
         };
 
+        // FETCH DATA
         async function fetchGoogleSheetsData() {
             try {
-                updateDesc("Connexion à la base de données...");
                 const response = await fetch(GOOGLE_API_URL);
                 if (!response.ok) throw new Error("Accès refusé. Le script est-il public ?");
-                
                 let textData = await response.text();
                 let data;
                 try { data = JSON.parse(textData); } catch(e) { throw new Error("Les données reçues sont bloquées."); }
                 
                 // 1. GENERAL
-                updateDesc("Analyse du Tableau Général...");
                 if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable.`);
                 
                 const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
                 const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
                 
-                const idxId = 2; // Forcé sur Colonne C
+                // Colonnes de référence
+                const idxId = 2; // Forcé sur Colonne C (index 2)
                 const idxXY = getIdx(genHeaders, ['xy', 'gps']);
                 if (idxXY === -1) throw new Error("La colonne 'xy' (coordonnées GPS) est introuvable.");
 
-                originalHeaders.forEach(h => columnValuesSets[h] = new Set());
-                const getVal = (row, names) => { let i = getIdx(genHeaders, names); return i > -1 ? row[i] : "N/A"; };
+                const idxPiste = getIdx(genHeaders, ['pistes', 'piste']);
+                const idxType = getIdx(genHeaders, ['type canon', 'type']);
+                const idxRep = getIdx(genHeaders, ['peteur', 'repeteur']);
+                const idxTrans = getIdx(genHeaders, ['transfo']);
+
+                // Préparer les sets pour suggestions & filtres dynamiques
+                originalHeaders.forEach(h => {
+                    let hl = h.toLowerCase();
+                    if(!hl.includes('xy') && !hl.includes('gps') && !hl.includes('regard') && !hl.includes('photo')) {
+                        availableColumns.push(h); 
+                        columnValuesSets[h] = new Set();
+                    }
+                });
 
                 let dictGeneral = {};
                 data.general.slice(1).forEach(row => {
@@ -287,28 +277,25 @@
                         let val = row[i];
                         if(val != null && val !== "") {
                             fullData.push({k: head, v: val}); 
-                            columnValuesSets[head].add(val.toString());
+                            if(columnValuesSets[head]) columnValuesSets[head].add(val.toString());
                         }
                     });
 
                     dictGeneral[id] = {
                         id: id, lat: lat, lng: lng,
-                        piste: getVal(row, ['pistes', 'piste']),
-                        type: getVal(row, ['type canon', 'type']),
-                        vanne: getVal(row, ['type de vanne', 'vanne']),
-                        module: getVal(row, ['type de module', 'module']),
-                        rep: getVal(row, ['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']),
-                        transfo: getVal(row, ['transfo']),
+                        piste: (idxPiste>-1 && row[idxPiste]) ? row[idxPiste] : "Inconnue",
+                        type: (idxType>-1 && row[idxType]) ? row[idxType] : "Inconnu",
+                        rep: (idxRep>-1 && row[idxRep]) ? row[idxRep] : "N/A",
+                        transfo: (idxTrans>-1 && row[idxTrans]) ? row[idxTrans] : "N/A",
                         fullData: fullData,
                         historique: {}
                     };
                 });
 
                 // 2. HISTORIQUE
-                updateDesc("Analyse de l'Historique...");
                 if (data.historique && data.historique.length > 1) {
                     const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim());
-                    const idxCanons = 1; // Forcé sur Colonne B "ref" d'après utilisateur
+                    const idxCanons = 1; // Colonne B "ref"
                     
                     let colsEau = {}, colsAir = {}, colsTemps = {};
                     let saisonsSet = new Set();
@@ -323,7 +310,13 @@
                             if (t.includes('marche')) colsTemps[s] = i;
                         }
                     });
-                    saisonsList = Array.from(saisonsSet).sort().reverse();
+                    
+                    // Tri chronologique (plus ancienne -> plus récente) pour que le slider aille de gauche à droite
+                    saisonsList = Array.from(saisonsSet).sort((a,b) => {
+                        let aa = parseInt(a.split('/')[0]); let bb = parseInt(b.split('/')[0]);
+                        return aa - bb;
+                    });
+                    histSeasonIdx = saisonsList.length - 1; // Défaut sur la plus récente
 
                     data.historique.slice(1).forEach(row => {
                         let rawId = row[idxCanons];
@@ -331,15 +324,18 @@
                             let id = rawId.toString().replace(/[^0-9]/g, '');
                             if (id && dictGeneral[id]) {
                                 saisonsList.forEach(s => {
-                                    dictGeneral[id].historique[s] = { eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 };
+                                    dictGeneral[id].historique[s] = { 
+                                        eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, 
+                                        air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, 
+                                        temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 
+                                    };
                                 });
                             }
                         }
                     });
                 }
 
-                // 3. TICKETS (Extraction TOTALE de la ligne)
-                updateDesc("Analyse des Tickets...");
+                // 3. TICKETS
                 if (data.tickets && data.tickets.length > 1) {
                     const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
                     const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
@@ -348,28 +344,24 @@
                     const idxTDate = getIdx(tHeaders, ['date']);
                     const idxTRegard = getIdx(tHeaders, ['n°regard', 'regard']);
                     const idxTDefaut = getIdx(tHeaders, ['defaut', 'défaut']); 
-                    const idxTCause = getIdx(tHeaders, ['cause']); 
-
+                    
                     if(idxTRegard > -1) {
                         rawTickets = data.tickets.slice(1).map(row => {
                             let fullTData = [];
                             originalTHeaders.forEach((h, i) => {
                                 if (row[i] != null && row[i] !== "") fullTData.push({k: h, v: row[i]});
                             });
-
                             return {
                                 statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""),
                                 date: (idxTDate>-1 ? row[idxTDate] : ""),
                                 idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/[^0-9]/g, '') : ""), 
                                 defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Non spécifié"),
-                                cause: (idxTCause>-1 && row[idxTCause] ? row[idxTCause].toString() : "Non spécifiée"),
                                 fullData: fullTData
                             };
                         });
                     }
                 }
 
-                // MERGE GEOJSON
                 Object.values(dictGeneral).forEach(canon => {
                     if (canon.lat && canon.lng) { 
                         snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon });
@@ -380,42 +372,35 @@
                 initApp();
 
             } catch (error) {
-                console.error(error);
                 showError(error.message);
             }
         }
 
         fetchGoogleSheetsData();
 
+        // UTILS
         function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); }
         function getActiveTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); }
         function getHistoryTickets(idCanon) { return getTicketsForCanon(idCanon).filter(t => t.statut === 'fait').sort((a,b) => new Date(b.date) - new Date(a.date)); }
 
-        let currentLayer = 'defauts'; 
-        let currentPistes = ['all'], currentTypes = ['all'], currentVannes = ['all'], currentModules = ['all'];
-        let selectedCannonsMap = new Map(); let currentlyEditingId = null; 
-        let currentSeason = ""; let absoluteMaxes = { eau: 0, air: 0, temps: 0 }; let currentMaxThreshold = {}; let currentMinThreshold = { eau: 0, air: 0, temps: 0 };
-        let technoColors = {}, repColors = {}, transfoColors = {}, pisteColors = {};
-
+        // INIT APP
         function initApp() {
+            // Couleurs
             function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
             let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}
             const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
             function generatePalette(arr, s = 0.7, l = 0.5) { let pal = {}; arr.forEach((item, i) => { pal[item] = hslToHex(i / arr.length, s, l); }); return pal; }
 
-            let tSet = new Set(), rSet = new Set(), trSet = new Set(), pSet = new Set(), vSet = new Set(), mSet = new Set();
+            let tSet = new Set(), rSet = new Set(), trSet = new Set();
             snowCannons.features.forEach(f => {
                 let p = f.properties;
                 if(p.type && p.type !== "Inconnu") tSet.add(p.type.toString().toLowerCase()); 
-                if(p.piste && p.piste !== "Inconnue") pSet.add(p.piste); 
                 if(p.rep && p.rep !== "N/A") rSet.add(p.rep); 
                 if(p.transfo && p.transfo !== "N/A") trSet.add(p.transfo); 
-                if(p.vanne && p.vanne !== "N/A") vSet.add(p.vanne); 
-                if(p.module && p.module !== "N/A") mSet.add(p.module);
             });
 
             Array.from(tSet).sort().forEach((t, i) => { technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
-            repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55); pisteColors = generatePalette(Array.from(pSet).sort(), 0.7, 0.5);
+            repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
 
             snowCannons.features.forEach(f => {
                 let typeLower = f.properties.type.toString().toLowerCase(); let color = "#FFD700";
@@ -425,23 +410,18 @@
                 f.properties.couleur_defaut = color;
             });
 
-            // DATALISTS DYNAMIQUES
-            let dlHtml = "";
-            for(let header in columnValuesSets) {
-                let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-');
-                dlHtml += `<datalist id="${safeId}">${Array.from(columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`;
+            // Initialiser le slider Saisons
+            if (saisonsList.length > 0) {
+                let sld = document.getElementById('season-slider');
+                sld.max = saisonsList.length - 1;
+                sld.value = histSeasonIdx;
+                document.getElementById('season-display').innerText = saisonsList[histSeasonIdx];
             }
-            document.getElementById('datalists-container').innerHTML = dlHtml;
 
-            if (saisonsList.length > 0) currentSeason = saisonsList[0];
-            generateSeasonMenu(); calculateMaxes();
+            // Générer l'UI des 4 filtres dynamiques
+            generateDynamicFiltersUI();
 
-            function buildCbs(id, set, cls) { const c = document.getElementById(id); c.innerHTML = ''; [...set].sort().forEach(v => { let l=document.createElement('label'); let cb=document.createElement('input'); cb.type='checkbox'; cb.className=cls; cb.value=v; l.appendChild(cb); l.appendChild(document.createTextNode(' '+v)); c.appendChild(l); }); }
-            buildCbs('individual-pistes', pSet, 'piste-cb'); buildCbs('individual-types', tSet, 'type-cb'); buildCbs('individual-vannes', vSet, 'vanne-cb'); buildCbs('individual-modules', mSet, 'module-cb');
-
-            function setupCbs(allId, cls, cbk) { const aBtn = document.getElementById(allId); const cbs = document.querySelectorAll('.'+cls); const getVals = () => aBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); aBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); cbk(getVals()); }); cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) aBtn.checked=false; else if(Array.from(cbs).every(x=>!x.checked)) aBtn.checked=true; cbk(getVals()); })); }
-            setupCbs('check-all-pistes', 'piste-cb', vals => { currentPistes = vals; updateMap(); updateRightPanel(); }); setupCbs('check-all-types', 'type-cb', vals => { currentTypes = vals; updateMap(); updateRightPanel(); }); setupCbs('check-all-vannes', 'vanne-cb', vals => { currentVannes = vals; updateMap(); updateRightPanel(); }); setupCbs('check-all-modules', 'module-cb', vals => { currentModules = vals; updateMap(); updateRightPanel(); });
-
+            // Layer GeoJSON
             geojsonLayer = L.geoJSON(snowCannons, {
                 pointToLayer: function (feature, latlng) { return L.marker(latlng, { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div></div>` }) }); },
                 onEachFeature: function (feature, layer) {
@@ -461,43 +441,123 @@
             }).addTo(map);
 
             if (snowCannons.features.length > 0) map.fitBounds(geojsonLayer.getBounds(), { padding: [30, 30] });
-            updateLegend(); updateMap(); updateRightPanel();
+            
+            attachEvents();
+            updateLegend(); updateMap();
         }
 
-        function toggleMultiSelect() {
-            isMultiSelect = !isMultiSelect;
-            const btn = document.getElementById('btn-multi-toggle');
-            if(isMultiSelect) {
-                btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE";
-            } else {
-                btn.classList.remove('active'); btn.innerText = "🔲 Multi-Sélection : OFF";
-                if(selectedCannonsMap.size > 1) clearSelection();
+        // UI FILTRES DYNAMIQUES
+        function generateDynamicFiltersUI() {
+            let container = document.getElementById('dynamic-filters-container');
+            container.innerHTML = "";
+            let optionsHTML = `<option value="">-- Non utilisé --</option>` + availableColumns.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            for(let i=0; i<4; i++) {
+                container.innerHTML += `
+                    <div class="dynamic-filter-slot">
+                        <select class="filter-select" id="filter-sel-${i}" data-idx="${i}">${optionsHTML}</select>
+                        <div class="checkbox-list" id="filter-cbx-${i}" style="display:none;"></div>
+                    </div>`;
             }
-            renderSelectionPanel();
         }
 
-        function generateSeasonMenu() {
-            let container = document.getElementById('dynamic-seasons-menu'); container.innerHTML = "";
-            saisonsList.forEach((s, idx) => {
-                let openAttr = idx === 0 ? "open" : "";
-                container.innerHTML += `<details class="season-menu" ${openAttr}><summary class="season-summary">Saison ${s}</summary><div class="radio-group"><label><input type="radio" name="layer" value="eau_${s}"> Eau (m³)</label><label><input type="radio" name="layer" value="air_${s}"> Air</label><label><input type="radio" name="layer" value="temps_${s}"> Tps Marche</label></div></details>`;
+        function renderCheckboxesForFilter(idx, colName) {
+            let cbxContainer = document.getElementById(`filter-cbx-${idx}`);
+            if(!colName) { cbxContainer.style.display = 'none'; activeFilters[idx] = {key:"", vals:[]}; updateMap(); return; }
+            
+            cbxContainer.style.display = 'block';
+            let vals = Array.from(columnValuesSets[colName] || []).sort();
+            
+            let html = `<label><input type="checkbox" class="cb-all-${idx}" checked> <b>Tout sélectionner</b></label><hr style="margin:4px 0; border-top:1px solid #eee;">`;
+            vals.forEach(v => html += `<label><input type="checkbox" class="cb-val-${idx}" value="${v}"> ${v}</label>`);
+            cbxContainer.innerHTML = html;
+
+            activeFilters[idx] = {key: colName, vals: ['all']};
+
+            // Events
+            let allBtn = cbxContainer.querySelector(`.cb-all-${idx}`);
+            let cbs = cbxContainer.querySelectorAll(`.cb-val-${idx}`);
+            
+            const updateLogic = () => {
+                let selected = allBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value);
+                activeFilters[idx].vals = selected;
+                updateMap();
+            };
+
+            allBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); updateLogic(); });
+            cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) allBtn.checked=false; else if(Array.from(cbs).every(x=>!x.checked)) allBtn.checked=true; updateLogic(); }));
+        }
+
+        // EVENEMENTS GLOBAUX
+        function attachEvents() {
+            // Theme Radio
+            document.querySelectorAll('input[name="main_theme"]').forEach(r => {
+                r.addEventListener('change', e => {
+                    mainTheme = e.target.value;
+                    if(mainTheme === 'historique') {
+                        document.getElementById('hist-controls').style.display = 'block';
+                        document.getElementById('legend-content').style.display = 'none';
+                        document.getElementById('slider-container').style.display = 'block';
+                        calculateMaxes();
+                    } else {
+                        document.getElementById('hist-controls').style.display = 'none';
+                        document.getElementById('legend-content').style.display = 'block';
+                        document.getElementById('slider-container').style.display = 'none';
+                    }
+                    updateLegend(); updateMap(); renderSelectionPanel();
+                });
             });
-            document.querySelectorAll('input[name="layer"]').forEach(r => r.addEventListener('change', handleLayerChange));
+
+            // Historique Radios
+            document.querySelectorAll('input[name="hist_metric"]').forEach(r => {
+                r.addEventListener('change', e => { histMetric = e.target.value; calculateMaxes(); updateLegend(); updateMap(); renderSelectionPanel(); });
+            });
+
+            // Historique Slider
+            let sld = document.getElementById('season-slider');
+            sld.addEventListener('input', e => {
+                histSeasonIdx = parseInt(e.target.value);
+                document.getElementById('season-display').innerText = saisonsList[histSeasonIdx];
+                calculateMaxes(); updateLegend(); updateMap(); renderSelectionPanel();
+            });
+
+            // Range Min Max (pour histo)
+            document.getElementById('slider-min').addEventListener('input', e => { let val = parseFloat(e.target.value); if (val > currentMaxThreshold[histMetric]) { val = currentMaxThreshold[histMetric]; e.target.value = val; } currentMinThreshold[histMetric] = val; document.getElementById('val-min').innerText = val; updateMap(); });
+            document.getElementById('slider-max').addEventListener('input', e => { let val = parseFloat(e.target.value); if (val < currentMinThreshold[histMetric]) { val = currentMinThreshold[histMetric]; e.target.value = val; } currentMaxThreshold[histMetric] = val; document.getElementById('val-max').innerText = val; updateMap(); });
+
+            // Delegation filtres dynamiques
+            document.getElementById('dynamic-filters-container').addEventListener('change', e => {
+                if(e.target.classList.contains('filter-select')) {
+                    renderCheckboxesForFilter(e.target.getAttribute('data-idx'), e.target.value);
+                }
+            });
         }
 
         function calculateMaxes() {
+            if(!saisonsList[histSeasonIdx]) return;
+            let s = saisonsList[histSeasonIdx];
             absoluteMaxes = { eau: 0, air: 0, temps: 0 };
             snowCannons.features.forEach(f => {
-                if (f.properties.historique[currentSeason]) {
-                    absoluteMaxes.eau = Math.max(absoluteMaxes.eau, f.properties.historique[currentSeason].eau);
-                    absoluteMaxes.air = Math.max(absoluteMaxes.air, f.properties.historique[currentSeason].air);
-                    absoluteMaxes.temps = Math.max(absoluteMaxes.temps, f.properties.historique[currentSeason].temps);
+                if (f.properties.historique[s]) {
+                    absoluteMaxes.eau = Math.max(absoluteMaxes.eau, f.properties.historique[s].eau);
+                    absoluteMaxes.air = Math.max(absoluteMaxes.air, f.properties.historique[s].air);
+                    absoluteMaxes.temps = Math.max(absoluteMaxes.temps, f.properties.historique[s].temps);
                 }
             });
             currentMaxThreshold = { ...absoluteMaxes };
+            currentMinThreshold = { eau:0, air:0, temps:0 }; // reset min
+            
+            document.getElementById('slider-min').max = absoluteMaxes[histMetric] || 1;
+            document.getElementById('slider-max').max = absoluteMaxes[histMetric] || 1;
+            document.getElementById('slider-min').value = 0;
+            document.getElementById('slider-max').value = absoluteMaxes[histMetric] || 1;
+            document.getElementById('val-min').innerText = 0;
+            document.getElementById('val-max').innerText = absoluteMaxes[histMetric] || 1;
         }
 
+        // ==========================================
         // SAUVEGARDE GOOGLE SHEETS
+        // ==========================================
         document.getElementById('btn-save-edit').addEventListener('click', async () => {
             if (!currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); btn.innerText = "⏳ Envoi..."; btn.disabled = true;
@@ -523,63 +583,66 @@
                     const getV = (keys) => { let o = p.fullData.find(x => keys.some(k => x.k.toLowerCase().includes(k))); return o ? o.v : "N/A"; };
                     p.type = getV(['type canon', 'type']); p.piste = getV(['pistes', 'piste']);
                     p.rep = getV(['repeteur', 'épéteur', 'peteur']); p.transfo = getV(['transfo']);
-                    p.vanne = getV(['type de vanne', 'vanne']); p.module = getV(['type de module', 'module']);
 
                     let tLower = p.type.toLowerCase().trim();
                     if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = technoColors[tLower] || "#FFD700";
 
-                    layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lng]);
+                    layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lon]);
                     cancelEdit();
                 } else alert("Erreur Google : " + result.message);
             } catch (err) { alert("Échec réseau."); }
             btn.innerText = "✅ Sauvegarder"; btn.disabled = false;
         });
 
+        // ==========================================
+        // PANNEAU DROIT (SELECTION)
+        // ==========================================
         function closeRightSidebar() { document.getElementById('right-sidebar').classList.remove('open'); if(currentlyEditingId) cancelEdit(); clearSelection(); }
         function clearSelection() { selectedCannonsMap.clear(); updateMap(); renderSelectionPanel(); }
 
-        // AFFICHAGE CONTEXTUEL DES FICHES
         function renderSelectionPanel() {
             document.getElementById('sel-count').innerText = selectedCannonsMap.size;
             let listDiv = document.getElementById('selected-list');
             listDiv.innerHTML = selectedCannonsMap.size === 0 ? "<p style='font-size:12px; color:#7f8c8d; text-align:center;'>Aucun canon sélectionné.</p>" : "";
             
-            let isHist = currentLayer.includes('_');
-            let isDefautLayer = currentLayer === 'defauts';
-
             selectedCannonsMap.forEach((layer, id) => {
                 const p = layer.feature.properties;
-                let active = getActiveTickets(p.id); let history = getHistoryTickets(p.id);
+                let active = getActiveTickets(p.id); 
+                let history = getHistoryTickets(p.id);
                 let mainContent = "";
 
-                if (isHist) {
-                    let s = currentSeason;
+                if (mainTheme === 'historique') {
+                    let s = saisonsList[histSeasonIdx];
                     let hd = p.historique[s] || {eau:0, air:0, temps:0};
                     mainContent = `
                         <div class="hist-card">
-                            <div style="font-size:12px; color:#666; margin-bottom:10px;">Saison <b>${s}</b></div>
-                            <div style="display:flex; justify-content: space-between;">
-                                <div><div style="font-size:20px; font-weight:bold; color:#2980b9;">${hd.eau}</div><div style="font-size:10px; color:#555; text-transform:uppercase;">m³ Eau</div></div>
-                                <div><div style="font-size:20px; font-weight:bold; color:#e67e22;">${hd.air}</div><div style="font-size:10px; color:#555; text-transform:uppercase;">Air</div></div>
-                                <div><div style="font-size:20px; font-weight:bold; color:#27ae60;">${hd.temps}</div><div style="font-size:10px; color:#555; text-transform:uppercase;">Heures</div></div>
+                            <div style="font-size:13px; color:#666; margin-bottom:10px; text-transform:uppercase;">Volume <b>Saison ${s}</b></div>
+                            <div style="display:flex; justify-content: space-around;">
+                                <div><div style="font-size:22px; font-weight:bold; color:#3498db;">${hd.eau}</div><div style="font-size:10px; color:#7f8c8d; text-transform:uppercase;">m³ Eau</div></div>
+                                <div><div style="font-size:22px; font-weight:bold; color:#f39c12;">${hd.air}</div><div style="font-size:10px; color:#7f8c8d; text-transform:uppercase;">Air</div></div>
+                                <div><div style="font-size:22px; font-weight:bold; color:#2ecc71;">${hd.temps}</div><div style="font-size:10px; color:#7f8c8d; text-transform:uppercase;">Heures</div></div>
                             </div>
-                        </div>`;
+                        </div>
+                        <div class="piste-chart-container">
+                            <div style="font-size:11px; font-weight:bold; color:#555; text-align:center;">Comparatif sur la piste : ${p.piste}</div>
+                            <div class="piste-chart-wrapper"><canvas id="chart-${p.id}"></canvas></div>
+                        </div>
+                    `;
                 } 
-                else if (isDefautLayer) {
+                else if (mainTheme === 'defauts') {
                     if (active.length === 0) {
-                        mainContent = `<div style="background:#eafaf1; color:#27ae60; padding:12px; border-radius:6px; text-align:center; font-weight:bold;">✅ Aucun défaut en cours</div>`;
+                        mainContent = `<div style="background:#eafaf1; color:#27ae60; padding:15px; border-radius:6px; text-align:center; font-weight:bold;">✅ Aucun défaut en cours</div>`;
                     } else {
                         mainContent = active.map(t => {
                             let borderCol = t.statut.includes('faire') ? '#e74c3c' : '#f39c12';
                             let details = t.fullData.map(d => {
-                                // Ne pas réafficher le défaut (déjà en titre)
-                                if (d.k.toLowerCase().includes('defaut')) return '';
-                                return `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:4px 0; font-size:11px;"><span style="color:#777;">${d.k}</span><span style="font-weight:600; text-align:right; max-width:65%;">${d.v}</span></div>`;
+                                if (d.k.toLowerCase().includes('defaut') || d.k.toLowerCase().includes('n°')) return '';
+                                return `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #f9f9f9; padding:4px 0; font-size:11.5px;"><span style="color:#7f8c8d;">${d.k}</span><span style="font-weight:600; text-align:right; max-width:65%; color:#2c3e50;">${d.v}</span></div>`;
                             }).join('');
-                            return `<div class="ticket-card" style="border-left-color:${borderCol};">
-                                <div style="font-weight:bold; font-size:13px; color:#333; margin-bottom:8px; display:flex; justify-content:space-between;">
-                                    <span>${t.defaut}</span>
-                                    <span style="font-size:10px; padding:2px 6px; border-radius:10px; background:${borderCol}20; color:${borderCol};">${t.statut}</span>
+                            return `
+                            <div class="ticket-card" style="border-left-color:${borderCol};">
+                                <div style="font-weight:bold; font-size:14px; color:#333; margin-bottom:10px; display:flex; justify-content:space-between;">
+                                    <span>${t.defaut}</span><span style="font-size:10px; padding:3px 6px; border-radius:12px; background:${borderCol}20; color:${borderCol};">${t.statut}</span>
                                 </div>
                                 ${details}
                             </div>`;
@@ -587,41 +650,71 @@
                     }
                 } 
                 else {
+                    // Vue Technique Générale
                     let badges = `
                         <span class="badge"><b>Modèle:</b> <span style="color:${p.couleur_defaut}">${p.type}</span></span>
                         <span class="badge"><b>Rép:</b> ${p.rep}</span>
                         <span class="badge"><b>Trans:</b> ${p.transfo}</span>
-                        <span class="badge"><b>Vanne:</b> ${p.vanne}</span>
-                        <span class="badge"><b>Module:</b> ${p.module}</span>
                     `;
-                    let fullDataHTML = `<details style="margin-top:12px; font-size:11px; background:#f9f9f9; padding:8px 12px; border-radius:6px; border:1px solid #eee;"><summary style="cursor:pointer; font-weight:600; color:#555;">➕ Toutes les caractéristiques</summary><div style="margin-top:8px; display:grid; grid-template-columns: 1fr; gap:5px;">`;
+                    let fullDataHTML = `<details style="margin-top:12px; font-size:12px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">➕ Caractéristiques détaillées</summary><div style="margin-top:10px; display:grid; grid-template-columns: 1fr; gap:6px;">`;
                     p.fullData.forEach(item => { 
                         if(!item.k.toLowerCase().includes('xy') && !item.k.toLowerCase().includes('gps')) {
-                            fullDataHTML += `<div style="border-bottom:1px solid #f0f0f0; padding-bottom:3px;"><span style="color:#888;">${item.k}:</span> <b>${item.v}</b></div>`; 
+                            fullDataHTML += `<div style="border-bottom:1px solid #f0f0f0; padding-bottom:4px;"><span style="color:#7f8c8d;">${item.k}:</span> <b style="color:#2c3e50;">${item.v}</b></div>`; 
                         }
                     });
                     fullDataHTML += `</div></details>`;
 
-                    mainContent = `<div style="margin-bottom: 10px;">${badges}</div>${fullDataHTML}`;
-                    
-                    if (active.length > 0) {
-                        mainContent += `<div style="margin-top:12px; padding:8px; background:#fdf0ed; border-radius:4px; font-size:11px; color:#e74c3c; font-weight:bold;">⚠️ Ce canon a ${active.length} défaut(s) en cours. Basculez sur l'onglet "Défauts" pour voir les détails.</div>`;
-                    }
+                    mainContent = `<div style="margin-bottom:10px;">${badges}</div>${fullDataHTML}`;
                 }
 
-                let editBtn = `<button class="btn-edit-small" onclick="startEdit('${p.id}')">✏️ Éditer ce canon</button>`;
+                // Bouton Editer seulement en mode "Type"
+                let editBtn = (mainTheme === 'type' && !isMultiSelect) ? `<button class="btn-edit-small" onclick="startEdit('${p.id}')">✏️ Modifier les données (Mode Expert)</button>` : '';
 
                 listDiv.innerHTML += `
                     <div class="sel-details">
                         <div class="sel-details-header">
                             <span>📍 Canon <b>${p.id}</b></span>
-                            <span style="font-weight:normal; font-size:12px; background:#e0e6ed; padding:2px 8px; border-radius:12px; color:#2c3e50;">${p.piste}</span>
+                            <span style="font-weight:normal; font-size:12px; background:#e0e6ed; padding:3px 8px; border-radius:12px; color:#34495e;">${p.piste}</span>
                         </div>
                         <div class="sel-details-body">
                             ${mainContent}
-                            ${!isMultiSelect ? editBtn : ''}
+                            ${editBtn}
                         </div>
                     </div>`;
+                    
+                // Instancier le chart APRES injection dans le DOM
+                if(mainTheme === 'historique' && !isMultiSelect) {
+                    setTimeout(() => drawPisteCompareChart(p), 50);
+                }
+            });
+        }
+
+        function drawPisteCompareChart(targetCannon) {
+            let canvasId = `chart-${targetCannon.id}`;
+            let ctx = document.getElementById(canvasId);
+            if(!ctx) return;
+            
+            if(chartInstances[canvasId]) chartInstances[canvasId].destroy();
+
+            let s = saisonsList[histSeasonIdx];
+            // Filtrer tous les canons de cette piste qui ont des données pour cette saison
+            let pisteCannons = snowCannons.features.filter(f => f.properties.piste === targetCannon.piste && f.properties.historique[s]);
+            
+            // Trier par ID pour affichage propre
+            pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
+
+            let labels = pisteCannons.map(f => f.properties.id);
+            let data = pisteCannons.map(f => f.properties.historique[s][histMetric]);
+            let bgColors = pisteCannons.map(f => f.properties.id === targetCannon.id ? '#e74c3c' : '#3498db');
+
+            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ data: data, backgroundColor: bgColors, borderRadius: 3 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { title: t => 'Canon ' + t[0].label } } },
+                    scales: { x: { display: true, ticks: {font:{size:9}} }, y: { display: false } }
+                }
             });
         }
 
@@ -637,6 +730,7 @@
                 if(kLow.includes('n° regard') || kLow.includes('regard') || kLow.includes('xy') || kLow.includes('gps')) return;
                 
                 let safeId = "dl-" + item.k.replace(/[^a-zA-Z0-9]/g, '-');
+                // Génération des inputs reliés aux datalists
                 formContainer.innerHTML += `<div style="margin-bottom:8px;"><div class="edit-label">${item.k}</div><input type="text" class="edit-input dyn-field" style="margin-bottom:0;" data-key="${item.k}" value="${item.v}" list="${safeId}"></div>`;
             });
 
@@ -648,7 +742,7 @@
 
         function cancelEdit() {
             currentlyEditingId = null; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none';
-            document.getElementById('right-header').classList.remove('editing'); document.getElementById('right-title').innerText = "📌 Fiche Canon";
+            document.getElementById('right-header').classList.remove('editing'); document.getElementById('right-title').innerText = "📌 Analyse Détaillée";
             updateMap(); renderSelectionPanel();
         }
 
@@ -659,137 +753,81 @@
             } 
         });
 
-        function getColorByFilter(layerType, ratio, props) {
+        // AFFICHAGE CARTE
+        function getColorByFilter(ratio, props) {
             const inter = (c1,c2,f) => { let r=c1.slice(); for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`;};
-            if (layerType === 'defauts') {
+            if (mainTheme === 'defauts') {
                 let act = getActiveTickets(props.id);
-                if (act.length === 0) return '#95a5a6'; 
+                if (act.length === 0) return '#bdc3c7'; // Gris plus doux
                 if (act.some(t => t.statut.includes('faire'))) return '#e74c3c'; 
                 return '#f39c12'; 
             }
-            if (layerType.includes('eau')) return inter([173,216,230], [0,0,139], ratio);
-            if (layerType.includes('air')) return inter([255,250,205], [184,134,11], ratio);
-            if (layerType.includes('temps')) return inter([144,238,144], [0,100,0], ratio);
-            if (layerType === 'repeteur') return repColors[props.rep] || '#555';
-            if (layerType === 'transfo') return transfoColors[props.transfo] || '#555';
-            return props.couleur_defaut;
+            if (mainTheme === 'historique') {
+                if (histMetric === 'eau') return inter([173,216,230], [41,128,185], ratio);
+                if (histMetric === 'air') return inter([250,219,94], [211,84,0], ratio);
+                if (histMetric === 'temps') return inter([171,235,198], [39,174,96], ratio);
+            }
+            if (mainTheme === 'repeteur') return repColors[props.rep] || '#7f8c8d';
+            if (mainTheme === 'transfo') return transfoColors[props.transfo] || '#7f8c8d';
+            return props.couleur_defaut; // Type
         }
 
         function updateLegend() {
-            const c = document.getElementById('legend-content'); const sc = document.getElementById('slider-container');
-            let baseLayer = currentLayer.split('_')[0];
-
-            if (baseLayer === 'defauts') { c.innerHTML = `<div class="legend-item"><div class="color-box" style="background: #e74c3c;"></div> À faire</div><div class="legend-item"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item"><div class="color-box" style="background: #95a5a6;"></div> RAS</div>`; sc.style.display = 'none'; }
-            else if (baseLayer === 'type') { c.innerHTML = `<div class="legend-item"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item"><div class="color-box" style="background: #008000;"></div> Sufag / Street / Taurus / Peak</div><div class="legend-item"><div class="color-box" style="background: linear-gradient(to right, #FFFF99, #B8860B);"></div> Technoalpin</div>`; sc.style.display = 'none'; }
-            else if (baseLayer === 'repeteur') { let h=''; Object.keys(repColors).sort().forEach(k => h += `<div class="legend-item"><div class="color-box" style="background: ${repColors[k]};"></div> Répéteur ${k}</div>`); c.innerHTML=h; sc.style.display='none'; }
-            else if (baseLayer === 'transfo') { let h=''; Object.keys(transfoColors).sort().forEach(k => h += `<div class="legend-item"><div class="color-box" style="background: ${transfoColors[k]};"></div> Transfo ${k}</div>`); c.innerHTML=h; sc.style.display='none'; }
-            else {
-                sc.style.display = 'block';
-                document.getElementById('slider-min').max = absoluteMaxes[baseLayer]; document.getElementById('slider-max').max = absoluteMaxes[baseLayer];
-                document.getElementById('slider-min').value = currentMinThreshold[baseLayer]; document.getElementById('slider-max').value = currentMaxThreshold[baseLayer];
-                document.getElementById('val-min').innerText = currentMinThreshold[baseLayer]; document.getElementById('val-max').innerText = currentMaxThreshold[baseLayer];
-                if (baseLayer === 'eau') c.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #ADD8E6, #00008B);"></div><div class="legend-labels"><span>Min</span><span>Max</span></div>`;
-                else if (baseLayer === 'air') c.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #FFFACD, #B8860B);"></div><div class="legend-labels"><span>Min</span><span>Max</span></div>`;
-                else if (baseLayer === 'temps') c.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #90EE90, #006400);"></div><div class="legend-labels"><span>Min</span><span>Max</span></div>`;
+            const c = document.getElementById('legend-content');
+            if (mainTheme === 'defauts') { c.innerHTML = `<div class="legend-item"><div class="color-box" style="background: #e74c3c;"></div> À faire</div><div class="legend-item"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;}
+            else if (mainTheme === 'type') { c.innerHTML = `<div class="legend-item"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item"><div class="color-box" style="background: #008000;"></div> Sufag / Peak</div><div class="legend-item"><div class="color-box" style="background: linear-gradient(to right, #f1c40f, #e67e22);"></div> Technoalpin</div>`;}
+            else if (mainTheme === 'repeteur') { let h=''; Object.keys(repColors).sort().forEach(k => h += `<div class="legend-item"><div class="color-box" style="background: ${repColors[k]};"></div> Répéteur ${k}</div>`); c.innerHTML=h;}
+            else if (mainTheme === 'transfo') { let h=''; Object.keys(transfoColors).sort().forEach(k => h += `<div class="legend-item"><div class="color-box" style="background: ${transfoColors[k]};"></div> Transfo ${k}</div>`); c.innerHTML=h;}
+            else if (mainTheme === 'historique') {
+                if (histMetric === 'eau') c.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #add8e6, #2980b9);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`;
+                else if (histMetric === 'air') c.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
+                else if (histMetric === 'temps') c.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
             }
         }
 
         function updateMap() {
             if(!geojsonLayer) return;
-            let baseLayer = currentLayer.split('_')[0];
-            let activeSeason = currentLayer.split('_')[1] || currentSeason;
+            let s = saisonsList[histSeasonIdx];
 
             geojsonLayer.eachLayer(function(layer) {
                 const p = layer.feature.properties; let vis = true;
-                if (!currentPistes.includes('all') && !currentPistes.includes(p.piste)) vis = false;
-                if (!currentTypes.includes('all') && !currentTypes.includes(p.type.toString().toLowerCase())) vis = false;
-                if (!currentVannes.includes('all') && !currentVannes.includes(p.vanne)) vis = false;
-                if (!currentModules.includes('all') && !currentModules.includes(p.module)) vis = false;
+                
+                // Filtres dynamiques
+                activeFilters.forEach(filt => {
+                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
+                        let propItem = p.fullData.find(x => x.k === filt.key);
+                        let val = propItem ? propItem.v.toString() : "";
+                        if(!filt.vals.includes(val)) vis = false;
+                    }
+                });
 
                 let val = 0;
-                if (['eau','air','temps'].includes(baseLayer)) {
-                    val = p.historique[activeSeason] ? p.historique[activeSeason][baseLayer] : 0;
-                    if (val < currentMinThreshold[baseLayer] || val > currentMaxThreshold[baseLayer]) vis = false;
+                if (mainTheme === 'historique') {
+                    val = p.historique[s] ? p.historique[s][histMetric] : 0;
+                    if (val < currentMinThreshold[histMetric] || val > currentMaxThreshold[histMetric]) vis = false;
                 }
 
                 if (!vis) {
                     if(layer._icon) layer._icon.style.display = 'none';
                 } else {
                     let rad = 12; let ratio = 0;
-                    if (['eau','air','temps'].includes(baseLayer)) { let maxVal = absoluteMaxes[baseLayer] || 1; ratio = val / maxVal; rad = 10 + (14 * ratio); }
+                    if (mainTheme === 'historique') { let maxVal = absoluteMaxes[histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
                     
-                    let bg = getColorByFilter(currentLayer, ratio, p);
+                    let bg = getColorByFilter(ratio, p);
                     let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
 
                     let isSel = selectedCannonsMap.has(p.id); let isEdit = (currentlyEditingId === p.id);
-                    
-                    let actClass = "";
-                    if (baseLayer === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) actClass = "alert-urgent";
-
                     if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
                     else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
                     else { layer.setZIndexOffset(0); }
+
+                    let actClass = (mainTheme === 'defauts' && getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
 
                     layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
                     if(layer._icon) layer._icon.style.display = 'block';
                 }
             });
         }
-
-        function updateRightPanel() {
-            let f = snowCannons.features;
-            if (!currentPistes.includes('all')) f = f.filter(x => currentPistes.includes(x.properties.piste));
-            if (!currentTypes.includes('all')) f = f.filter(x => currentTypes.includes(x.properties.type.toString().toLowerCase()));
-            if (!currentVannes.includes('all')) f = f.filter(x => currentVannes.includes(x.properties.vanne));
-            if (!currentModules.includes('all')) f = f.filter(x => currentModules.includes(x.properties.module));
-
-            let ctx = document.getElementById('pisteChart').getContext('2d');
-            if (window.myChart) window.myChart.destroy();
-            
-            let baseLayer = currentLayer.split('_')[0];
-            let activeSeason = currentLayer.split('_')[1] || currentSeason;
-
-            if (['eau','air','temps'].includes(baseLayer)) {
-                f = f.filter(x => { let v = x.properties.historique[activeSeason] ? x.properties.historique[activeSeason][baseLayer] : 0; return v >= currentMinThreshold[baseLayer] && v <= currentMaxThreshold[baseLayer]; });
-                window.myChart = new Chart(ctx, { 
-                    type: 'bar', 
-                    data: { labels: f.map(x => 'N°' + x.properties.id), datasets: [{ data: f.map(x => x.properties.historique[activeSeason] ? x.properties.historique[activeSeason][baseLayer] : 0), backgroundColor: f.map(x => pisteColors[x.properties.piste] || '#0078A8'), borderRadius: 4 }] }, 
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: function(t) { return 'Canon N°' + f[t[0].dataIndex].properties.id + ' | ' + f[t[0].dataIndex].properties.piste; } } } } } 
-                });
-            } else {
-                let counts = {}; f.forEach(x => { counts[x.properties.piste] = (counts[x.properties.piste] || 0) + 1; });
-                let labels = Object.keys(counts); let data = Object.values(counts);
-                window.myChart = new Chart(ctx, { 
-                    type: 'bar', 
-                    data: { labels: labels, datasets: [{ data: data, backgroundColor: labels.map(l => pisteColors[l] || '#0078A8'), borderRadius: 4 }] }, 
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(t) { return t.raw + ' canons'; } } } } } 
-                });
-            }
-        }
-
-        function handleLayerChange(e) {
-            currentLayer = e.target.value;
-            if (currentLayer.includes('_')) { currentSeason = currentLayer.split('_')[1]; calculateMaxes(); }
-            updateLegend(); updateMap(); updateRightPanel(); renderSelectionPanel();
-        }
-
-        document.getElementById('slider-min').addEventListener('input', e => { let baseLayer = currentLayer.split('_')[0]; let val = parseFloat(e.target.value); if (val > currentMaxThreshold[baseLayer]) { val = currentMaxThreshold[baseLayer]; e.target.value = val; } currentMinThreshold[baseLayer] = val; document.getElementById('val-min').innerText = val; updateMap(); updateRightPanel(); });
-        document.getElementById('slider-max').addEventListener('input', e => { let baseLayer = currentLayer.split('_')[0]; let val = parseFloat(e.target.value); if (val < currentMinThreshold[baseLayer]) { val = currentMinThreshold[baseLayer]; e.target.value = val; } currentMaxThreshold[baseLayer] = val; document.getElementById('val-max').innerText = val; updateMap(); updateRightPanel(); });
-
-        function toggleFullscreenChart() {
-            const modal = document.getElementById('chart-modal'); const wrapper = document.getElementById('chart-wrapper'); const orig = document.getElementById('original-chart-container');
-            if (modal.style.display === 'flex') { modal.style.display = 'none'; orig.appendChild(wrapper); } else { modal.style.display = 'flex'; document.getElementById('chart-modal-body').appendChild(wrapper); }
-            updateRightPanel();
-        }
-
-        dragElement(document.getElementById("chart-modal"));
-        function dragElement(elmnt) {
-            var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0; document.getElementById("chart-modal-header").onmousedown = dragMouseDown;
-            function dragMouseDown(e) { e = e || window.event; e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; document.onmouseup = closeDragElement; document.onmousemove = elementDrag; }
-            function elementDrag(e) { e = e || window.event; e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; elmnt.style.top = (elmnt.offsetTop - pos2) + "px"; elmnt.style.left = (elmnt.offsetLeft - pos1) + "px"; }
-            function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
-        }
-        new ResizeObserver(() => { if (window.myChart && document.getElementById('chart-modal').style.display === 'flex') { window.myChart.resize(); } }).observe(document.getElementById('chart-modal'));
 
         function toggleLeftSidebar() { document.getElementById('sidebar').classList.toggle('open'); setTimeout(() => map.invalidateSize(), 300); }
     </script>
