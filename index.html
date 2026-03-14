@@ -22,6 +22,9 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
+    
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; overflow: hidden; }
         #app-container { display: flex; height: 100%; width: 100%; position: relative; }
@@ -32,11 +35,9 @@
         
         #error-box { display: none; background: #fdf0ed; border: 2px solid #e74c3c; padding: 20px; border-radius: 8px; max-width: 600px; color: #c0392b; margin-top:20px; text-align:left;}
 
-        /* BOUTON MENU RETRACTABLE */
         #toggle-menu-btn { position: absolute; top: 15px; left: 15px; z-index: 3000; background: #2c3e50; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; }
         #toggle-menu-btn:hover { background: #34495e; }
 
-        /* BANDEAU GAUCHE */
         #sidebar { width: 360px; flex-shrink: 0; background: #fff; display: flex; flex-direction: column; z-index: 2500; overflow-y: auto; box-shadow: 2px 0 15px rgba(0,0,0,0.08); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; height: 100%; left: 0; padding-top: 60px;}
         #sidebar.collapsed { transform: translateX(-100%); }
         .sidebar-header-bg { background: #f8f9fa; padding: 10px 20px; border-bottom: 1px solid #eee; font-weight: bold; color: #2c3e50; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
@@ -49,7 +50,6 @@
         details[open].panel-section summary::after { content: '−'; color: #3498db; }
         .section-content { padding: 15px 20px; background: #fafbfc; }
 
-        /* THEMES EN ACCORDEON */
         .theme-block { margin-bottom: 8px; }
         .radio-card { display: flex; align-items: center; gap: 10px; background: #fff; padding: 12px; border: 1px solid #e1e8ed; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 13px; font-weight: bold; color:#2c3e50; margin: 0;}
         .radio-card:hover { border-color: #3498db; background: #f0f8ff; }
@@ -62,19 +62,16 @@
         input[type=range] { width: 100%; margin: 0; accent-color: #3498db; cursor: pointer;}
         .val-badge { color: #e74c3c; font-weight: bold; }
         
-        /* FILTRES DYNAMIQUES */
         .dynamic-filter-slot { background: #fff; border: 1px solid #e1e8ed; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
         .filter-select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; color: #333; margin-bottom: 8px; outline: none; background:#f9f9f9;}
         .checkbox-list { max-height: 120px; overflow-y: auto; padding: 5px; font-size: 12px; color: #555; }
         .checkbox-list label { display: block; margin-bottom: 6px; cursor: pointer; }
 
-        /* LÉGENDE */
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color:#444; font-weight:bold;}
-        .color-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #ccc;}
-        .gradient-bar { height: 10px; border-radius: 3px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color:#34495e; font-weight:600;}
+        .color-box { width: 14px; height: 14px; border-radius: 3px;}
+        .gradient-bar { height: 12px; border-radius: 4px; margin: 10px 0 5px 0; border: 1px solid #ccc; }
         .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; font-weight:bold;}
 
-        /* CARTE */
         #map-container { flex-grow: 1; position: relative; height: 100%; background: #222; }
         #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; z-index: 1; }
 
@@ -82,10 +79,10 @@
         .cannon-circle { border-radius: 50%; color: white; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); box-sizing: border-box; box-shadow: 0px 3px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; transition: 0.2s;}
         .cannon-circle:hover { transform: scale(1.2); z-index: 1000 !important; cursor: pointer; }
 
-        #btn-multi-toggle { position: absolute; top: 15px; right: 15px; z-index: 1000; background: white; border: 2px solid rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.3s; }
-        #btn-multi-toggle.active { background: #3498db; color: white; border-color: #2980b9; }
+        #map-controls-tr { position: absolute; top: 15px; right: 15px; z-index: 1000; display: flex; gap: 10px; flex-direction:column; align-items:flex-end;}
+        .map-btn { background: white; border: 2px solid rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.3s; font-size:13px; }
+        .map-btn.active { background: #3498db; color: white; border-color: #2980b9; }
 
-        /* BANDEAU DROIT (FICHES CANON) */
         #right-sidebar { position: absolute; top: 0; right: 0; bottom: 0; width: 450px; background: #fff; z-index: 2001; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: -5px 0 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
         #right-sidebar.open { transform: translateX(0); }
         .right-header { background: #fff; border-bottom:1px solid #eee; padding: 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; color:#2c3e50;}
@@ -103,23 +100,22 @@
         .btn-action-primary { background: #3498db; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-top: 15px; width: 100%; font-weight: bold; transition: 0.2s;}
         .btn-action-primary:hover { background: #2980b9; }
 
-        /* VUE EDITION */
         .edit-input { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 4px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background:#fff;}
         .edit-label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase;}
         #dynamic-edit-fields { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 6px; max-height: 45vh; overflow-y: auto;}
 
-        /* FENETRE COMPARAISON MODAL */
         #compare-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 700px; max-width: 90%; background: white; z-index: 9999; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid #ccc; flex-direction: column; overflow: hidden; }
         .comp-header { background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: bold; }
         .comp-body { padding: 20px; max-height: 70vh; overflow-y: auto; background: #f4f6f8; }
         .comp-controls { display: flex; gap: 15px; background: #fff; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ddd; align-items: flex-end;}
         .comp-chart-box { background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 15px; height: 200px; position: relative;}
 
+        .kml-layer-item { display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:8px; font-size:12px; font-weight:bold; }
+        
         @media (max-width: 768px) { #sidebar { width: 85%; } #right-sidebar { width: 85%; } #compare-modal { width: 95%; } }
     </style>
 </head>
 <body>
-    
     <div id="datalists-container"></div> 
 
     <div id="loading-overlay">
@@ -190,7 +186,6 @@
                     <div class="theme-block">
                         <label class="radio-card" id="lbl-historique"><input type="radio" name="main_theme" value="historique"> 📊 Historique Volumes</label>
                         <div class="theme-details-hist" id="details-historique" style="display: none;">
-                            
                             <div style="font-weight:bold; font-size:12px; color:#27ae60; margin-bottom:10px;">DONNÉE À AFFICHER :</div>
                             <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:12px; font-weight:bold; color:#333;">
                                 <label><input type="radio" name="hist_metric" value="eau" checked> 💧 Eau</label>
@@ -215,7 +210,6 @@
                             <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="openGlobalCompareModal()">📊 Comparer 2 Saisons</button>
                         </div>
                     </div>
-
                 </div>
             </details>
             
@@ -237,10 +231,32 @@
                 <summary>3. Filtres sur-mesure (Max 4)</summary>
                 <div class="section-content" id="dynamic-filters-container"></div>
             </details>
+
+            <details class="panel-section" open>
+                <summary>4. Calques Distants (GitHub)</summary>
+                <div class="section-content" style="padding-top: 5px;">
+                    <p style="font-size:11px; color:#666; margin-bottom:10px; line-height:1.4;">
+                        Calques KML/KMZ synchronisés via votre onglet 'kmz' (liens GitHub).
+                    </p>
+                    <div id="cloud-layers-container"></div>
+                    
+                    <hr style="margin:15px 0; border-top:1px dashed #ccc;">
+                    
+                    <p style="font-size:11px; color:#666; margin-bottom:10px; line-height:1.4;">
+                        Import manuel depuis PC (mémoire temporaire) :
+                    </p>
+                    <input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="handleKMLUpload(event)">
+                    <button class="btn-action-primary" style="margin-top:0; background:#8e44ad;" onclick="document.getElementById('kml-upload').click()">📂 Parcourir...</button>
+                    <div id="custom-layers-list" style="margin-top:15px;"></div>
+                </div>
+            </details>
         </div>
 
         <div id="map-container">
-            <button id="btn-multi-toggle" onclick="toggleMultiSelect()">🔲 Sélection Multiple : OFF</button>
+            <div id="map-controls-tr">
+                <button id="btn-map-mode" class="map-btn" onclick="toggleMapMode()">🗺️ Vue Topographie / 3D</button>
+                <button id="btn-multi-toggle" class="map-btn" onclick="toggleMultiSelect()">🔲 Sélection Multiple : OFF</button>
+            </div>
             <div id="map"></div>
         </div>
 
@@ -287,7 +303,7 @@
         // ===========================================
         
         let snowCannons = { "type": "FeatureCollection", "features": [] };
-        let rawTickets = []; let saisonsList = []; 
+        let rawTickets = []; let saisonsList = []; let cloudKmzLayers = [];
         let isMultiSelect = false; let columnValuesSets = {}; let availableColumns = [];
         
         let mainTheme = 'defauts'; let histMetric = 'eau'; let histSeasonIdx = 0;
@@ -298,25 +314,35 @@
         let activeFilters = [ {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]} ];
         let currentPistes = ['all'], currentTypes = ['all'], currentVannes = ['all'], currentModules = ['all'];
 
-        const map = L.map('map', {zoomControl: false}).setView([42.766, 0.564], 14);
+        const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+        const topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+        
+        const map = L.map('map', {zoomControl: false, layers: [satLayer]}).setView([42.766, 0.564], 14);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 }).addTo(map);
+        let currentMapMode = 'sat';
+
         let geojsonLayer = null; let chartInstances = {}; let selectedCannonsMap = new Map(); let currentlyEditingId = null; 
         let technoColors = {}, repColors = {}, transfoColors = {};
+        let externalLayers = {}; 
         
         let keyPiste = "", keyType = "", keyRep = "", keyTransfo = "", keyVanne = "", keyModule = "";
+
+        function toggleMapMode() {
+            const btn = document.getElementById('btn-map-mode');
+            if (currentMapMode === 'sat') {
+                map.removeLayer(satLayer); map.addLayer(topoLayer); currentMapMode = 'topo';
+                btn.innerHTML = "🛰️ Vue Satellite Standard"; btn.classList.add('active');
+            } else {
+                map.removeLayer(topoLayer); map.addLayer(satLayer); currentMapMode = 'sat';
+                btn.innerHTML = "🗺️ Vue Topographie / 3D"; btn.classList.remove('active');
+            }
+        }
 
         function setStep(step, desc) {
             document.getElementById('loading-step').innerText = "Étape " + step + "/4";
             document.getElementById('loading-desc').innerText = desc;
         }
 
-        const getIdx = (headers, nomsCherches) => {
-            let i = headers.findIndex(h => nomsCherches.some(n => h && h.includes(n)));
-            return i !== -1 ? i : -1;
-        };
-
-        // FETCH AVEC ANTI-CACHE
         async function fetchWithTimeout(resource, options = {}) {
             const { timeout = 15000 } = options;
             const controller = new AbortController();
@@ -379,8 +405,7 @@
                         let txt = String(row[idxXY]).replace(/,/g, '.'); 
                         let matches = txt.match(/-?\d+(?:\.\d+)?/g);
                         if (matches && matches.length >= 2) { 
-                            lat = parseFloat(matches[0]); 
-                            lng = parseFloat(matches[1]); 
+                            lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); 
                             if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; }
                         }
                     }
@@ -429,7 +454,7 @@
                     });
                 }
 
-                setStep(4, "Préparation des Tickets de panne...");
+                setStep(4, "Préparation des Tickets & GitHub...");
                 if (data.tickets && data.tickets.length > 1) {
                     const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
                     const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
@@ -451,6 +476,11 @@
                             };
                         });
                     }
+                }
+
+                // GESTION ONGLET KMZ (GitHub)
+                if (data.kmz && data.kmz.length > 0) {
+                    cloudKmzLayers = data.kmz.map(k => ({ ...k, isVisible: false, leafletLayer: null }));
                 }
 
                 Object.values(dictGeneral).forEach(canon => {
@@ -481,16 +511,186 @@
                 document.getElementById('loading-desc').style.display = 'none';
                 document.getElementById('loading-step').style.display = 'none';
                 document.getElementById('error-box').style.display = 'block';
-                
-                if(error.name === 'AbortError') {
-                    document.getElementById('error-msg').innerHTML = "Délai d'attente dépassé (Timeout). Google met trop de temps à répondre.";
-                } else {
-                    document.getElementById('error-msg').innerHTML = error.message; 
-                }
+                if(error.name === 'AbortError') { document.getElementById('error-msg').innerHTML = "Délai d'attente dépassé (Timeout). Google met trop de temps à répondre."; } 
+                else { document.getElementById('error-msg').innerHTML = error.message; }
             }
         }
 
         fetchGoogleSheetsData();
+
+        // LECTURE DIRECTE GITHUB
+        async function fetchGitHubKMZ(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("GitHub refuse l'accès. Vérifiez que le dépôt est public et l'URL Raw.");
+            
+            let kmlString = "";
+            // Est-ce un KMZ ?
+            if (url.toLowerCase().endsWith('.kmz')) {
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const zip = await JSZip.loadAsync(arrayBuffer);
+                const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
+                if (!kmlFile) throw new Error("Aucun fichier KML trouvé dans le KMZ.");
+                kmlString = await kmlFile.async("string");
+            } 
+            // C'est un KML
+            else {
+                kmlString = await response.text();
+            }
+
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(kmlString, "text/xml");
+            return toGeoJSON.kml(xmlDoc);
+        }
+
+        function renderCloudLayersList() {
+            const container = document.getElementById('cloud-layers-container');
+            container.innerHTML = "";
+            if (cloudKmzLayers.length === 0) {
+                container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré dans l'onglet 'kmz'.</p>`;
+                return;
+            }
+            cloudKmzLayers.forEach((layer, idx) => {
+                container.innerHTML += `
+                    <div class="kml-layer-item" style="border-color:#3498db30; background:#f0f8ff;">
+                        <label style="cursor:pointer; display:flex; align-items:center; gap:8px; width:100%;">
+                            <input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="toggleCloudLayer(${idx})">
+                            <div style="flex-grow:1;">
+                                <span style="display:block; color:#2980b9;">${layer.nom}</span>
+                                <span style="font-size:10px; color:#7f8c8d; font-weight:normal; display:block;">${layer.commentaire}</span>
+                            </div>
+                            <span id="cloud-status-${idx}" style="min-width:20px; text-align:right;"></span>
+                        </label>
+                    </div>`;
+            });
+        }
+
+        window.toggleCloudLayer = async function(idx) {
+            let layerObj = cloudKmzLayers[idx];
+            let cbx = document.getElementById('cloud-cbx-' + idx);
+            let statusSpan = document.getElementById('cloud-status-' + idx);
+
+            if (!cbx.checked) {
+                if(layerObj.leafletLayer) map.removeLayer(layerObj.leafletLayer);
+                layerObj.isVisible = false;
+                statusSpan.innerText = "";
+                return;
+            }
+
+            if (layerObj.leafletLayer) {
+                map.addLayer(layerObj.leafletLayer);
+                layerObj.isVisible = true;
+                return;
+            }
+
+            statusSpan.innerText = " ⏳";
+            cbx.disabled = true;
+
+            try {
+                const geojson = await fetchGitHubKMZ(layerObj.url);
+                layerObj.leafletLayer = L.geoJSON(geojson, {
+                    style: function (feature) { return { color: '#8e44ad', weight: 4, opacity: 0.8 }; },
+                    pointToLayer: function(feature, latlng) { return L.circleMarker(latlng, {radius: 6, color: '#8e44ad', fillOpacity: 0.8}); },
+                    onEachFeature: function (feature, layer) {
+                        if (feature.properties && feature.properties.name) {
+                            layer.bindPopup("<b style='color:#8e44ad'>" + feature.properties.name + "</b><br>" + (feature.properties.description || ""));
+                        }
+                    }
+                }).addTo(map);
+
+                layerObj.isVisible = true;
+                if(layerObj.leafletLayer.getBounds().isValid()) { map.fitBounds(layerObj.leafletLayer.getBounds()); }
+                statusSpan.innerText = " ✅";
+            } catch(err) {
+                statusSpan.innerText = " ❌";
+                alert("Impossible de charger le calque " + layerObj.nom + " : " + err.message);
+                cbx.checked = false;
+            }
+            cbx.disabled = false;
+        }
+
+        // ==========================================
+        // GESTION UPLOAD MANUEL LOCAL
+        // ==========================================
+        async function handleKMLUpload(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('loading-spinner').style.display = 'block';
+            document.getElementById('loading-title').innerText = "Importation locale...";
+            document.getElementById('loading-desc').innerText = "Analyse de " + file.name;
+            
+            setTimeout(async () => {
+                try {
+                    const fileName = file.name; const layerId = 'layer_' + Date.now();
+                    let kmlString = "";
+
+                    if (fileName.toLowerCase().endsWith('.kmz')) {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const zip = await JSZip.loadAsync(arrayBuffer);
+                        const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
+                        if (!kmlFile) throw new Error("Aucun fichier KML trouvé à l'intérieur du KMZ.");
+                        kmlString = await kmlFile.async("string");
+                    } else if (fileName.toLowerCase().endsWith('.kml')) {
+                        kmlString = await file.text();
+                    } else {
+                        throw new Error("Format non supporté.");
+                    }
+
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(kmlString, "text/xml");
+                    const geojson = toGeoJSON.kml(xmlDoc);
+
+                    const layer = L.geoJSON(geojson, {
+                        style: function (feature) { return { color: '#e67e22', weight: 4, opacity: 0.8 }; },
+                        pointToLayer: function(feature, latlng) { return L.circleMarker(latlng, {radius: 6, color: '#e67e22', fillOpacity: 0.8}); },
+                        onEachFeature: function (feature, layer) {
+                            if (feature.properties && feature.properties.name) {
+                                layer.bindPopup("<b style='color:#e67e22'>" + feature.properties.name + "</b><br>" + (feature.properties.description || ""));
+                            }
+                        }
+                    }).addTo(map);
+
+                    externalLayers[layerId] = { name: fileName, layer: layer, isVisible: true };
+                    renderCustomLayersList();
+                    if(layer.getBounds().isValid()) { map.fitBounds(layer.getBounds()); }
+                    document.getElementById('loading-overlay').style.display = 'none';
+
+                } catch (err) {
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    alert("Erreur lors de l'import : " + err.message);
+                }
+                event.target.value = ""; 
+            }, 100);
+        }
+
+        function renderCustomLayersList() {
+            const container = document.getElementById('custom-layers-list'); container.innerHTML = "";
+            for (let id in externalLayers) {
+                const ext = externalLayers[id];
+                container.innerHTML += `
+                    <div class="kml-layer-item">
+                        <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" ${ext.isVisible ? 'checked' : ''} onchange="toggleExtLayer('${id}')">
+                            <span style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#34495e;">${ext.name}</span>
+                        </label>
+                        <button onclick="deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button>
+                    </div>`;
+            }
+        }
+
+        window.toggleExtLayer = function(id) {
+            const ext = externalLayers[id]; ext.isVisible = !ext.isVisible;
+            if(ext.isVisible) { map.addLayer(ext.layer); } else { map.removeLayer(ext.layer); }
+            renderCustomLayersList();
+        }
+
+        window.deleteExtLayer = function(id) {
+            map.removeLayer(externalLayers[id].layer); delete externalLayers[id];
+            renderCustomLayersList();
+        }
+
 
         function getV(p, key) { if(!key) return "N/A"; let o = p.fullData.find(x => x.k === key); return o ? o.v.toString().trim() : "N/A"; }
         function getTicketsForCanon(idCanon) { return rawTickets.filter(t => t.idCanon === idCanon); }
@@ -551,6 +751,7 @@
             setupCbs('check-all-modules', 'module-cb', vals => { currentModules = vals; updateMap(); triggerGlobalFilterChart(); });
 
             generateDynamicFiltersUI();
+            renderCloudLayersList();
             calculateMaxes();
 
             geojsonLayer = L.geoJSON(snowCannons, {
@@ -578,48 +779,18 @@
             updateLegend(); updateMap();
         }
 
-        function generateDynamicFiltersUI() {
-            let container = document.getElementById('dynamic-filters-container'); container.innerHTML = "";
-            let optionsHTML = `<option value="">-- Choisir un critère --</option>` + availableColumns.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
-            for(let i=0; i<4; i++) {
-                container.innerHTML += `<div class="dynamic-filter-slot"><select class="filter-select" id="filter-sel-${i}" data-idx="${i}">${optionsHTML}</select><div class="checkbox-list" id="filter-cbx-${i}" style="display:none;"></div></div>`;
-            }
-        }
-
-        function renderCheckboxesForFilter(idx, colName) {
-            let cbxContainer = document.getElementById(`filter-cbx-${idx}`);
-            if(!colName) { cbxContainer.style.display = 'none'; activeFilters[idx] = {key:"", vals:[]}; updateMap(); triggerGlobalFilterChart(); return; }
-            
-            cbxContainer.style.display = 'block';
-            let vals = Array.from(columnValuesSets[colName] || []).sort();
-            let html = `<label><input type="checkbox" class="cb-all-${idx}" checked> <b>Tout sélectionner</b></label><hr style="margin:4px 0; border-top:1px solid #eee;">`;
-            vals.forEach(v => html += `<label><input type="checkbox" class="cb-val-${idx}" value="${v}"> ${v}</label>`);
-            cbxContainer.innerHTML = html;
-            activeFilters[idx] = {key: colName, vals: ['all']};
-
-            let allBtn = cbxContainer.querySelector(`.cb-all-${idx}`); let cbs = cbxContainer.querySelectorAll(`.cb-val-${idx}`);
-            const updateLogic = () => { activeFilters[idx].vals = allBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); updateMap(); triggerGlobalFilterChart(); };
-            allBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); updateLogic(); });
-            cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) allBtn.checked=false; else if(Array.from(cbs).every(x=>!x.checked)) allBtn.checked=true; updateLogic(); }));
-        }
-
         function attachEvents() {
-            // Gestion UI Accordeon des Thèmes
             document.querySelectorAll('input[name="main_theme"]').forEach(r => {
                 r.addEventListener('change', e => {
                     mainTheme = e.target.value;
                     
-                    // Cacher tous les details
                     document.querySelectorAll('.theme-details, .theme-details-hist').forEach(el => el.style.display = 'none');
                     document.querySelectorAll('.radio-card').forEach(el => {
-                        el.style.borderBottomLeftRadius = '6px';
-                        el.style.borderBottomRightRadius = '6px';
-                        el.style.marginBottom = '8px';
-                        el.style.borderColor = '#e1e8ed';
+                        el.style.borderBottomLeftRadius = '6px'; el.style.borderBottomRightRadius = '6px';
+                        el.style.marginBottom = '8px'; el.style.borderColor = '#e1e8ed';
                         if(el.id === 'lbl-historique') el.style.borderColor = '#2ecc71';
                     });
 
-                    // Afficher celui cliqué
                     let activeDetails = document.getElementById('details-' + mainTheme);
                     let activeLabel = document.getElementById('lbl-' + mainTheme);
                     
@@ -628,15 +799,11 @@
                         activeLabel.style.borderBottomLeftRadius = '0';
                         activeLabel.style.borderBottomRightRadius = '0';
                         activeLabel.style.marginBottom = '0';
-                        if(mainTheme === 'historique') {
-                            activeLabel.style.borderColor = '#2ecc71';
-                        } else {
-                            activeLabel.style.borderColor = '#3498db';
-                        }
+                        if(mainTheme === 'historique') { activeLabel.style.borderColor = '#2ecc71'; } 
+                        else { activeLabel.style.borderColor = '#3498db'; }
                     }
 
                     if(mainTheme === 'historique') calculateMaxes();
-                    
                     updateLegend(); updateMap(); renderSelectionPanel();
                 });
             });
@@ -652,6 +819,15 @@
             document.getElementById('slider-max').addEventListener('input', e => { let val = parseFloat(e.target.value); if(val < currentMinThreshold[histMetric]) { val = currentMinThreshold[histMetric]; e.target.value = val; } currentMaxThreshold[histMetric] = val; document.getElementById('val-max').innerText = val; updateMap(); });
 
             document.getElementById('dynamic-filters-container').addEventListener('change', e => { if(e.target.classList.contains('filter-select')) renderCheckboxesForFilter(e.target.getAttribute('data-idx'), e.target.value); });
+        
+            map.on('click', function(e) { 
+                if (currentlyEditingId && document.getElementById('allow-move-chk').checked) { 
+                    document.getElementById('edit-lat').value = e.latlng.lat.toFixed(7); 
+                    document.getElementById('edit-lng').value = e.latlng.lng.toFixed(7); 
+                    let layer = selectedCannonsMap.get(currentlyEditingId);
+                    if(layer) { layer.setLatLng(e.latlng); layer.feature.geometry.coordinates = [e.latlng.lng, e.latlng.lat]; }
+                } 
+            });
         }
 
         function calculateMaxes() {
@@ -809,111 +985,6 @@
                     
                 if(mainTheme === 'historique' && !isMultiSelect) setTimeout(() => drawPisteCompareChart(p), 50);
             });
-        }
-
-        function drawPisteCompareChart(targetCannon) {
-            let canvasId = `chart-${targetCannon.id}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
-            if(chartInstances[canvasId]) chartInstances[canvasId].destroy();
-
-            let s = saisonsList[histSeasonIdx]; let pName = getV(targetCannon, keyPiste);
-            let pisteCannons = snowCannons.features.filter(f => getV(f.properties, keyPiste) === pName && f.properties.historique[s]);
-            pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
-            
-            let bgColors = pisteCannons.map(f => f.properties.id === targetCannon.id ? '#e74c3c' : '#3498db');
-
-            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), {
-                type: 'bar',
-                data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[s][histMetric]), backgroundColor: bgColors, borderRadius: 4 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } }
-            });
-        }
-
-        window.drawSecondPisteChart = function(targetId, seasonStr) {
-            let canvasId = `chart2-${targetId}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
-            if(chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
-            if(!seasonStr) return;
-
-            let targetCannon = snowCannons.features.find(f => f.properties.id === targetId).properties;
-            let pName = getV(targetCannon, keyPiste);
-            let pisteCannons = snowCannons.features.filter(f => getV(f.properties, keyPiste) === pName && f.properties.historique[seasonStr]);
-            pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
-            
-            let bgColors = pisteCannons.map(f => f.properties.id === targetId ? '#e74c3c' : '#9b59b6');
-
-            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), {
-                type: 'bar',
-                data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][histMetric]), backgroundColor: bgColors, borderRadius: 4 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } }
-            });
-        }
-
-        window.openGlobalCompareModal = function() {
-            let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2');
-            s1.innerHTML = ""; s2.innerHTML = "";
-            saisonsList.forEach((s, i) => {
-                s1.innerHTML += `<option value="${s}" ${i===0?'selected':''}>${s}</option>`;
-                s2.innerHTML += `<option value="${s}" ${i===1?'selected':''}>${s}</option>`;
-            });
-            document.getElementById('compare-modal').style.display = 'flex';
-            renderGlobalComparison();
-        }
-
-        window.renderGlobalComparison = function() {
-            let s1 = document.getElementById('comp-s1').value; let s2 = document.getElementById('comp-s2').value;
-            let metric = document.getElementById('comp-metric').value;
-            document.getElementById('comp-title-1').innerText = `Saison ${s1} - ${metric.toUpperCase()}`;
-            document.getElementById('comp-title-2').innerText = `Saison ${s2} - ${metric.toUpperCase()}`;
-
-            let pistes = Array.from(columnValuesSets[keyPiste] || []).sort();
-            let d1 = [], d2 = [];
-
-            pistes.forEach(p => {
-                let sum1 = 0; let sum2 = 0;
-                snowCannons.features.forEach(f => {
-                    if (getV(f.properties, keyPiste) === p) {
-                        if(f.properties.historique[s1]) sum1 += f.properties.historique[s1][metric];
-                        if(f.properties.historique[s2]) sum2 += f.properties.historique[s2][metric];
-                    }
-                });
-                d1.push(sum1); d2.push(sum2);
-            });
-
-            if(chartInstances['c1']) chartInstances['c1'].destroy();
-            chartInstances['c1'] = new Chart(document.getElementById('comp-canvas-1').getContext('2d'), {
-                type: 'bar', data: { labels: pistes, datasets: [{ data: d1, backgroundColor: '#3498db' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-
-            if(chartInstances['c2']) chartInstances['c2'].destroy();
-            chartInstances['c2'] = new Chart(document.getElementById('comp-canvas-2').getContext('2d'), {
-                type: 'bar', data: { labels: pistes, datasets: [{ data: d2, backgroundColor: '#e67e22' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-        }
-
-        function startEdit(id) {
-            currentlyEditingId = id; const layer = selectedCannonsMap.get(id); const p = layer.feature.properties;
-            document.getElementById('edit-id-display').innerText = p.id; document.getElementById('edit-id').value = p.id;
-            document.getElementById('edit-lat').value = layer.getLatLng().lat.toFixed(7); document.getElementById('edit-lng').value = layer.getLatLng().lng.toFixed(7);
-            
-            let formContainer = document.getElementById('dynamic-edit-fields'); formContainer.innerHTML = "";
-            p.fullData.forEach(item => {
-                let kLow = item.k.toLowerCase();
-                if(kLow.includes('regard') || kLow.includes('xy') || kLow.includes('gps')) return;
-                let safeId = "dl-" + item.k.replace(/[^a-zA-Z0-9]/g, '-');
-                formContainer.innerHTML += `<div style="margin-bottom:10px;"><div class="edit-label">${item.k}</div><input type="text" class="edit-input dyn-field" data-key="${item.k}" value="${item.v}" list="${safeId}"></div>`;
-            });
-
-            document.getElementById('allow-move-chk').checked = false; 
-            document.getElementById('view-selection').style.display = 'none'; document.getElementById('view-edit').style.display = 'block';
-            document.getElementById('right-header').classList.add('editing'); document.getElementById('right-title').innerText = "✏️ Édition Complète";
-            updateMap(); 
-        }
-
-        function cancelEdit() {
-            currentlyEditingId = null; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none';
-            document.getElementById('right-header').classList.remove('editing'); document.getElementById('right-title').innerText = "📌 Fiche Détaillée";
-            updateMap(); renderSelectionPanel();
         }
 
         function getColorByFilter(ratio, props) {
