@@ -1130,11 +1130,11 @@
         };
 
         // === MÉTÉO (METEOGRAMME 3 JOURS) ===
-        // === MÉTÉO MULTI-SOURCES (SUPERBAGNÈRES) ===
+      // === MÉTÉO MULTI-SOURCES (SUPERBAGNÈRES) ===
         window.openMeteo = function() {
             let sb = document.getElementById('right-sidebar'); let rt = document.getElementById('right-title'); let sl = document.getElementById('selected-list');
             if(!sb || !sl) return;
-            if(rt) rt.innerText = "⛅ Multi-Météo - Superbagnères (1800m)";
+            if(rt) rt.innerText = "⛅ Météo Pro - Superbagnères (1800m)";
             let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'none';
             let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
             let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block';
@@ -1151,20 +1151,25 @@
                 if (provider === 'meteoblue') {
                     container.innerHTML = `<iframe src="https://www.meteoblue.com/fr/meteo/widget/three/42.767N0.582E1791_Europe%2FParis?geoloc=fixed&nocurrent=0&noforecast=0&days=3&temp=1&layout=light" frameborder="0" scrolling="NO" allowtransparency="true" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox" style="width: 100%; height: 100%;"></iframe>`;
                 } else if (provider === 'windy') {
-                    container.innerHTML = `<iframe src="https://embed.windy.com/embed2.html?lat=42.767&lon=0.582&detailLat=42.767&detailLon=0.582&width=650&height=450&zoom=11&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" frameborder="0" style="width: 100%; height: 100%; border-radius:4px;"></iframe>`;
-                } else if (provider === 'meteociel') {
-                    // Affiche le diagramme "Météogramme" officiel de Meteociel pour Luchon
-                    container.innerHTML = `<div style="overflow:auto; height:100%; background:#fff; text-align:center;"><img src="https://www.meteociel.fr/cartes_obs/meteogram2.php?code=12836&alt=1791" style="max-width:100%; height:auto; border-radius:4px;" alt="Météogramme Meteociel"><br><a href="https://www.meteociel.fr/previsions/12836/bagneres_de_luchon.htm" target="_blank" style="display:inline-block; margin-top:15px; color:#8e44ad; font-weight:bold; text-decoration:none;">↗️ Voir les prévisions complètes sur Meteociel</a></div>`;
-                } else if (provider === 'mf') {
-                    container.innerHTML = `<div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; background:#f8f9fa; text-align:center; padding:20px; border-radius:4px;">
-                        <span style="font-size:50px; margin-bottom:15px;">🌤️</span>
-                        <h3 style="color:#2c3e50; margin-top:0;">Météo-France</h3>
-                        <p style="color:#555; font-size:13px; margin-bottom:25px;">Météo-France bloque l'affichage de son site à l'intérieur d'autres applications pour des raisons de sécurité.</p>
-                        <a href="https://meteofrance.com/previsions-meteo-france/bagneres-de-luchon/31110" target="_blank" style="background:#0055A4; color:white; padding:12px 25px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:14px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">↗️ Ouvrir Météo-France</a>
-                    </div>`;
+                    // Windy centré sur la station
+                    container.innerHTML = `<iframe src="https://embed.windy.com/embed2.html?lat=42.767&lon=0.582&detailLat=42.767&detailLon=0.582&width=650&height=450&zoom=12&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" frameborder="0" style="width: 100%; height: 100%; border-radius:4px;"></iframe>`;
+                } else if (provider === 'ventusky') {
+                    // Ventusky centré sur la station avec la couche "Neige" activée par défaut
+                    container.innerHTML = `<iframe src="https://www.ventusky.com/?p=42.767;0.582;12&l=snow" frameborder="0" style="width: 100%; height: 100%; border-radius:4px;"></iframe>`;
                 }
             };
 
+            sl.innerHTML = `
+                <div style="display:flex; gap:5px; margin-bottom:15px;">
+                    <button id="btn-meteo-meteoblue" class="meteo-tab-btn" onclick="window.switchMeteoTab('meteoblue')" style="flex:1; background:#3498db; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:1; transition:0.2s;">Meteoblue</button>
+                    <button id="btn-meteo-windy" class="meteo-tab-btn" onclick="window.switchMeteoTab('windy')" style="flex:1; background:#e67e22; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:0.5; transition:0.2s;">Windy</button>
+                    <button id="btn-meteo-ventusky" class="meteo-tab-btn" onclick="window.switchMeteoTab('ventusky')" style="flex:1; background:#2c3e50; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:0.5; transition:0.2s;">Ventusky (Neige)</button>
+                </div>
+                <div id="meteo-content" style="background:#fff; border-radius:6px; border:1px solid #eee; padding:10px; height:calc(100vh - 200px);">
+                    <iframe src="https://www.meteoblue.com/fr/meteo/widget/three/42.767N0.582E1791_Europe%2FParis?geoloc=fixed&nocurrent=0&noforecast=0&days=3&temp=1&layout=light" frameborder="0" scrolling="NO" allowtransparency="true" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox" style="width: 100%; height: 100%;"></iframe>
+                </div>`;
+            sb.classList.add('open');
+        };
             sl.innerHTML = `
                 <div style="display:flex; gap:5px; margin-bottom:15px;">
                     <button id="btn-meteo-meteoblue" class="meteo-tab-btn" onclick="window.switchMeteoTab('meteoblue')" style="flex:1; background:#3498db; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; opacity:1; transition:0.2s;">Meteoblue</button>
