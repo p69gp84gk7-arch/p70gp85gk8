@@ -2,11 +2,11 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GMAO Neige - Expert BI</title>
+    <title>GMAO Neige - Mode Expert BI</title>
     <script>
         window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; document.getElementById('loading-spinner').style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('loading-desc')) document.getElementById('loading-desc').style.display='none'; if(document.getElementById('loading-step')) document.getElementById('loading-step').style.display='none'; document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } else alert("🛑 CRASH : "+msg); };
         window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
-        window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau bloquée", "Réseau"); });
+        window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau bloquée", "Réseau/Promesse"); });
     </script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -43,7 +43,7 @@
         .val-badge{color:#e74c3c;font-weight:bold;}
         .dynamic-filter-slot{background:#fff;border:1px solid #e1e8ed;border-radius:6px;padding:10px;margin-bottom:10px;}
         .filter-select{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-size:12px;margin-bottom:8px;outline:none;}
-        .checkbox-list{max-height:120px;overflow-y:auto;padding:5px;font-size:12px;}
+        .checkbox-list{max-height:140px;overflow-y:auto;padding:5px;font-size:12px;}
         .checkbox-list label{display:block;margin-bottom:6px;cursor:pointer;}
         .legend-item{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;font-weight:600;cursor:pointer;padding:4px;border-radius:4px;}
         .color-box{width:14px;height:14px;border-radius:3px;border:1px solid #ccc;}
@@ -53,18 +53,23 @@
         #map{position:absolute;top:0;bottom:0;left:0;right:0;width:100%;height:100%;z-index:1;}
         .custom-cannon-icon{background:none;border:none;}
         .cannon-circle{border-radius:50%;color:white;font-weight:bold;text-align:center;text-shadow:1px 1px 2px rgba(0,0,0,0.8);box-sizing:border-box;box-shadow:0 3px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
-        .camera-icon{font-size:18px;text-shadow:2px 2px 4px rgba(0,0,0,0.8);text-align:center;line-height:24px;}
-        #right-sidebar{position:absolute;top:50px;right:0;bottom:0;width:450px;background:#fff;z-index:2001;transform:translateX(100%);transition:transform 0.3s;box-shadow:-5px 0 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+        .cannon-circle:hover{transform:scale(1.2);z-index:1000 !important;cursor:pointer;}
+        .camera-icon{font-size:22px;text-shadow:2px 2px 4px rgba(0,0,0,0.8);text-align:center;line-height:24px;cursor:pointer;}
+        #map-controls-tr{position:absolute;top:15px;right:15px;z-index:1000;display:flex;gap:10px;flex-direction:column;align-items:flex-end;}
+        .map-btn{background:white;border:2px solid rgba(0,0,0,0.2);padding:10px 15px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.3);transition:0.3s;font-size:13px;}
+        .map-btn.active{background:#3498db;color:white;border-color:#2980b9;}
+        /* PANNEAU DROIT ELARGI A 500PX POUR LA VIDEO */
+        #right-sidebar{position:absolute;top:50px;right:0;bottom:0;width:500px;background:#fff;z-index:2001;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);box-shadow:-5px 0 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
         #right-sidebar.open{transform:translateX(0);}
         .right-header{background:#fff;border-bottom:1px solid #eee;padding:20px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;color:#2c3e50;}
         .right-content{padding:20px;overflow-y:auto;flex-grow:1;background:#f9fbfc;}
         .sel-details{background:#fff;margin-bottom:20px;border:1px solid #e1e8ed;border-radius:8px;overflow:hidden;}
         .sel-details-header{padding:15px;font-weight:bold;font-size:15px;background:#fdfdfe;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;}
-        .sel-details-body{padding:15px;font-size:13px;}
+        .sel-details-body{padding:15px;font-size:13px;color:#444;line-height:1.5;}
         .badge{display:inline-block;background:#f0f3f5;padding:5px 10px;border-radius:4px;font-size:11px;margin:0 4px 6px 0;border:1px solid #e1e8ed;}
         .ticket-card{background:#fff;border:1px solid #eee;border-left:4px solid #e74c3c;padding:12px;margin-bottom:10px;border-radius:4px;}
         .piste-chart-container{background:#fff;border:1px solid #eee;padding:15px;border-radius:6px;margin-top:15px;}
-        .btn-action-primary{background:#3498db;color:white;border:none;padding:12px;border-radius:6px;cursor:pointer;font-size:13px;width:100%;font-weight:bold;}
+        .btn-action-primary{background:#3498db;color:white;border:none;padding:12px;border-radius:6px;cursor:pointer;font-size:13px;margin-top:15px;width:100%;font-weight:bold;}
         .edit-input{width:100%;box-sizing:border-box;padding:10px;margin-top:4px;margin-bottom:12px;border:1px solid #ccc;border-radius:4px;font-size:13px;}
         .edit-label{font-size:11px;font-weight:bold;color:#555;}
         #dynamic-edit-fields{background:#f9f9f9;padding:15px;border:1px solid #ddd;border-radius:6px;max-height:45vh;overflow-y:auto;}
@@ -72,26 +77,11 @@
         .comp-header{background:#2c3e50;color:white;padding:15px 20px;display:flex;justify-content:space-between;font-size:16px;font-weight:bold;}
         .comp-body{padding:20px;max-height:80vh;overflow-y:auto;background:#f4f6f8;}
         .comp-controls{display:flex;gap:15px;background:#fff;padding:15px;border-radius:6px;margin-bottom:15px;border:1px solid #ddd;}
-        .comp-chart-box{background:#fff;padding:15px;border-radius:6px;border:1px solid #ddd;margin-bottom:15px;height:250px;}
+        .comp-chart-box{background:#fff;padding:15px;border-radius:6px;border:1px solid #ddd;margin-bottom:15px;height:250px;position:relative;}
         .kml-layer-item{display:flex;align-items:center;background:#fff;padding:8px;border:1px solid #ddd;border-radius:4px;margin-bottom:8px;font-size:12px;font-weight:bold;}
         .layer-color-picker{width:24px;height:24px;padding:0;border:none;}
         .layer-weight-picker{width:35px;height:22px;padding:2px;border:1px solid #ccc;text-align:center;margin-left:5px;}
-        
-        #webcam-modal {display:none;position:fixed;top:65px;left:50%;transform:translateX(-50%);width:95%;max-width:1200px;height:calc(100vh - 80px);background:#f4f6f8;z-index:9000;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,0.5);flex-direction:column;}
-        .webcam-header {background:#2c3e50;color:white;padding:15px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;border-radius:8px 8px 0 0;}
-        .webcam-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;padding:20px;overflow-y:auto;}
-        .webcam-card {background:white;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow:hidden;}
-        .webcam-card-title {background:#34495e;color:white;padding:10px;font-size:14px;text-align:center;}
-        .webcam-frame {width:100%;height:220px;border:none;background:#000;}
-        
-        @media(max-width:768px){#sidebar,#right-sidebar{width:85%;}#compare-modal{width:95%;}}
-        /* DESIGN POPUP WEBCAM PARFAIT */
-        .webcam-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 6px; background: #000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .webcam-popup .leaflet-popup-content { margin: 0; width: 320px !important; }
-        .webcam-popup .leaflet-popup-close-button { color: white !important; font-size: 18px; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border-radius: 50%; width: 24px; height: 24px; line-height: 24px; text-align: center; }
-        .webcam-popup-header { background: #2c3e50; color: white; padding: 10px; font-weight: bold; text-align: center; font-size: 13px; letter-spacing: 1px; }
-        .webcam-popup-body { padding: 0; background: #000; display: flex; justify-content: center; align-items: center; }
-        .webcam-popup-footer { padding: 8px; background: #fff; text-align: center; border-top: 1px solid #ddd; }
+        @media(max-width:768px){#sidebar,#right-sidebar{width:100%;}#compare-modal{width:95%;}}
     </style>
 </head>
 <body>
@@ -102,17 +92,12 @@
         <div style="display:flex; align-items:center;">
             <button class="topbar-btn" style="margin-left:0;" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">☰ Menu</button>
         </div>
-        <div style="color:white; font-weight:bold; font-size:16px; letter-spacing:1px; display:none; /* Masqué sur mobile si besoin */" id="app-title">GMAO NEIGE</div>
+        <div style="color:white; font-weight:bold; font-size:16px; letter-spacing:1px; display:none;" id="app-title">GMAO NEIGE</div>
         <div style="display:flex; align-items:center;">
             <button class="topbar-btn" onclick="window.openWebcamGrid()">📷 Webcams</button>
             <button class="topbar-btn" onclick="window.toggleRightSidebar()">📊 Tableau de Bord</button>
             <button id="btn-multi-toggle" class="topbar-btn" onclick="window.toggleMultiSelect()">🔲 Sélec. Multiple : OFF</button>
         </div>
-    </div>
-
-    <div id="webcam-modal">
-        <div class="webcam-header"><span>📷 Direct Webcams</span><button onclick="window.closeWebcamGrid()" style="background:none;border:none;color:white;cursor:pointer;font-size:24px;">&times;</button></div>
-        <div class="webcam-grid" id="webcam-grid-content"></div>
     </div>
 
     <div id="compare-modal">
@@ -133,7 +118,7 @@
     <div id="app-container">
         <div id="sidebar" class="open">
             <div class="sidebar-header-bg">Outils d'Analyse</div>
-            <details class="panel-section" open><summary>1. Thème & Légende</summary>
+            <details class="panel-section" open><summary>Thème & Légende</summary>
                 <div class="section-content" style="padding-top: 10px;">
                     <div class="theme-block"><label class="radio-card" id="lbl-defauts" style="border-radius: 6px 6px 0 0; margin-bottom: 0; border-color: #3498db;"><input type="radio" name="main_theme" value="defauts" checked> 🚨 Tickets & Pannes</label><div class="theme-details" id="details-defauts" style="display: block; border-color: #3498db;"><div style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:8px;">Survolez pour cibler</div><div id="legend-defauts"></div></div></div>
                     <div class="theme-block"><label class="radio-card" id="lbl-type"><input type="radio" name="main_theme" value="type"> ⚙️ Type de canon (Édition)</label><div class="theme-details" id="details-type" style="display: none; border-color: #3498db;"><div style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:8px;">Survolez pour cibler</div><div id="legend-type"></div></div></div>
@@ -149,9 +134,13 @@
                     </div></div>
                 </div>
             </details>
-            <details class="panel-section" open><summary>2. Filtres Rapides</summary><div class="section-content" style="padding-top: 5px;"><b style="font-size:12px;">Pistes :</b><div class="checkbox-list" id="piste-checkboxes"></div><b style="font-size:12px;">Type Canon :</b><div class="checkbox-list" id="type-checkboxes"></div><b style="font-size:12px;">Vanne :</b><div class="checkbox-list" id="vanne-checkboxes"></div><b style="font-size:12px;">Module :</b><div class="checkbox-list" id="module-checkboxes"></div></div></details>
-            <details class="panel-section"><summary>3. Filtres sur-mesure</summary><div class="section-content" id="dynamic-filters-container"></div></details>
-            <details class="panel-section" open><summary>4. Calques & Tracés (KMZ)</summary><div class="section-content" style="padding-top: 5px;"><p style="font-size:11px; color:#666; margin-bottom:10px;"><b>1. Cloud (Depuis Sheets) :</b></p><div id="cloud-layers-container"></div><hr style="margin:15px 0; border-top:1px dashed #ccc;"><p style="font-size:11px; color:#666; margin-bottom:10px;"><b>2. Import PC :</b></p><input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="window.handleKMLUpload(event)"><button class="btn-action-primary" style="margin-top:0; background:#8e44ad;" onclick="document.getElementById('kml-upload').click()">📂 Importer...</button><div id="custom-layers-list" style="margin-top:15px;"></div></div></details>
+            <details class="panel-section" open><summary>Filtres Rapides</summary><div class="section-content" style="padding-top: 5px;">
+                <b style="font-size:12px;">Pistes :</b><div class="checkbox-list" id="piste-checkboxes"></div>
+                <b style="font-size:12px;">Type Canon :</b><div class="checkbox-list" id="type-checkboxes"></div>
+                <hr style="margin:10px 0; border-top:1px dashed #ccc;">
+                <b style="font-size:12px;">Filtre Personnalisé :</b><div id="dynamic-filters-container"></div>
+            </div></details>
+            <details class="panel-section" open><summary>Calques & Tracés (KMZ)</summary><div class="section-content" style="padding-top: 5px;"><p style="font-size:11px; color:#666; margin-bottom:10px;"><b>1. Cloud (Depuis Sheets) :</b></p><div id="cloud-layers-container"></div><hr style="margin:15px 0; border-top:1px dashed #ccc;"><p style="font-size:11px; color:#666; margin-bottom:10px;"><b>2. Import PC :</b></p><input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="window.handleKMLUpload(event)"><button class="btn-action-primary" style="margin-top:0; background:#8e44ad;" onclick="document.getElementById('kml-upload').click()">📂 Importer...</button><div id="custom-layers-list" style="margin-top:15px;"></div></div></details>
         </div>
 
         <div id="map-container"><div id="map"></div></div>
@@ -164,7 +153,7 @@
                     <div id="selected-list"></div>
                 </div>
                 <div id="view-edit" style="display:none;">
-                    <div style="background:#fff3cd; padding:12px; border-radius:6px; margin-bottom:15px; border:1px solid #ffeeba;"><label style="color:#856404; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="allow-move-chk"> Autoriser déplacement GPS</label></div>
+                    <div style="background:#fff3cd; padding:12px; border-radius:6px; margin-bottom:15px; border:1px solid #ffeeba;"><label style="color:#856404; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="allow-move-chk"> Autoriser le déplacement GPS</label></div>
                     <h3 style="margin-top:0; color:#3498db; border-bottom:2px solid #eee; padding-bottom:10px;">Édition Canon <span id="edit-id-display"></span></h3>
                     <input type="hidden" id="edit-id">
                     <div style="display:flex; gap:10px; margin-bottom: 15px;"><div style="flex:1;"><div class="edit-label">Latitude</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input" style="background:#fdfdfd;"></div><div style="flex:1;"><div class="edit-label">Longitude</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input" style="background:#fdfdfd;"></div></div>
@@ -185,12 +174,12 @@
         window.isMultiSelect = false; window.columnValuesSets = {}; window.availableColumns = [];
         window.mainTheme = 'defauts'; window.histMetric = 'eau'; window.histSeasonIdx = 0;
         window.absoluteMaxes = { eau: 0, air: 0, temps: 0 }; window.currentMaxThreshold = { eau: 100, air: 100, temps: 100 }; window.currentMinThreshold = { eau: 0, air: 0, temps: 0 };
-        window.activeFilters = [ {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]}, {key:"", vals:[]} ];
-        window.currentPistes = ['all']; window.currentTypes = ['all']; window.currentVannes = ['all']; window.currentModules = ['all'];
+        window.activeFilters = [ {key:"", vals:[]} ]; // Un seul filtre dynamique
+        window.currentPistes = ['all']; window.currentTypes = ['all'];
         window.geojsonLayer = null; window.webcamLayerGroup = null; window.chartInstances = {}; window.selectedCannonsMap = new Map(); window.currentlyEditingId = null; 
         window.technoColors = {}; window.repColors = {}; window.transfoColors = {}; window.externalLayers = {}; 
         window.defaultColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
-        window.keyPiste = ""; window.keyType = ""; window.keyRep = ""; window.keyTransfo = ""; window.keyVanne = ""; window.keyModule = "";
+        window.keyPiste = ""; window.keyType = ""; window.keyRep = ""; window.keyTransfo = "";
         window.localDB = null; window.bootAttempt = 0; window.tempTicketPayloads = {};
 
         window.getV = function(p, key) { if(!key || !p || !p.fullData) return "N/A"; let o = p.fullData.find(x => x.k === key); return o ? o.v.toString().trim() : "N/A"; };
@@ -198,130 +187,86 @@
         window.getActiveTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
         window.getHistoryTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
 
-       // ==============================================================
-        // 2. GESTION DES WEBCAMS (GRILLE ET CARTE)
-        // ==============================================================
+        // === GESTION WEBCAMS ===
         window.openWebcamGrid = function() {
-            let m = document.getElementById('webcam-modal'); let grid = document.getElementById('webcam-grid-content'); if(!m || !grid) return;
-            grid.innerHTML = "";
-            if(window.webcamsData.length === 0) { grid.innerHTML = "<p style='padding:20px;'>Aucune webcam configurée.</p>"; } 
-            else { 
-                window.webcamsData.forEach(wc => { 
+            let sb = document.getElementById('right-sidebar'); let rt = document.getElementById('right-title'); let sl = document.getElementById('selected-list');
+            if(!sb || !sl) return;
+            rt.innerText = "📷 Toutes les Caméras";
+            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'none';
+            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
+            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block';
+
+            let html = "<div style='display:flex; flex-direction:column; gap:15px;'>";
+            if(window.webcamsData.length === 0) { html += "<p>Aucune caméra configurée.</p>"; }
+            else {
+                window.webcamsData.forEach(wc => {
                     let isImage = wc.url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/) != null;
-                    let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; height:auto; display:block;" loading="lazy" />` : `<iframe src="${wc.url}" style="width:100%; aspect-ratio:16/9; border:none; display:block;" allowfullscreen loading="lazy"></iframe>`;
-                    grid.innerHTML += `<div class="webcam-card"><div class="webcam-card-title">${wc.nom}</div>${mediaHtml}</div>`; 
-                }); 
+                    let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; border-radius:4px; background:#000;" loading="lazy" />` : `<iframe src="${wc.url}" style="width:100%; aspect-ratio:16/9; border:none; border-radius:4px; background:#000;" allowfullscreen loading="lazy"></iframe>`;
+                    html += `<div style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #eee;"><div style="font-weight:bold; margin-bottom:8px; color:#2c3e50;">${wc.nom}</div>${mediaHtml}<button onclick="window.enableWebcamEdit('${wc.nom.replace(/'/g, "\\'")}')" style="margin-top:8px; background:#f39c12; color:white; border:none; padding:6px; border-radius:4px; font-size:11px; cursor:pointer;">✏️ Éditer position/logo</button></div>`;
+                });
             }
-            m.style.display = 'flex';
+            html += "</div>"; sl.innerHTML = html; sb.classList.add('open');
         };
-        
-        // LA VOICI ! La fonction de fermeture corrigée.
-        window.closeWebcamGrid = function() { 
-            let m = document.getElementById('webcam-modal'); if(m) m.style.display = 'none'; 
-            let grid = document.getElementById('webcam-grid-content'); if(grid) grid.innerHTML = ""; 
+
+        window.openSingleWebcam = function(nom) {
+            let wc = window.webcamsData.find(w => w.nom === nom); if(!wc) return;
+            let sb = document.getElementById('right-sidebar'); let rt = document.getElementById('right-title'); let sl = document.getElementById('selected-list');
+            rt.innerText = `${wc.icon} ${wc.nom}`;
+            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'none';
+            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
+            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block';
+
+            let isImage = wc.url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/) != null;
+            let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; border-radius:4px; background:#000;" />` : `<iframe src="${wc.url}" style="width:100%; aspect-ratio:16/9; border:none; border-radius:4px; background:#000;" allowfullscreen></iframe>`;
+            
+            sl.innerHTML = `<div style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #eee;">${mediaHtml}<button onclick="window.enableWebcamEdit('${wc.nom.replace(/'/g, "\\'")}')" style="margin-top:15px; width:100%; background:#f39c12; color:white; border:none; padding:10px; border-radius:4px; font-size:13px; cursor:pointer; font-weight:bold;">✏️ Déplacer ou changer le logo</button></div>`;
+            sb.classList.add('open');
         };
 
         window.enableWebcamEdit = function(nom) {
             window.webcamLayerGroup.eachLayer(marker => {
                 if(marker.wcData.nom === nom) {
-                    marker.dragging.enable(); // Active le glisser-déposer de l'icône !
-                    let popHtml = `
-                        <div style="padding:15px; text-align:center; background:white; color:#333;">
-                            <b style="color:#3498db; font-size:14px;">Mode Édition : ${nom}</b><br>
-                            <p style="font-size:11px; color:#555; margin:10px 0;">1. Glissez l'icône sur la carte.<br>2. Changez le logo si besoin :</p>
-                            <input type="text" id="edit-wc-icon-${nom.replace(/\s/g, '')}" value="${marker.wcData.icon}" style="width:50px; text-align:center; font-size:18px; padding:5px; border:1px solid #ccc; border-radius:4px; margin-bottom:10px;"><br>
-                            <button onclick="window.saveWebcamEdit('${nom.replace(/'/g, "\\'")}', this)" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">✅ Enregistrer</button>
-                        </div>
-                    `;
-                    marker.bindPopup(popHtml, {className: '', minWidth: 200}).openPopup();
+                    marker.dragging.enable();
+                    let html = `<div style="padding:15px; background:#fff3cd; border:1px solid #ffeeba; border-radius:6px; color:#856404;"><b style="font-size:14px;">Mode Édition : ${nom}</b><br><p style="font-size:12px; margin:10px 0;">1. Glissez l'icône sur la carte pour modifier la position.<br>2. Modifiez l'emoji ci-dessous si besoin (ex: 📷 🔭 📍) :</p><input type="text" id="edit-wc-icon-${nom.replace(/\s/g, '')}" value="${marker.wcData.icon}" style="width:50px; text-align:center; font-size:18px; padding:5px; border:1px solid #ccc; border-radius:4px; margin-bottom:10px;"><br><div style="display:flex; gap:10px;"><button onclick="window.openSingleWebcam('${nom.replace(/'/g, "\\'")}'); marker.dragging.disable();" style="flex:1; padding:8px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer;">Annuler</button><button onclick="window.saveWebcamEdit('${nom.replace(/'/g, "\\'")}', this)" style="flex:2; background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">✅ Enregistrer</button></div></div>`;
+                    let sl = document.getElementById('selected-list'); if(sl) sl.innerHTML = html;
                 }
             });
         };
 
         window.saveWebcamEdit = async function(nom, btn) {
-            btn.innerText = "⏳..."; btn.disabled = true;
-            let markerToSave = null;
-            window.webcamLayerGroup.eachLayer(m => { if(m.wcData.nom === nom) markerToSave = m; });
-            if(!markerToSave) return;
-            
-            let newLat = markerToSave.getLatLng().lat.toFixed(7);
-            let newLng = markerToSave.getLatLng().lng.toFixed(7);
-            let inputIcon = document.getElementById(`edit-wc-icon-${nom.replace(/\s/g, '')}`);
-            let newIcon = inputIcon ? inputIcon.value : markerToSave.wcData.icon;
-
-            let payload = { action: "update_webcam", nom: nom, lat: parseFloat(newLat), lng: parseFloat(newLng), icon: newIcon };
-
+            btn.innerText = "⏳..."; btn.disabled = true; let markerToSave = null;
+            window.webcamLayerGroup.eachLayer(m => { if(m.wcData.nom === nom) markerToSave = m; }); if(!markerToSave) return;
+            let newLat = markerToSave.getLatLng().lat.toFixed(7); let newLng = markerToSave.getLatLng().lng.toFixed(7);
+            let inputIcon = document.getElementById(`edit-wc-icon-${nom.replace(/\s/g, '')}`); let newIcon = inputIcon ? inputIcon.value : markerToSave.wcData.icon;
             try {
-                const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "update_webcam", nom: nom, lat: parseFloat(newLat), lng: parseFloat(newLng), icon: newIcon }) });
                 const result = await response.json();
                 if(result.status === "success") {
-                    markerToSave.dragging.disable();
-                    markerToSave.wcData.lat = payload.lat; markerToSave.wcData.lng = payload.lng; markerToSave.wcData.icon = payload.icon;
-                    // Mise à jour visuelle instantanée de l'icône
+                    markerToSave.dragging.disable(); markerToSave.wcData.lat = parseFloat(newLat); markerToSave.wcData.lng = parseFloat(newLng); markerToSave.wcData.icon = newIcon;
                     markerToSave.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">${newIcon}</div>`, iconSize: [24,24], iconAnchor: [12,12] }));
-                    alert("✅ Position et Logo de "+nom+" enregistrés !");
-                    markerToSave.closePopup();
+                    window.openSingleWebcam(nom);
                 } else { alert("Erreur Google : " + result.msg); btn.innerText = "✅ Enregistrer"; btn.disabled = false; }
             } catch(e) { alert("Échec réseau."); btn.innerText = "✅ Enregistrer"; btn.disabled = false; }
         };
-        // ==============================================================
-        // 3. UI: BOUTONS CARTE & SIDEBAR
-        // ==============================================================
-        window.toggleRightSidebar = function() {
-            let sb = document.getElementById('right-sidebar');
-            if(!sb) return;
-            if(sb.classList.contains('open')) { 
-                sb.classList.remove('open'); 
-            } else { 
-                sb.classList.add('open'); 
-                if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) { window.triggerGlobalFilterChart(); } 
-                else { window.renderSelectionPanel(); } 
-            }
-        };
 
-        window.toggleMultiSelect = function() {
-            window.isMultiSelect = !window.isMultiSelect; 
-            const btn = document.getElementById('btn-multi-toggle'); 
-            if(!btn) return;
-            if(window.isMultiSelect) { 
-                btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; btn.style.background = "#3498db"; 
-            } else { 
-                btn.classList.remove('active'); btn.innerText = "🔲 Sélec. Multiple : OFF"; btn.style.background = "rgba(255,255,255,0.1)"; 
-                if(window.selectedCannonsMap.size > 1) window.clearSelection(); 
-            }
-            window.renderSelectionPanel();
-        };
-
-        window.closeRightSidebar = function() { 
-            let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.remove('open'); 
-        };
-        window.clearSelection = function() { 
-            window.selectedCannonsMap.clear(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); 
-        };
-        window.cancelEdit = function() { 
-            window.currentlyEditingId = null; 
-            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; 
-            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none'; 
-            let rh = document.getElementById('right-header'); if(rh) rh.classList.remove('editing'); 
-            let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📌 Fiche Détaillée"; 
-            window.updateMap(); window.renderSelectionPanel(); 
-        };
+        // === UI ACTIONS ===
+        window.toggleRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(!sb) return; if(sb.classList.contains('open')) { sb.classList.remove('open'); } else { sb.classList.add('open'); if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) { window.triggerGlobalFilterChart(); } else { window.renderSelectionPanel(); } } };
+        window.toggleMultiSelect = function() { window.isMultiSelect = !window.isMultiSelect; const btn = document.getElementById('btn-multi-toggle'); if(!btn) return; if(window.isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; btn.style.background = "#3498db"; } else { btn.classList.remove('active'); btn.innerText = "🔲 Sélec. Multiple : OFF"; btn.style.background = "rgba(255,255,255,0.1)"; if(window.selectedCannonsMap.size > 1) window.clearSelection(); } window.renderSelectionPanel(); };
+        window.closeRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.remove('open'); window.webcamLayerGroup.eachLayer(m => m.dragging.disable()); };
+        window.clearSelection = function() { window.selectedCannonsMap.clear(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); };
+        window.cancelEdit = function() { window.currentlyEditingId = null; let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none'; let rh = document.getElementById('right-header'); if(rh) rh.classList.remove('editing'); let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📌 Fiche Détaillée"; window.updateMap(); window.renderSelectionPanel(); };
 
         window.saveEditData = async function() {
             if (!window.currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); if(btn) { btn.innerText = "⏳ Envoi..."; btn.disabled = true; }
-            let fieldsObj = {}; 
-            document.querySelectorAll('.dyn-field').forEach(inp => { fieldsObj[inp.getAttribute('data-key')] = inp.value; });
+            let fieldsObj = {}; document.querySelectorAll('.dyn-field').forEach(inp => { fieldsObj[inp.getAttribute('data-key')] = inp.value; });
             const payload = { id: document.getElementById('edit-id').value, lat: parseFloat(document.getElementById('edit-lat').value), lng: parseFloat(document.getElementById('edit-lng').value), fields: fieldsObj };
             try {
                 const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json();
                 if(result.status === "success") {
-                    const layer = window.selectedCannonsMap.get(window.currentlyEditingId); const p = layer.feature.properties; 
-                    p.fullData.forEach(item => { if(fieldsObj[item.k] !== undefined) item.v = fieldsObj[item.k]; });
-                    let tLower = window.getV(p, window.keyType).toLowerCase().trim(); 
-                    if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = window.technoColors[tLower] || "#FFD700";
-                    layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lng]); 
-                    window.cancelEdit();
+                    const layer = window.selectedCannonsMap.get(window.currentlyEditingId); const p = layer.feature.properties; p.fullData.forEach(item => { if(fieldsObj[item.k] !== undefined) item.v = fieldsObj[item.k]; });
+                    let tLower = window.getV(p, window.keyType).toLowerCase().trim(); if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = window.technoColors[tLower] || "#FFD700";
+                    layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lng]); window.cancelEdit();
                 } else { alert("Erreur Google : " + result.message); }
             } catch (err) { alert("Échec réseau."); }
             if(btn) { btn.innerText = "✅ Sauvegarder"; btn.disabled = false; }
@@ -329,35 +274,21 @@
 
         window.startEdit = function(id) {
             window.currentlyEditingId = id; const layer = window.selectedCannonsMap.get(id); const p = layer.feature.properties;
-            let dis = document.getElementById('edit-id-display'); if(dis) dis.innerText = p.id; 
-            let eid = document.getElementById('edit-id'); if(eid) eid.value = p.id;
-            let elat = document.getElementById('edit-lat'); if(elat) elat.value = layer.getLatLng().lat.toFixed(7); 
-            let elng = document.getElementById('edit-lng'); if(elng) elng.value = layer.getLatLng().lng.toFixed(7);
+            let dis = document.getElementById('edit-id-display'); if(dis) dis.innerText = p.id; let eid = document.getElementById('edit-id'); if(eid) eid.value = p.id;
+            let elat = document.getElementById('edit-lat'); if(elat) elat.value = layer.getLatLng().lat.toFixed(7); let elng = document.getElementById('edit-lng'); if(elng) elng.value = layer.getLatLng().lng.toFixed(7);
             let formContainer = document.getElementById('dynamic-edit-fields'); 
             if(formContainer) {
                 formContainer.innerHTML = "";
-                p.fullData.forEach(item => { 
-                    let kLow = item.k.toLowerCase(); if(kLow.includes('regard') || kLow.includes('xy') || kLow.includes('gps')) return; 
-                    let safeId = "dl-" + item.k.replace(/[^a-zA-Z0-9]/g, '-'); 
-                    formContainer.innerHTML += `<div style="margin-bottom:10px;"><div class="edit-label">${item.k}</div><input type="text" class="edit-input dyn-field" data-key="${item.k}" value="${item.v}" list="${safeId}"></div>`; 
-                });
+                p.fullData.forEach(item => { let kLow = item.k.toLowerCase(); if(kLow.includes('regard') || kLow.includes('xy') || kLow.includes('gps')) return; let safeId = "dl-" + item.k.replace(/[^a-zA-Z0-9]/g, '-'); formContainer.innerHTML += `<div style="margin-bottom:10px;"><div class="edit-label">${item.k}</div><input type="text" class="edit-input dyn-field" data-key="${item.k}" value="${item.v}" list="${safeId}"></div>`; });
             }
-            let chk = document.getElementById('allow-move-chk'); if(chk) chk.checked = false; 
-            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'none'; 
-            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'block';
-            let rh = document.getElementById('right-header'); if(rh) rh.classList.add('editing'); 
-            let rt = document.getElementById('right-title'); if(rt) rt.innerText = "✏️ Édition Complète"; 
-            window.updateMap(); 
+            let chk = document.getElementById('allow-move-chk'); if(chk) chk.checked = false; let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'none'; let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'block';
+            let rh = document.getElementById('right-header'); if(rh) rh.classList.add('editing'); let rt = document.getElementById('right-title'); if(rt) rt.innerText = "✏️ Édition Complète"; window.updateMap(); 
         };
 
         window.focusCannon = function(id) {
             if(!window.geojsonLayer) return;
             window.geojsonLayer.eachLayer(function(l) {
-                if (l.feature.properties.id === id) { 
-                    window.selectedCannonsMap.clear(); window.selectedCannonsMap.set(id, l); 
-                    window.map.setView(l.getLatLng(), 17); window.updateMap(); window.renderSelectionPanel(); 
-                    let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.add('open'); 
-                }
+                if (l.feature.properties.id === id) { window.selectedCannonsMap.clear(); window.selectedCannonsMap.set(id, l); window.map.setView(l.getLatLng(), 17); window.updateMap(); window.renderSelectionPanel(); let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.add('open'); }
             });
         };
 
@@ -366,58 +297,33 @@
             window.geojsonLayer.eachLayer(function(layer) {
                 if(!layer.feature.properties._isVisible) return;
                 let p = layer.feature.properties; let match = false;
-                if (theme === 'defauts') {
-                    let act = window.getActiveTickets(p.id);
-                    if (val === 'urgent' && act.some(t => t.statut.includes('faire'))) match = true; else if (val === 'encours' && act.some(t => t.statut.includes('cours'))) match = true; else if (val === 'ras' && act.length === 0) match = true;
-                } else if (theme === 'type') {
-                    let tLower = window.getV(p, window.keyType).toLowerCase();
-                    if (val === 'demac' && ["demak lenko", "demac lenko"].includes(tLower)) match = true; else if (val === 'sufag' && ["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) match = true; else if (val === 'techno' && !["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(tLower) && tLower !== "n/a") match = true;
-                } else if (theme === 'repeteur') { if (window.getV(p, window.keyRep) === val) match = true; } else if (theme === 'transfo') { if (window.getV(p, window.keyTransfo) === val) match = true; }
-                if (match) { layer.setOpacity(1); layer.setZIndexOffset(2000); if(layer._icon) { layer._icon.style.opacity = "1"; if(!layer._icon.style.transform.includes('scale(1.3)')) layer._icon.style.transform += ' scale(1.3)'; } } 
-                else { layer.setOpacity(0.2); layer.setZIndexOffset(0); if(layer._icon) { layer._icon.style.opacity = "0.2"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }
+                if (theme === 'defauts') { let act = window.getActiveTickets(p.id); if (val === 'urgent' && act.some(t => t.statut.includes('faire'))) match = true; else if (val === 'encours' && act.some(t => t.statut.includes('cours'))) match = true; else if (val === 'ras' && act.length === 0) match = true; } 
+                else if (theme === 'type') { let tLower = window.getV(p, window.keyType).toLowerCase(); if (val === 'demac' && ["demak lenko", "demac lenko"].includes(tLower)) match = true; else if (val === 'sufag' && ["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) match = true; else if (val === 'techno' && !["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(tLower) && tLower !== "n/a") match = true; } 
+                else if (theme === 'repeteur') { if (window.getV(p, window.keyRep) === val) match = true; } else if (theme === 'transfo') { if (window.getV(p, window.keyTransfo) === val) match = true; }
+                if (match) { layer.setOpacity(1); layer.setZIndexOffset(2000); if(layer._icon) { layer._icon.style.opacity = "1"; if(!layer._icon.style.transform.includes('scale(1.3)')) layer._icon.style.transform += ' scale(1.3)'; } } else { layer.setOpacity(0.2); layer.setZIndexOffset(0); if(layer._icon) { layer._icon.style.opacity = "0.2"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }
             });
         };
 
-        window.resetHighlight = function() { 
-            if(!window.geojsonLayer) return; 
-            window.geojsonLayer.eachLayer(function(layer) { layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = "1"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }); 
-            window.updateMap(); 
-        };
+        window.resetHighlight = function() { if(!window.geojsonLayer) return; window.geojsonLayer.eachLayer(function(layer) { layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = "1"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }); window.updateMap(); };
 
-        // ==============================================================
-        // 5. EDITEUR COMPLET DE TICKETS (AVEC VALIDATION)
-        // ==============================================================
+        // === EDITEUR TICKETS ===
         window.editFullTicket = function(canonId, defaut) {
             let safeDef = defaut.replace(/[^a-zA-Z0-9]/g, ""); let idDiv = `ticket-edit-${canonId}-${safeDef}`; let el = document.getElementById(idDiv); if(!el) return;
             let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut); if(!ticket) return;
             let html = '<div style="background:#fdfdfe; padding:12px; border-radius:6px; border:2px solid #3498db; margin-top:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">';
             ticket.fullData.forEach(d => {
                 let kLow = d.k.toLowerCase(); let valStr = d.v.toString();
-                if (kLow.includes('regard') || kLow === 'id' || kLow.includes('n°')) { 
-                    html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" readonly style="background:#e1e8ed; color:#7f8c8d; margin-bottom:0; cursor:not-allowed;"></div>`; 
-                } 
-                else if (kLow.includes('etat') || kLow.includes('état') || kLow === 'statut') { 
-                    let statuts = ['à faire', 'en cours', 'fait']; let options = statuts.map(s => `<option value="${s}" ${valStr.toLowerCase().includes(s) ? 'selected' : ''}>${s.toUpperCase()}</option>`).join(''); 
-                    html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><select class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;">${options}</select></div>`; 
-                } 
-                else if (valStr.length > 40 || kLow.includes('cause') || kLow.includes('intervention') || kLow.includes('commentaire') || kLow.includes('action')) { 
-                    html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><textarea class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;" rows="2">${valStr}</textarea></div>`; 
-                } 
-                else { 
-                    html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" style="margin-bottom:0;"></div>`; 
-                }
+                if (kLow.includes('regard') || kLow === 'id' || kLow.includes('n°')) { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" readonly style="background:#e1e8ed; color:#7f8c8d; margin-bottom:0; cursor:not-allowed;"></div>`; } 
+                else if (kLow.includes('etat') || kLow.includes('état') || kLow === 'statut') { let statuts = ['à faire', 'en cours', 'fait']; let options = statuts.map(s => `<option value="${s}" ${valStr.toLowerCase().includes(s) ? 'selected' : ''}>${s.toUpperCase()}</option>`).join(''); html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><select class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;">${options}</select></div>`; } 
+                else if (valStr.length > 40 || kLow.includes('cause') || kLow.includes('intervention') || kLow.includes('commentaire') || kLow.includes('action')) { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><textarea class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;" rows="2">${valStr}</textarea></div>`; } 
+                else { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" style="margin-bottom:0;"></div>`; }
             });
-            html += `<div style="display:flex; gap:10px; margin-top:15px;"><button onclick="window.renderSelectionPanel()" style="flex:1; padding:8px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button><button onclick="window.prepareTicketSave('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:8px; background:#2ecc71; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Suivant ➔</button></div></div>`; 
-            el.innerHTML = html;
+            html += `<div style="display:flex; gap:10px; margin-top:15px;"><button onclick="window.renderSelectionPanel()" style="flex:1; padding:10px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button><button onclick="window.prepareTicketSave('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:10px; background:#2ecc71; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Suivant ➔</button></div></div>`; el.innerHTML = html;
         };
 
         window.prepareTicketSave = function(canonId, defaut, idDiv) {
             let fieldsObj = {}; let newStatutForLocal = "";
-            document.querySelectorAll(`.tick-dyn-field-${idDiv}`).forEach(inp => { 
-                let k = inp.getAttribute('data-key'); let v = inp.value; 
-                if(!k.toLowerCase().includes('regard') && k.toLowerCase() !== 'id') { fieldsObj[k] = v; } 
-                if(k.toLowerCase().includes('etat') || k.toLowerCase().includes('état') || k.toLowerCase() === 'statut') { newStatutForLocal = v; } 
-            });
+            document.querySelectorAll(`.tick-dyn-field-${idDiv}`).forEach(inp => { let k = inp.getAttribute('data-key'); let v = inp.value; if(!k.toLowerCase().includes('regard') && k.toLowerCase() !== 'id') { fieldsObj[k] = v; } if(k.toLowerCase().includes('etat') || k.toLowerCase().includes('état') || k.toLowerCase() === 'statut') { newStatutForLocal = v; } });
             let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut); if(!ticket) return;
             let diffHtml = ""; let hasChanges = false;
             ticket.fullData.forEach(d => {
@@ -434,8 +340,7 @@
         };
 
         window.confirmSaveTicket = async function(canonId, defaut, idDiv) {
-            let temp = window.tempTicketPayloads[idDiv]; if(!temp) return; 
-            let el = document.getElementById(idDiv); if(el) el.innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#3498db; font-size:14px;">Enregistrement Google... ⏳</div>`;
+            let temp = window.tempTicketPayloads[idDiv]; if(!temp) return; let el = document.getElementById(idDiv); if(el) el.innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#3498db; font-size:14px;">Enregistrement Google... ⏳</div>`;
             try {
                 const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(temp.payload) }); const result = await response.json();
                 if(result.status === "success") {
@@ -446,14 +351,12 @@
                         let defField = ticket.fullData.find(x => x.k.toLowerCase().includes('defaut') || x.k.toLowerCase().includes('défaut') || x.k.toLowerCase().includes('panne'));
                         if (defField && temp.payload.fields[defField.k]) ticket.defaut = temp.payload.fields[defField.k].toString().trim();
                     }
-                    delete window.tempTicketPayloads[idDiv]; window.renderSelectionPanel(); window.updateMap(); window.triggerGlobalFilterChart(); 
+                    window.renderSelectionPanel(); window.updateMap(); window.triggerGlobalFilterChart(); delete window.tempTicketPayloads[idDiv];
                 } else { alert("Erreur Google : " + result.msg); window.renderSelectionPanel(); }
             } catch(e) { alert("Échec réseau."); window.renderSelectionPanel(); }
         };
 
-        // ==============================================================
-        // 6. COMPARAISONS GRAPHIQUES
-        // ==============================================================
+        // === COMPARAISONS ===
         window.openGlobalCompareModal = function(show) {
             let m = document.getElementById('compare-modal'); if(!m) return; if(!show) { m.style.display = 'none'; return; }
             let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2'); let pList = document.getElementById('comp-piste');
@@ -497,7 +400,7 @@
         };
 
         // ==============================================================
-        // 7. GESTION BASE DE DONNÉES LOCALE (INDEXEDDB)
+        // 7. DB LOCALE KML/KMZ
         // ==============================================================
         window.initLocalDB = function() {
             try {
@@ -512,7 +415,7 @@
         window.loadSavedLayersFromDB = function() { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readonly"); const req = tx.objectStore("kmz_layers").getAll(); req.onsuccess = function() { req.result.forEach(item => { window.addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); }); }; };
 
         // ==============================================================
-        // 8. RÉSEAU ET DONNÉES GOOGLE SHEETS
+        // 8. LECTURE DONNÉES GOOGLE
         // ==============================================================
         window.setStep = function(step, desc) { let elStep = document.getElementById('loading-step'); let elDesc = document.getElementById('loading-desc'); if (elStep) elStep.innerText = "Étape " + step + "/5"; if (elDesc) elDesc.innerText = desc; };
 
@@ -526,19 +429,23 @@
         window.fetchGoogleSheetsData = async function() {
             window.setStep(1, "Connexion au serveur Google...");
             const response = await window.fetchWithTimeout(GOOGLE_API_URL);
-            if (!response.ok) throw new Error("Accès refusé. Vérifiez l'URL de votre script.");
+            if (!response.ok) throw new Error("Accès refusé. Vérifiez l'URL.");
             let textData = await response.text(); let data;
             try { data = JSON.parse(textData); } catch(e) { throw new Error("Format invalide."); }
             
             window.setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
-            const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim()); const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
+            const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
+            const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
             const findCol = (keywords) => { let idx = genHeaders.findIndex(h => keywords.some(k => h.includes(k))); return idx !== -1 ? originalHeaders[idx] : null; };
 
             const idxId = 2; const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
             if (idxXY === -1) throw new Error("La colonne 'xy' est introuvable.");
 
-            window.keyPiste = findCol(['pistes', 'piste']); window.keyType = findCol(['type canon', 'type']); window.keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']); window.keyTransfo = findCol(['transfo']); window.keyVanne = findCol(['vanne']); window.keyModule = findCol(['module']);
+            window.keyPiste = findCol(['pistes', 'piste']); window.keyType = findCol(['type canon', 'type']);
+            window.keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']);
+            window.keyTransfo = findCol(['transfo']); window.keyVanne = findCol(['vanne']); window.keyModule = findCol(['module']);
+
             originalHeaders.forEach(h => { let hl = h.toLowerCase(); if(!hl.includes('xy') && !hl.includes('gps') && !hl.includes('photo')) { window.availableColumns.push(h); window.columnValuesSets[h] = new Set(); } });
 
             let dictGeneral = {}; let validPointsCount = 0;
@@ -546,10 +453,16 @@
                 let idRaw = row[idxId]; if (idRaw == null || idRaw === "") return;
                 let id = idRaw.toString().replace(/^YA\s*/i, '').trim(); if (!id) return;
                 let lat = 0, lng = 0;
-                if (row[idxXY]) { let txt = String(row[idxXY]).replace(/,/g, '.'); let matches = txt.match(/-?\d+(?:\.\d+)?/g); if (matches && matches.length >= 2) { lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; } } }
+                if (row[idxXY]) {
+                    let txt = String(row[idxXY]).replace(/,/g, '.'); let matches = txt.match(/-?\d+(?:\.\d+)?/g);
+                    if (matches && matches.length >= 2) { lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; } }
+                }
                 let fullData = [];
-                originalHeaders.forEach((head, i) => { if(head.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullData.push({k: head, v: val}); if(val !== "" && window.columnValuesSets[head]) window.columnValuesSets[head].add(val.trim()); } });
-                if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++; dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
+                originalHeaders.forEach((head, i) => { 
+                    if(head.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullData.push({k: head, v: val}); if(val !== "" && window.columnValuesSets[head]) window.columnValuesSets[head].add(val.trim()); }
+                });
+                if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
+                dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
             });
             if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté.");
 
@@ -581,13 +494,13 @@
             window.setStep(5, "Analyse des Webcams...");
             if (data.webcams && data.webcams.length > 1) {
                 const wHead = data.webcams[0].map(h => (h||"").toString().toLowerCase().trim());
-                const iNom = wHead.findIndex(h => h.includes("nom")); const iLL = wHead.findIndex(h => h.includes("latlong") || h.includes("gps") || h.includes("xy")); const iUrl = wHead.findIndex(h => h.includes("url") || h.includes("lien"));
+                const iNom = wHead.findIndex(h => h.includes("nom")); const iLL = wHead.findIndex(h => h.includes("latlong") || h.includes("gps") || h.includes("xy")); const iUrl = wHead.findIndex(h => h.includes("url") || h.includes("lien")); const iIcon = wHead.findIndex(h => h.includes("icone") || h.includes("logo"));
                 if(iNom > -1 && iLL > -1 && iUrl > -1) {
                     data.webcams.slice(1).forEach(row => {
-                        let nom = row[iNom]; let llStr = row[iLL] ? row[iLL].toString() : ""; let url = row[iUrl];
+                        let nom = row[iNom]; let llStr = row[iLL] ? row[iLL].toString() : ""; let url = row[iUrl]; let icon = (iIcon > -1 && row[iIcon]) ? row[iIcon].toString().trim() : "📷"; if(!icon) icon = "📷";
                         if(nom && llStr && url) {
                             let matches = llStr.replace(/,/g, '.').match(/-?\d+(?:\.\d+)?/g);
-                            if(matches && matches.length >= 2) { let lat = parseFloat(matches[0]); let lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let t = lat; lat = lng; lng = t; } window.webcamsData.push({ nom: nom, lat: lat, lng: lng, url: url }); }
+                            if(matches && matches.length >= 2) { let lat = parseFloat(matches[0]); let lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let t = lat; lat = lng; lng = t; } window.webcamsData.push({ nom: nom, lat: lat, lng: lng, url: url, icon: icon }); }
                         }
                     });
                 }
@@ -604,7 +517,7 @@
         };
 
         // ==============================================================
-        // 9. GESTION DES CALQUES KML/KMZ (LOGIQUE LEAFLET)
+        // 9. GESTION DES CALQUES KML/KMZ
         // ==============================================================
         window.buildGeoJsonStyle = function(hexColor, weight) {
             let finalWeight = weight ? parseInt(weight) : 4;
@@ -627,16 +540,9 @@
 
         window.renderCloudLayersList = function() {
             const container = document.getElementById('cloud-layers-container'); if(!container) return; container.innerHTML = "";
-            if (window.cloudKmzLayers.length === 0) { container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré.</p>`; return; }
+            if (window.cloudKmzLayers.length === 0) { container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré dans l'onglet 'kmz'.</p>`; return; }
             window.cloudKmzLayers.forEach((layer, idx) => {
-                container.innerHTML += `
-                    <div class="kml-layer-item" style="border-color:#e1e8ed; background:#fafbfc; display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
-                        <input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="window.toggleCloudLayer(${idx})" style="margin:0 5px 0 0;">
-                        <input type="color" class="layer-color-picker" value="${layer.color}" onchange="window.changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur">
-                        <input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="window.changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur">
-                        <label style="cursor:pointer; display:flex; flex-direction:column; flex-grow:1; margin-left:8px; min-width:120px;" for="cloud-cbx-${idx}"><span style="color:#2c3e50; font-size:12px;">${layer.nom}</span><span style="font-size:10px; color:#7f8c8d; font-weight:normal;">${layer.commentaire}</span></label>
-                        <span id="cloud-status-${idx}" style="min-width:20px; text-align:right;"></span>
-                    </div>`;
+                container.innerHTML += `<div class="kml-layer-item" style="border-color:#e1e8ed; background:#fafbfc; display:flex; flex-wrap:wrap; gap:5px; align-items:center;"><input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="window.toggleCloudLayer(${idx})" style="margin:0 5px 0 0;"><input type="color" class="layer-color-picker" value="${layer.color}" onchange="window.changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur"><input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="window.changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur"><label style="cursor:pointer; display:flex; flex-direction:column; flex-grow:1; margin-left:8px; min-width:120px;" for="cloud-cbx-${idx}"><span style="color:#2c3e50; font-size:12px;">${layer.nom}</span><span style="font-size:10px; color:#7f8c8d; font-weight:normal;">${layer.commentaire}</span></label><span id="cloud-status-${idx}" style="min-width:20px; text-align:right;"></span></div>`;
             });
         };
 
@@ -711,7 +617,7 @@
             function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}; let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);} const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
             function generatePalette(arr, s = 0.7, l = 0.5) { let pal = {}; arr.forEach((item, i) => { pal[item] = hslToHex(i / arr.length, s, l); }); return pal; }
 
-            let tSet = new Set(), rSet = new Set(), trSet = new Set(), pSet = new Set(), vSet = new Set(), mSet = new Set();
+            let tSet = new Set(), rSet = new Set(), trSet = new Set(), pSet = new Set();
             
             window.snowCannons.features.forEach(f => {
                 let p = f.properties;
@@ -719,8 +625,6 @@
                 let r = window.getV(p, window.keyRep); if(r!=="N/A") rSet.add(r); 
                 let tr = window.getV(p, window.keyTransfo); if(tr!=="N/A") trSet.add(tr); 
                 let pi = window.getV(p, window.keyPiste); if(pi!=="N/A") pSet.add(pi);
-                let va = window.getV(p, window.keyVanne); if(va!=="N/A") vSet.add(va);
-                let mo = window.getV(p, window.keyModule); if(mo!=="N/A") mSet.add(mo);
             });
 
             Array.from(tSet).sort().forEach((t, i) => { window.technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
@@ -745,7 +649,7 @@
             if (window.saisonsList.length > 0 && sld) { sld.max = window.saisonsList.length - 1; sld.value = window.histSeasonIdx; let sdisp = document.getElementById('season-display'); if(sdisp) sdisp.innerText = window.saisonsList[window.histSeasonIdx]; }
 
             function buildCbs(id, set, cls) { const c = document.getElementById(id); if(!c) return; c.innerHTML = ''; [...set].sort().forEach(v => { let l=document.createElement('label'); let cb=document.createElement('input'); cb.type='checkbox'; cb.className=cls; cb.value=v; l.appendChild(cb); l.appendChild(document.createTextNode(' '+v)); c.appendChild(l); }); }
-            buildCbs('individual-pistes', pSet, 'piste-cb'); buildCbs('individual-types', tSet, 'type-cb'); buildCbs('individual-vannes', vSet, 'vanne-cb'); buildCbs('individual-modules', mSet, 'module-cb');
+            buildCbs('individual-pistes', pSet, 'piste-cb'); buildCbs('individual-types', tSet, 'type-cb');
 
             function setupCbs(allId, cls, cbk) { 
                 const aBtn = document.getElementById(allId); if(!aBtn) return;
@@ -754,9 +658,7 @@
                 cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) aBtn.checked=false; else if(Array.from(cbs).every(x=>!x.checked)) aBtn.checked=true; cbk(getVals()); })); 
             }
             setupCbs('check-all-pistes', 'piste-cb', vals => { window.currentPistes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
-            setupCbs('check-all-types', 'type-cb', vals => { window.currentTypes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
-            setupCbs('check-all-vannes', 'vanne-cb', vals => { window.currentVannes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
-            setupCbs('check-all-modules', 'module-cb', vals => { window.currentModules = vals; window.updateMap(); window.triggerGlobalFilterChart(); });
+            setupCbs('check-all-types', 'type-cb', vals => { window.currentTypes = vals; window.updateMap(); window.triggerGlobalFilterChart(); });
 
             window.generateDynamicFiltersUI(); window.renderCloudLayersList(); window.calculateMaxes();
 
@@ -780,9 +682,14 @@
             // AJOUT DES WEBCAMS SUR LA CARTE
             window.webcamLayerGroup = L.layerGroup();
             window.webcamsData.forEach(wc => {
-                let marker = L.marker([wc.lat, wc.lng], { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">📷</div>`, iconSize: [24,24], iconAnchor: [12,12] }) });
-                let popHtml = `<div style="text-align:center; min-width:200px;"><b>${wc.nom}</b><br><iframe src="${wc.url}" width="100%" height="150" style="border:none; border-radius:4px; margin-top:5px; background:#000;"></iframe></div>`;
-                marker.bindPopup(popHtml, {maxWidth: 300}); window.webcamLayerGroup.addLayer(marker);
+                let marker = L.marker([wc.lat, wc.lng], { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">${wc.icon}</div>`, iconSize: [24,24], iconAnchor: [12,12] }), draggable: false });
+                marker.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    if(marker.dragging.enabled()) return;
+                    window.openSingleWebcam(wc.nom);
+                });
+                marker.wcData = wc;
+                window.webcamLayerGroup.addLayer(marker);
             });
             window.webcamLayerGroup.addTo(window.map);
             
@@ -792,7 +699,7 @@
         window.generateDynamicFiltersUI = function() {
             let container = document.getElementById('dynamic-filters-container'); if(!container) return; container.innerHTML = "";
             let optionsHTML = `<option value="">-- Choisir un critère --</option>` + window.availableColumns.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
-            for(let i=0; i<4; i++) { container.innerHTML += `<div class="dynamic-filter-slot"><select class="filter-select" id="filter-sel-${i}" data-idx="${i}">${optionsHTML}</select><div class="checkbox-list" id="filter-cbx-${i}" style="display:none;"></div></div>`; }
+            container.innerHTML = `<div class="dynamic-filter-slot" style="margin-bottom:0; border:none; padding:0;"><select class="filter-select" id="filter-sel-0" data-idx="0">${optionsHTML}</select><div class="checkbox-list" id="filter-cbx-0" style="display:none;"></div></div>`;
         };
 
         window.renderCheckboxesForFilter = function(idx, colName) {
@@ -863,7 +770,7 @@
         window.triggerGlobalFilterChart = function() {
             if (window.selectedCannonsMap.size > 0 || window.currentlyEditingId) return;
             let hasDyn = window.activeFilters.some(f => f.key && f.vals.length > 0 && !f.vals.includes('all'));
-            let hasStat = !window.currentPistes.includes('all') || !window.currentTypes.includes('all') || !window.currentVannes.includes('all') || !window.currentModules.includes('all');
+            let hasStat = !window.currentPistes.includes('all') || !window.currentTypes.includes('all');
             
             let visibleCannons = window.snowCannons.features.filter(f => f.properties._isVisible);
             let html = `<div style="background:#eafaf1; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px; border:1px solid #d5f5e3;"><span style="font-size:24px; font-weight:bold; color:#27ae60;">${visibleCannons.length}</span><br><span style="font-size:12px; color:#555; text-transform:uppercase;">Canons affichés</span></div>`;
@@ -931,6 +838,7 @@
                 }
             }
 
+            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'flex';
             let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; 
             let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
             let sl = document.getElementById('selected-list'); if(sl) sl.innerHTML = html; 
@@ -944,6 +852,8 @@
 
         window.renderSelectionPanel = function() {
             if(window.selectedCannonsMap.size === 0) { window.triggerGlobalFilterChart(); return; }
+            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'flex';
+            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block';
             let sc = document.getElementById('sel-count'); if(sc) sc.innerText = window.selectedCannonsMap.size;
             let listDiv = document.getElementById('selected-list'); if(!listDiv) return;
             listDiv.innerHTML = "";
@@ -1017,37 +927,18 @@
             return window.technoColors[typeVal] || "#FFD700";
         };
 
-        window.updateLegend = function() {
-            let elDef = document.getElementById('legend-defauts');
-            if (window.mainTheme === 'defauts' && elDef) { elDef.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'urgent')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'encours')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'ras')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;}
-            else if (window.mainTheme === 'type') { let elTy = document.getElementById('legend-type'); if(elTy) elTy.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('type', 'demac')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'sufag')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #008000;"></div> Sufag / Peak</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'techno')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: linear-gradient(to right, #f1c40f, #e67e22);"></div> Technoalpin</div>`;}
-            else if (window.mainTheme === 'repeteur') { let h=''; Object.keys(window.repColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('repeteur', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.repColors[k]};"></div> Répéteur ${k}</div>`); let elRep = document.getElementById('legend-repeteur'); if(elRep) elRep.innerHTML = h;}
-            else if (window.mainTheme === 'transfo') { let h=''; Object.keys(window.transfoColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('transfo', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.transfoColors[k]};"></div> Transfo ${k}</div>`); let elTr = document.getElementById('legend-transfo'); if(elTr) elTr.innerHTML = h;}
-            else if (window.mainTheme === 'historique') {
-                let hL = document.getElementById('legend-historique');
-                if(!hL) return;
-                if (window.histMetric === 'eau') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #add8e6, #2980b9);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`;
-                else if (window.histMetric === 'air') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
-                else if (window.histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
-            }
-        };
-
         window.updateMap = function() {
             if(!window.geojsonLayer) return;
             let s = window.saisonsList[window.histSeasonIdx];
 
             window.geojsonLayer.eachLayer(function(layer) {
                 const p = layer.feature.properties; let vis = true;
-                
                 if (window.currentPistes && !window.currentPistes.includes('all')) { if (!window.currentPistes.includes(window.getV(p, window.keyPiste))) vis = false; }
                 if (window.currentTypes && !window.currentTypes.includes('all')) { if (!window.currentTypes.includes(window.getV(p, window.keyType).toLowerCase())) vis = false; }
-                if (window.currentVannes && !window.currentVannes.includes('all')) { if (!window.currentVannes.includes(window.getV(p, window.keyVanne))) vis = false; }
-                if (window.currentModules && !window.currentModules.includes('all')) { if (!window.currentModules.includes(window.getV(p, window.keyModule))) vis = false; }
 
                 window.activeFilters.forEach(filt => {
                     if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
-                        let val = window.getV(p, filt.key);
-                        if(!filt.vals.includes(val)) vis = false;
+                        let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false;
                     }
                 });
 
@@ -1063,32 +954,19 @@
                 } else {
                     p._isVisible = true;
                     if (!window.map.hasLayer(layer)) window.map.addLayer(layer);
-
                     let rad = 12; let ratio = 0;
                     if (window.mainTheme === 'historique') { let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
-                    
-                    let bg = window.getColorByFilter(ratio, p);
-                    let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
-
+                    let bg = window.getColorByFilter(ratio, p); let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
                     let isSel = window.selectedCannonsMap.has(p.id); let isEdit = (window.currentlyEditingId === p.id);
-                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); }
-                    else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); }
-                    else { layer.setZIndexOffset(0); }
-
+                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); } else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); } else { layer.setZIndexOffset(0); }
                     let actClass = (window.mainTheme === 'defauts' && window.getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
-
                     layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
-                    
-                    layer.setOpacity(1);
-                    if(layer._icon) {
-                        layer._icon.style.opacity = '1';
-                        layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', '');
-                    }
+                    layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = '1'; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
                 }
             });
         };
 
-        // BOOT FORCE EN DERNIER RECOURS
+        // BOOT FORCE
         window.addEventListener('DOMContentLoaded', async () => {
             if(window.bootAttempt > 0) return;
             window.bootAttempt = 1;
@@ -1097,19 +975,15 @@
                 let retries = 0;
                 while ((typeof L === 'undefined' || typeof JSZip === 'undefined') && retries < 50) { await new Promise(r => setTimeout(r, 100)); retries++; }
                 if (typeof L === 'undefined') throw new Error("Impossible de charger la carte (Leaflet). Vérifiez votre pare-feu.");
-
                 window.satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
                 window.map = L.map('map', {zoomControl: false, layers: [window.satLayer]}).setView([42.766, 0.564], 14);
                 L.control.zoom({ position: 'bottomright' }).addTo(window.map);
-
                 window.initLocalDB();
                 await window.fetchGoogleSheetsData();
-
             } catch (err) { window.showCrash(err.message, "Boot Principal"); }
         });
         
         setTimeout(() => { if(window.bootAttempt === 0) { window.document.dispatchEvent(new Event("DOMContentLoaded")); } }, 2000);
-
     </script>
 </body>
 </html>
