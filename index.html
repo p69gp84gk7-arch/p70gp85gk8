@@ -191,34 +191,86 @@
         window.getActiveTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
         window.getHistoryTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
 
-        // === GESTION WEBCAMS ===
+        // ==============================================================
+        // 2. WEBCAMS
+        // ==============================================================
         window.openWebcamGrid = function() {
-            let m = document.getElementById('webcam-modal'); let grid = document.getElementById('webcam-grid-content'); if(!m || !grid) return;
+            let m = document.getElementById('webcam-modal'); 
+            let grid = document.getElementById('webcam-grid-content'); 
+            if(!m || !grid) return;
             grid.innerHTML = "";
-            if(window.webcamsData.length === 0) { grid.innerHTML = "<p style='padding:20px;'>Aucune webcam trouvée ou configurée.</p>"; } 
-            else { window.webcamsData.forEach(wc => { grid.innerHTML += `<div class="webcam-card"><div class="webcam-card-title">${wc.nom}</div><iframe class="webcam-frame" src="${wc.url}" loading="lazy"></iframe></div>`; }); }
+            if(window.webcamsData.length === 0) { 
+                grid.innerHTML = "<p style='padding:20px;'>Aucune webcam trouvée ou configurée.</p>"; 
+            } else { 
+                window.webcamsData.forEach(wc => { 
+                    grid.innerHTML += `<div class="webcam-card"><div class="webcam-card-title">${wc.nom}</div><iframe class="webcam-frame" src="${wc.url}" loading="lazy"></iframe></div>`; 
+                }); 
+            }
             m.style.display = 'flex';
         };
-        window.closeWebcamGrid = function() { document.getElementById('webcam-modal').style.display = 'none'; document.getElementById('webcam-grid-content').innerHTML = ""; };
+        window.closeWebcamGrid = function() { 
+            document.getElementById('webcam-modal').style.display = 'none'; 
+            document.getElementById('webcam-grid-content').innerHTML = ""; 
+        };
 
-        // === UI ACTIONS ===
-        window.toggleRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(!sb) return; if(sb.classList.contains('open')) { sb.classList.remove('open'); } else { sb.classList.add('open'); if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) { window.triggerGlobalFilterChart(); } else { window.renderSelectionPanel(); } } };
-        window.toggleMultiSelect = function() { window.isMultiSelect = !window.isMultiSelect; const btn = document.getElementById('btn-multi-toggle'); if(!btn) return; if(window.isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; btn.style.background = "#3498db"; } else { btn.classList.remove('active'); btn.innerText = "🔲 Multi-Sélection : OFF"; btn.style.background = "rgba(255,255,255,0.1)"; if(window.selectedCannonsMap.size > 1) window.clearSelection(); } window.renderSelectionPanel(); };
-        window.closeRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.remove('open'); };
-        window.clearSelection = function() { window.selectedCannonsMap.clear(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); };
-        window.cancelEdit = function() { window.currentlyEditingId = null; let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none'; let rh = document.getElementById('right-header'); if(rh) rh.classList.remove('editing'); let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📌 Fiche Détaillée"; window.updateMap(); window.renderSelectionPanel(); };
+        // ==============================================================
+        // 3. UI: BOUTONS CARTE & SIDEBAR
+        // ==============================================================
+        window.toggleRightSidebar = function() {
+            let sb = document.getElementById('right-sidebar');
+            if(!sb) return;
+            if(sb.classList.contains('open')) { 
+                sb.classList.remove('open'); 
+            } else { 
+                sb.classList.add('open'); 
+                if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) { window.triggerGlobalFilterChart(); } 
+                else { window.renderSelectionPanel(); } 
+            }
+        };
+
+        window.toggleMultiSelect = function() {
+            window.isMultiSelect = !window.isMultiSelect; 
+            const btn = document.getElementById('btn-multi-toggle'); 
+            if(!btn) return;
+            if(window.isMultiSelect) { 
+                btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; btn.style.background = "#3498db"; 
+            } else { 
+                btn.classList.remove('active'); btn.innerText = "🔲 Sélec. Multiple : OFF"; btn.style.background = "rgba(255,255,255,0.1)"; 
+                if(window.selectedCannonsMap.size > 1) window.clearSelection(); 
+            }
+            window.renderSelectionPanel();
+        };
+
+        window.closeRightSidebar = function() { 
+            let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.remove('open'); 
+        };
+        window.clearSelection = function() { 
+            window.selectedCannonsMap.clear(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); 
+        };
+        window.cancelEdit = function() { 
+            window.currentlyEditingId = null; 
+            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; 
+            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none'; 
+            let rh = document.getElementById('right-header'); if(rh) rh.classList.remove('editing'); 
+            let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📌 Fiche Détaillée"; 
+            window.updateMap(); window.renderSelectionPanel(); 
+        };
 
         window.saveEditData = async function() {
             if (!window.currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); if(btn) { btn.innerText = "⏳ Envoi..."; btn.disabled = true; }
-            let fieldsObj = {}; document.querySelectorAll('.dyn-field').forEach(inp => { fieldsObj[inp.getAttribute('data-key')] = inp.value; });
+            let fieldsObj = {}; 
+            document.querySelectorAll('.dyn-field').forEach(inp => { fieldsObj[inp.getAttribute('data-key')] = inp.value; });
             const payload = { id: document.getElementById('edit-id').value, lat: parseFloat(document.getElementById('edit-lat').value), lng: parseFloat(document.getElementById('edit-lng').value), fields: fieldsObj };
             try {
                 const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json();
                 if(result.status === "success") {
-                    const layer = window.selectedCannonsMap.get(window.currentlyEditingId); const p = layer.feature.properties; p.fullData.forEach(item => { if(fieldsObj[item.k] !== undefined) item.v = fieldsObj[item.k]; });
-                    let tLower = window.getV(p, window.keyType).toLowerCase().trim(); if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = window.technoColors[tLower] || "#FFD700";
-                    layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lng]); window.cancelEdit();
+                    const layer = window.selectedCannonsMap.get(window.currentlyEditingId); const p = layer.feature.properties; 
+                    p.fullData.forEach(item => { if(fieldsObj[item.k] !== undefined) item.v = fieldsObj[item.k]; });
+                    let tLower = window.getV(p, window.keyType).toLowerCase().trim(); 
+                    if (["demak lenko", "demac lenko"].includes(tLower)) p.couleur_defaut = "#0000FF"; else if (["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) p.couleur_defaut = "#008000"; else p.couleur_defaut = window.technoColors[tLower] || "#FFD700";
+                    layer.feature.geometry.coordinates = [payload.lng, payload.lat]; layer.setLatLng([payload.lat, payload.lng]); 
+                    window.cancelEdit();
                 } else { alert("Erreur Google : " + result.message); }
             } catch (err) { alert("Échec réseau."); }
             if(btn) { btn.innerText = "✅ Sauvegarder"; btn.disabled = false; }
@@ -226,20 +278,36 @@
 
         window.startEdit = function(id) {
             window.currentlyEditingId = id; const layer = window.selectedCannonsMap.get(id); const p = layer.feature.properties;
-            let dis = document.getElementById('edit-id-display'); if(dis) dis.innerText = p.id; let eid = document.getElementById('edit-id'); if(eid) eid.value = p.id;
-            let elat = document.getElementById('edit-lat'); if(elat) elat.value = layer.getLatLng().lat.toFixed(7); let elng = document.getElementById('edit-lng'); if(elng) elng.value = layer.getLatLng().lng.toFixed(7);
+            let dis = document.getElementById('edit-id-display'); if(dis) dis.innerText = p.id; 
+            let eid = document.getElementById('edit-id'); if(eid) eid.value = p.id;
+            let elat = document.getElementById('edit-lat'); if(elat) elat.value = layer.getLatLng().lat.toFixed(7); 
+            let elng = document.getElementById('edit-lng'); if(elng) elng.value = layer.getLatLng().lng.toFixed(7);
             let formContainer = document.getElementById('dynamic-edit-fields'); 
             if(formContainer) {
                 formContainer.innerHTML = "";
-                p.fullData.forEach(item => { let kLow = item.k.toLowerCase(); if(kLow.includes('regard') || kLow.includes('xy') || kLow.includes('gps')) return; let safeId = "dl-" + item.k.replace(/[^a-zA-Z0-9]/g, '-'); formContainer.innerHTML += `<div style="margin-bottom:10px;"><div class="edit-label">${item.k}</div><input type="text" class="edit-input dyn-field" data-key="${item.k}" value="${item.v}" list="${safeId}"></div>`; });
+                p.fullData.forEach(item => { 
+                    let kLow = item.k.toLowerCase(); if(kLow.includes('regard') || kLow.includes('xy') || kLow.includes('gps')) return; 
+                    let safeId = "dl-" + item.k.replace(/[^a-zA-Z0-9]/g, '-'); 
+                    formContainer.innerHTML += `<div style="margin-bottom:10px;"><div class="edit-label">${item.k}</div><input type="text" class="edit-input dyn-field" data-key="${item.k}" value="${item.v}" list="${safeId}"></div>`; 
+                });
             }
-            let chk = document.getElementById('allow-move-chk'); if(chk) chk.checked = false; let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'none'; let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'block';
-            let rh = document.getElementById('right-header'); if(rh) rh.classList.add('editing'); let rt = document.getElementById('right-title'); if(rt) rt.innerText = "✏️ Édition Complète"; window.updateMap(); 
+            let chk = document.getElementById('allow-move-chk'); if(chk) chk.checked = false; 
+            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'none'; 
+            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'block';
+            let rh = document.getElementById('right-header'); if(rh) rh.classList.add('editing'); 
+            let rt = document.getElementById('right-title'); if(rt) rt.innerText = "✏️ Édition Complète"; 
+            window.updateMap(); 
         };
 
         window.focusCannon = function(id) {
             if(!window.geojsonLayer) return;
-            window.geojsonLayer.eachLayer(function(l) { if (l.feature.properties.id === id) { window.selectedCannonsMap.clear(); window.selectedCannonsMap.set(id, l); window.map.setView(l.getLatLng(), 17); window.updateMap(); window.renderSelectionPanel(); let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.add('open'); } });
+            window.geojsonLayer.eachLayer(function(l) {
+                if (l.feature.properties.id === id) { 
+                    window.selectedCannonsMap.clear(); window.selectedCannonsMap.set(id, l); 
+                    window.map.setView(l.getLatLng(), 17); window.updateMap(); window.renderSelectionPanel(); 
+                    let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.add('open'); 
+                }
+            });
         };
 
         window.highlightLegend = function(theme, val) {
@@ -247,33 +315,58 @@
             window.geojsonLayer.eachLayer(function(layer) {
                 if(!layer.feature.properties._isVisible) return;
                 let p = layer.feature.properties; let match = false;
-                if (theme === 'defauts') { let act = window.getActiveTickets(p.id); if (val === 'urgent' && act.some(t => t.statut.includes('faire'))) match = true; else if (val === 'encours' && act.some(t => t.statut.includes('cours'))) match = true; else if (val === 'ras' && act.length === 0) match = true; } 
-                else if (theme === 'type') { let tLower = window.getV(p, window.keyType).toLowerCase(); if (val === 'demac' && ["demak lenko", "demac lenko"].includes(tLower)) match = true; else if (val === 'sufag' && ["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) match = true; else if (val === 'techno' && !["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(tLower) && tLower !== "n/a") match = true; } 
-                else if (theme === 'repeteur') { if (window.getV(p, window.keyRep) === val) match = true; } else if (theme === 'transfo') { if (window.getV(p, window.keyTransfo) === val) match = true; }
-                if (match) { layer.setOpacity(1); layer.setZIndexOffset(2000); if(layer._icon) { layer._icon.style.opacity = "1"; if(!layer._icon.style.transform.includes('scale(1.3)')) layer._icon.style.transform += ' scale(1.3)'; } } else { layer.setOpacity(0.2); layer.setZIndexOffset(0); if(layer._icon) { layer._icon.style.opacity = "0.2"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }
+                if (theme === 'defauts') {
+                    let act = window.getActiveTickets(p.id);
+                    if (val === 'urgent' && act.some(t => t.statut.includes('faire'))) match = true; else if (val === 'encours' && act.some(t => t.statut.includes('cours'))) match = true; else if (val === 'ras' && act.length === 0) match = true;
+                } else if (theme === 'type') {
+                    let tLower = window.getV(p, window.keyType).toLowerCase();
+                    if (val === 'demac' && ["demak lenko", "demac lenko"].includes(tLower)) match = true; else if (val === 'sufag' && ["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) match = true; else if (val === 'techno' && !["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(tLower) && tLower !== "n/a") match = true;
+                } else if (theme === 'repeteur') { if (window.getV(p, window.keyRep) === val) match = true; } else if (theme === 'transfo') { if (window.getV(p, window.keyTransfo) === val) match = true; }
+                if (match) { layer.setOpacity(1); layer.setZIndexOffset(2000); if(layer._icon) { layer._icon.style.opacity = "1"; if(!layer._icon.style.transform.includes('scale(1.3)')) layer._icon.style.transform += ' scale(1.3)'; } } 
+                else { layer.setOpacity(0.2); layer.setZIndexOffset(0); if(layer._icon) { layer._icon.style.opacity = "0.2"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }
             });
         };
 
-        window.resetHighlight = function() { if(!window.geojsonLayer) return; window.geojsonLayer.eachLayer(function(layer) { layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = "1"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }); window.updateMap(); };
+        window.resetHighlight = function() { 
+            if(!window.geojsonLayer) return; 
+            window.geojsonLayer.eachLayer(function(layer) { layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = "1"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }); 
+            window.updateMap(); 
+        };
 
-        // === EDITEUR TICKETS ===
+        // ==============================================================
+        // 5. EDITEUR COMPLET DE TICKETS (AVEC VALIDATION)
+        // ==============================================================
         window.editFullTicket = function(canonId, defaut) {
             let safeDef = defaut.replace(/[^a-zA-Z0-9]/g, ""); let idDiv = `ticket-edit-${canonId}-${safeDef}`; let el = document.getElementById(idDiv); if(!el) return;
             let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut); if(!ticket) return;
             let html = '<div style="background:#fdfdfe; padding:12px; border-radius:6px; border:2px solid #3498db; margin-top:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">';
             ticket.fullData.forEach(d => {
                 let kLow = d.k.toLowerCase(); let valStr = d.v.toString();
-                if (kLow.includes('regard') || kLow === 'id' || kLow.includes('n°')) { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" readonly style="background:#e1e8ed; color:#7f8c8d; margin-bottom:0; cursor:not-allowed;"></div>`; } 
-                else if (kLow.includes('etat') || kLow.includes('état') || kLow === 'statut') { let statuts = ['à faire', 'en cours', 'fait']; let options = statuts.map(s => `<option value="${s}" ${valStr.toLowerCase().includes(s) ? 'selected' : ''}>${s.toUpperCase()}</option>`).join(''); html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><select class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;">${options}</select></div>`; } 
-                else if (valStr.length > 40 || kLow.includes('cause') || kLow.includes('intervention') || kLow.includes('commentaire') || kLow.includes('action')) { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><textarea class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;" rows="2">${valStr}</textarea></div>`; } 
-                else { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" style="margin-bottom:0;"></div>`; }
+                if (kLow.includes('regard') || kLow === 'id' || kLow.includes('n°')) { 
+                    html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" readonly style="background:#e1e8ed; color:#7f8c8d; margin-bottom:0; cursor:not-allowed;"></div>`; 
+                } 
+                else if (kLow.includes('etat') || kLow.includes('état') || kLow === 'statut') { 
+                    let statuts = ['à faire', 'en cours', 'fait']; let options = statuts.map(s => `<option value="${s}" ${valStr.toLowerCase().includes(s) ? 'selected' : ''}>${s.toUpperCase()}</option>`).join(''); 
+                    html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><select class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;">${options}</select></div>`; 
+                } 
+                else if (valStr.length > 40 || kLow.includes('cause') || kLow.includes('intervention') || kLow.includes('commentaire') || kLow.includes('action')) { 
+                    html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><textarea class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;" rows="2">${valStr}</textarea></div>`; 
+                } 
+                else { 
+                    html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" style="margin-bottom:0;"></div>`; 
+                }
             });
-            html += `<div style="display:flex; gap:10px; margin-top:15px;"><button onclick="window.renderSelectionPanel()" style="flex:1; padding:8px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button><button onclick="window.prepareTicketSave('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:8px; background:#2ecc71; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Suivant ➔</button></div></div>`; el.innerHTML = html;
+            html += `<div style="display:flex; gap:10px; margin-top:15px;"><button onclick="window.renderSelectionPanel()" style="flex:1; padding:8px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button><button onclick="window.prepareTicketSave('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:8px; background:#2ecc71; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Suivant ➔</button></div></div>`; 
+            el.innerHTML = html;
         };
 
         window.prepareTicketSave = function(canonId, defaut, idDiv) {
             let fieldsObj = {}; let newStatutForLocal = "";
-            document.querySelectorAll(`.tick-dyn-field-${idDiv}`).forEach(inp => { let k = inp.getAttribute('data-key'); let v = inp.value; if(!k.toLowerCase().includes('regard') && k.toLowerCase() !== 'id') { fieldsObj[k] = v; } if(k.toLowerCase().includes('etat') || k.toLowerCase().includes('état') || k.toLowerCase() === 'statut') { newStatutForLocal = v; } });
+            document.querySelectorAll(`.tick-dyn-field-${idDiv}`).forEach(inp => { 
+                let k = inp.getAttribute('data-key'); let v = inp.value; 
+                if(!k.toLowerCase().includes('regard') && k.toLowerCase() !== 'id') { fieldsObj[k] = v; } 
+                if(k.toLowerCase().includes('etat') || k.toLowerCase().includes('état') || k.toLowerCase() === 'statut') { newStatutForLocal = v; } 
+            });
             let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut); if(!ticket) return;
             let diffHtml = ""; let hasChanges = false;
             ticket.fullData.forEach(d => {
@@ -290,18 +383,26 @@
         };
 
         window.confirmSaveTicket = async function(canonId, defaut, idDiv) {
-            let temp = window.tempTicketPayloads[idDiv]; if(!temp) return; let el = document.getElementById(idDiv); if(el) el.innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#3498db; font-size:14px;">Enregistrement Google... ⏳</div>`;
+            let temp = window.tempTicketPayloads[idDiv]; if(!temp) return; 
+            let el = document.getElementById(idDiv); if(el) el.innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#3498db; font-size:14px;">Enregistrement Google... ⏳</div>`;
             try {
                 const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(temp.payload) }); const result = await response.json();
                 if(result.status === "success") {
                     let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut);
-                    if(ticket) { ticket.fullData.forEach(d => { if(temp.payload.fields[d.k] !== undefined) d.v = temp.payload.fields[d.k]; }); if(temp.newStatut) ticket.statut = temp.newStatut.toLowerCase(); }
-                    window.renderSelectionPanel(); window.updateMap(); window.triggerGlobalFilterChart(); delete window.tempTicketPayloads[idDiv];
+                    if(ticket) {
+                        ticket.fullData.forEach(d => { if(temp.payload.fields[d.k] !== undefined) d.v = temp.payload.fields[d.k]; });
+                        if(temp.newStatut) ticket.statut = temp.newStatut.toLowerCase();
+                        let defField = ticket.fullData.find(x => x.k.toLowerCase().includes('defaut') || x.k.toLowerCase().includes('défaut') || x.k.toLowerCase().includes('panne'));
+                        if (defField && temp.payload.fields[defField.k]) ticket.defaut = temp.payload.fields[defField.k].toString().trim();
+                    }
+                    delete window.tempTicketPayloads[idDiv]; window.renderSelectionPanel(); window.updateMap(); window.triggerGlobalFilterChart(); 
                 } else { alert("Erreur Google : " + result.msg); window.renderSelectionPanel(); }
             } catch(e) { alert("Échec réseau."); window.renderSelectionPanel(); }
         };
 
-        // === COMPARAISONS ===
+        // ==============================================================
+        // 6. COMPARAISONS GRAPHIQUES
+        // ==============================================================
         window.openGlobalCompareModal = function(show) {
             let m = document.getElementById('compare-modal'); if(!m) return; if(!show) { m.style.display = 'none'; return; }
             let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2'); let pList = document.getElementById('comp-piste');
@@ -345,7 +446,7 @@
         };
 
         // ==============================================================
-        // 7. DB LOCALE KML/KMZ
+        // 7. GESTION BASE DE DONNÉES LOCALE (INDEXEDDB)
         // ==============================================================
         window.initLocalDB = function() {
             try {
@@ -360,12 +461,9 @@
         window.loadSavedLayersFromDB = function() { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readonly"); const req = tx.objectStore("kmz_layers").getAll(); req.onsuccess = function() { req.result.forEach(item => { window.addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); }); }; };
 
         // ==============================================================
-        // 8. LECTURE DONNÉES GOOGLE
+        // 8. RÉSEAU ET DONNÉES GOOGLE SHEETS
         // ==============================================================
-        window.setStep = function(step, desc) {
-            let elStep = document.getElementById('loading-step'); let elDesc = document.getElementById('loading-desc');
-            if (elStep) elStep.innerText = "Étape " + step + "/5"; if (elDesc) elDesc.innerText = desc;
-        };
+        window.setStep = function(step, desc) { let elStep = document.getElementById('loading-step'); let elDesc = document.getElementById('loading-desc'); if (elStep) elStep.innerText = "Étape " + step + "/5"; if (elDesc) elDesc.innerText = desc; };
 
         window.fetchWithTimeout = async function(resource, options = {}) {
             let finalUrl = resource; if(!resource.includes('raw.githubusercontent')) { finalUrl += (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime(); }
@@ -377,23 +475,19 @@
         window.fetchGoogleSheetsData = async function() {
             window.setStep(1, "Connexion au serveur Google...");
             const response = await window.fetchWithTimeout(GOOGLE_API_URL);
-            if (!response.ok) throw new Error("Accès refusé. Vérifiez l'URL.");
+            if (!response.ok) throw new Error("Accès refusé. Vérifiez l'URL de votre script.");
             let textData = await response.text(); let data;
             try { data = JSON.parse(textData); } catch(e) { throw new Error("Format invalide."); }
             
             window.setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
-            const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
-            const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
+            const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim()); const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
             const findCol = (keywords) => { let idx = genHeaders.findIndex(h => keywords.some(k => h.includes(k))); return idx !== -1 ? originalHeaders[idx] : null; };
 
             const idxId = 2; const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
             if (idxXY === -1) throw new Error("La colonne 'xy' est introuvable.");
 
-            window.keyPiste = findCol(['pistes', 'piste']); window.keyType = findCol(['type canon', 'type']);
-            window.keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']);
-            window.keyTransfo = findCol(['transfo']); window.keyVanne = findCol(['vanne']); window.keyModule = findCol(['module']);
-
+            window.keyPiste = findCol(['pistes', 'piste']); window.keyType = findCol(['type canon', 'type']); window.keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']); window.keyTransfo = findCol(['transfo']); window.keyVanne = findCol(['vanne']); window.keyModule = findCol(['module']);
             originalHeaders.forEach(h => { let hl = h.toLowerCase(); if(!hl.includes('xy') && !hl.includes('gps') && !hl.includes('photo')) { window.availableColumns.push(h); window.columnValuesSets[h] = new Set(); } });
 
             let dictGeneral = {}; let validPointsCount = 0;
@@ -401,23 +495,16 @@
                 let idRaw = row[idxId]; if (idRaw == null || idRaw === "") return;
                 let id = idRaw.toString().replace(/^YA\s*/i, '').trim(); if (!id) return;
                 let lat = 0, lng = 0;
-                if (row[idxXY]) {
-                    let txt = String(row[idxXY]).replace(/,/g, '.'); let matches = txt.match(/-?\d+(?:\.\d+)?/g);
-                    if (matches && matches.length >= 2) { lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; } }
-                }
+                if (row[idxXY]) { let txt = String(row[idxXY]).replace(/,/g, '.'); let matches = txt.match(/-?\d+(?:\.\d+)?/g); if (matches && matches.length >= 2) { lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; } } }
                 let fullData = [];
-                originalHeaders.forEach((head, i) => { 
-                    if(head.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullData.push({k: head, v: val}); if(val !== "" && window.columnValuesSets[head]) window.columnValuesSets[head].add(val.trim()); }
-                });
-                if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
-                dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
+                originalHeaders.forEach((head, i) => { if(head.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullData.push({k: head, v: val}); if(val !== "" && window.columnValuesSets[head]) window.columnValuesSets[head].add(val.trim()); } });
+                if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++; dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
             });
             if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté.");
 
             window.setStep(3, "Analyse de l'Historique...");
             if (data.historique && data.historique.length > 1) {
-                const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim());
-                const idxCanons = 1; let colsEau = {}, colsAir = {}, colsTemps = {}; let saisonsSet = new Set();
+                const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim()); const idxCanons = 1; let colsEau = {}, colsAir = {}, colsTemps = {}; let saisonsSet = new Set();
                 histHeaders.forEach((h, i) => { let match = h.match(/(eau|air|marche).*?(\d{2}\/\d{2})/i); if (match) { let t = match[1].toLowerCase(); let s = match[2]; saisonsSet.add(s); if (t.includes('eau')) colsEau[s] = i; if (t.includes('air')) colsAir[s] = i; if (t.includes('marche')) colsTemps[s] = i; } });
                 window.saisonsList = Array.from(saisonsSet).sort((a,b) => parseInt(a.split('/')[0]) - parseInt(b.split('/')[0])); window.histSeasonIdx = window.saisonsList.length > 0 ? window.saisonsList.length - 1 : 0;
                 data.historique.slice(1).forEach(row => {
@@ -428,50 +515,34 @@
 
             window.setStep(4, "Préparation des Pannes & KMZ...");
             if (data.tickets && data.tickets.length > 1) {
-                const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim());
-                const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
-                const idxTEtat = tHeaders.findIndex(h => h.includes('état') || h.includes('etat'));
-                const idxTDate = tHeaders.findIndex(h => h.includes('date'));
-                const idxTRegard = tHeaders.findIndex(h => h.includes('n°regard') || h.includes('regard') || h.includes('canon'));
-                const idxTDefaut = tHeaders.findIndex(h => h.includes('defaut') || h.includes('défaut') || h.includes('panne'));
-
+                const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim()); const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
+                const idxTEtat = tHeaders.findIndex(h => h.includes('état') || h.includes('etat')); const idxTDate = tHeaders.findIndex(h => h.includes('date')); const idxTRegard = tHeaders.findIndex(h => h.includes('n°regard') || h.includes('regard') || h.includes('canon')); const idxTDefaut = tHeaders.findIndex(h => h.includes('defaut') || h.includes('défaut') || h.includes('panne'));
                 if(idxTRegard > -1) {
                     window.rawTickets = data.tickets.slice(1).map(row => {
-                        let fullTData = [];
-                        originalTHeaders.forEach((h, i) => { if(h.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullTData.push({k: h, v: val}); } });
+                        let fullTData = []; originalTHeaders.forEach((h, i) => { if(h.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullTData.push({k: h, v: val}); } });
                         return { statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""), date: (idxTDate>-1 && row[idxTDate] != null ? row[idxTDate] : ""), idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/^YA\s*/i, '').trim() : ""), defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Défaut non spécifié"), fullData: fullTData };
                     });
                 }
             }
 
-            if (data.kmz && data.kmz.length > 0) {
-                window.cloudKmzLayers = data.kmz.map((k, index) => { let col = k.color ? k.color : window.defaultColors[index % window.defaultColors.length]; let wei = k.weight ? parseInt(k.weight) : 4; return { ...k, isVisible: false, leafletLayer: null, color: col, weight: wei }; });
-            }
+            if (data.kmz && data.kmz.length > 0) { window.cloudKmzLayers = data.kmz.map((k, index) => { let col = k.color ? k.color : window.defaultColors[index % window.defaultColors.length]; let wei = k.weight ? parseInt(k.weight) : 4; return { ...k, isVisible: false, leafletLayer: null, color: col, weight: wei }; }); }
 
             window.setStep(5, "Analyse des Webcams...");
             if (data.webcams && data.webcams.length > 1) {
                 const wHead = data.webcams[0].map(h => (h||"").toString().toLowerCase().trim());
-                const iNom = wHead.findIndex(h => h.includes("nom"));
-                const iLL = wHead.findIndex(h => h.includes("latlong") || h.includes("gps") || h.includes("xy"));
-                const iUrl = wHead.findIndex(h => h.includes("url") || h.includes("lien"));
+                const iNom = wHead.findIndex(h => h.includes("nom")); const iLL = wHead.findIndex(h => h.includes("latlong") || h.includes("gps") || h.includes("xy")); const iUrl = wHead.findIndex(h => h.includes("url") || h.includes("lien"));
                 if(iNom > -1 && iLL > -1 && iUrl > -1) {
                     data.webcams.slice(1).forEach(row => {
                         let nom = row[iNom]; let llStr = row[iLL] ? row[iLL].toString() : ""; let url = row[iUrl];
                         if(nom && llStr && url) {
                             let matches = llStr.replace(/,/g, '.').match(/-?\d+(?:\.\d+)?/g);
-                            if(matches && matches.length >= 2) {
-                                let lat = parseFloat(matches[0]); let lng = parseFloat(matches[1]);
-                                if (lat < 20 && lng > 30) { let t = lat; lat = lng; lng = t; }
-                                window.webcamsData.push({ nom: nom, lat: lat, lng: lng, url: url });
-                            }
+                            if(matches && matches.length >= 2) { let lat = parseFloat(matches[0]); let lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let t = lat; lat = lng; lng = t; } window.webcamsData.push({ nom: nom, lat: lat, lng: lng, url: url }); }
                         }
                     });
                 }
             }
 
-            Object.values(dictGeneral).forEach(canon => {
-                if (canon.lat !== 0 && !isNaN(canon.lat)) { window.snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon }); }
-            });
+            Object.values(dictGeneral).forEach(canon => { if (canon.lat !== 0 && !isNaN(canon.lat)) { window.snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon }); } });
 
             let ls = document.getElementById('loading-spinner'); if(ls) ls.style.display = 'none';
             let lt = document.getElementById('loading-title'); if(lt) { lt.innerText = "✅ Chargement Réussi !"; lt.style.color = "#27ae60"; }
@@ -494,14 +565,11 @@
         };
 
         window.fetchGitHubKMZ = async function(url) {
-            const response = await window.fetchWithTimeout(url);
-            if (!response.ok) throw new Error("GitHub refuse l'accès.");
+            const response = await window.fetchWithTimeout(url); if (!response.ok) throw new Error("GitHub refuse l'accès.");
             let kmlString = "";
             if (url.toLowerCase().endsWith('.kmz')) {
                 const blob = await response.blob(); const arrayBuffer = await blob.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer);
-                const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-                if (!kmlFile) throw new Error("Aucun fichier KML trouvé.");
-                kmlString = await kmlFile.async("string");
+                const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string");
             } else { kmlString = await response.text(); }
             const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); return toGeoJSON.kml(xmlDoc);
         };
@@ -511,7 +579,7 @@
             if (window.cloudKmzLayers.length === 0) { container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré.</p>`; return; }
             window.cloudKmzLayers.forEach((layer, idx) => {
                 container.innerHTML += `
-                    <div class="kml-layer-item">
+                    <div class="kml-layer-item" style="border-color:#e1e8ed; background:#fafbfc; display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
                         <input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="window.toggleCloudLayer(${idx})" style="margin:0 5px 0 0;">
                         <input type="color" class="layer-color-picker" value="${layer.color}" onchange="window.changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur">
                         <input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="window.changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur">
@@ -523,40 +591,32 @@
 
         window.toggleCloudLayer = async function(idx) {
             let layerObj = window.cloudKmzLayers[idx]; let cbx = document.getElementById('cloud-cbx-' + idx); let statusSpan = document.getElementById('cloud-status-' + idx);
-            if (!cbx || !statusSpan) return;
-            if (!cbx.checked) { if(layerObj.leafletLayer) map.removeLayer(layerObj.leafletLayer); layerObj.isVisible = false; statusSpan.innerText = ""; return; }
+            if (!cbx || !statusSpan) return; if (!cbx.checked) { if(layerObj.leafletLayer) map.removeLayer(layerObj.leafletLayer); layerObj.isVisible = false; statusSpan.innerText = ""; return; }
             if (layerObj.leafletLayer) { map.addLayer(layerObj.leafletLayer); layerObj.isVisible = true; return; }
             statusSpan.innerText = " ⏳"; cbx.disabled = true;
             try {
-                const geojson = await window.fetchGitHubKMZ(layerObj.url);
-                layerObj.leafletLayer = L.geoJSON(geojson, window.buildGeoJsonStyle(layerObj.color, layerObj.weight)).addTo(map);
-                layerObj.isVisible = true; if(layerObj.leafletLayer.getBounds().isValid()) { map.fitBounds(layerObj.leafletLayer.getBounds()); }
-                statusSpan.innerText = " ✅";
+                const geojson = await window.fetchGitHubKMZ(layerObj.url); layerObj.leafletLayer = L.geoJSON(geojson, window.buildGeoJsonStyle(layerObj.color, layerObj.weight)).addTo(map);
+                layerObj.isVisible = true; if(layerObj.leafletLayer.getBounds().isValid()) { map.fitBounds(layerObj.leafletLayer.getBounds()); } statusSpan.innerText = " ✅";
             } catch(err) { statusSpan.innerText = " ❌"; alert("Erreur calque : " + err.message); cbx.checked = false; }
             cbx.disabled = false;
         };
 
         window.changeCloudLayerStyle = function(idx, newColor, newWeight) {
-            let layerObj = window.cloudKmzLayers[idx];
-            if (newColor !== null) layerObj.color = newColor; if (newWeight !== null) layerObj.weight = parseInt(newWeight);
+            let layerObj = window.cloudKmzLayers[idx]; if (newColor !== null) layerObj.color = newColor; if (newWeight !== null) layerObj.weight = parseInt(newWeight);
             fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: 'update_kmz', nom: layerObj.nom, color: layerObj.color, weight: layerObj.weight }) });
             if(layerObj.leafletLayer) { layerObj.leafletLayer.setStyle({ color: layerObj.color, fillColor: layerObj.color, weight: layerObj.weight }); layerObj.leafletLayer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: layerObj.color, fillColor: layerObj.color }); } }); }
         };
 
         window.handleKMLUpload = async function(event) {
             const file = event.target.files[0]; if(!file) return;
-            let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'flex'; 
-            let sp = document.getElementById('loading-spinner'); if(sp) sp.style.display = 'block';
-            let ti = document.getElementById('loading-title'); if(ti) ti.innerText = "Importation locale..."; 
-            let de = document.getElementById('loading-desc'); if(de) de.innerText = "Analyse de " + file.name;
+            let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'flex'; let sp = document.getElementById('loading-spinner'); if(sp) sp.style.display = 'block';
+            let ti = document.getElementById('loading-title'); if(ti) ti.innerText = "Importation locale..."; let de = document.getElementById('loading-desc'); if(de) de.innerText = "Analyse de " + file.name;
             setTimeout(async () => {
                 try {
-                    const fileName = file.name; const layerId = 'layer_' + Date.now();
-                    let kmlString = ""; let defaultColor = '#e67e22'; let defaultWeight = 4;
+                    const fileName = file.name; const layerId = 'layer_' + Date.now(); let kmlString = ""; let defaultColor = '#e67e22'; let defaultWeight = 4;
                     if (fileName.toLowerCase().endsWith('.kmz')) {
                         const arrayBuffer = await file.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer);
-                        const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-                        if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string");
+                        const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string");
                     } else if (fileName.toLowerCase().endsWith('.kml')) { kmlString = await file.text(); } else { throw new Error("Format non supporté."); }
                     const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); const geojson = toGeoJSON.kml(xmlDoc);
                     window.saveLayerToDB(layerId, fileName, geojson, defaultColor, defaultWeight); window.addGeoJsonToMap(layerId, fileName, geojson, true, defaultColor, defaultWeight);
@@ -576,14 +636,7 @@
             const container = document.getElementById('custom-layers-list'); if(!container) return; container.innerHTML = "";
             for (let id in window.externalLayers) {
                 const ext = window.externalLayers[id];
-                container.innerHTML += `
-                    <div class="kml-layer-item">
-                        <input type="checkbox" id="loc-cbx-${id}" ${ext.isVisible ? 'checked' : ''} onchange="window.toggleExtLayer('${id}')" style="margin:0 5px 0 0;">
-                        <input type="color" class="layer-color-picker" value="${ext.color}" onchange="window.changeExtLayerStyle('${id}', this.value, null)" title="Couleur">
-                        <input type="number" class="layer-weight-picker" value="${ext.weight || 4}" min="1" max="15" onchange="window.changeExtLayerStyle('${id}', null, this.value)" title="Épaisseur">
-                        <label for="loc-cbx-${id}" style="cursor:pointer; flex-grow:1; margin-left:8px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#34495e;">${ext.name}</label>
-                        <button onclick="window.deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button>
-                    </div>`;
+                container.innerHTML += `<div class="kml-layer-item"><input type="checkbox" id="loc-cbx-${id}" ${ext.isVisible ? 'checked' : ''} onchange="window.toggleExtLayer('${id}')" style="margin:0 5px 0 0;"><input type="color" class="layer-color-picker" value="${ext.color}" onchange="window.changeExtLayerStyle('${id}', this.value, null)" title="Couleur"><input type="number" class="layer-weight-picker" value="${ext.weight || 4}" min="1" max="15" onchange="window.changeExtLayerStyle('${id}', null, this.value)" title="Épaisseur"><label for="loc-cbx-${id}" style="cursor:pointer; flex-grow:1; margin-left:8px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#34495e;">${ext.name}</label><button onclick="window.deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button></div>`;
             }
         };
 
@@ -602,7 +655,9 @@
         // 10. ASSEMBLAGE DES OUTILS ET INTERFACE PRINCIPALE
         // ==============================================================
         window.initAppUI = function() {
-            function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;} let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);} const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
+            let dTitle = document.getElementById('app-title'); if(dTitle) dTitle.style.display = 'block';
+
+            function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}; let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);} const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
             function generatePalette(arr, s = 0.7, l = 0.5) { let pal = {}; arr.forEach((item, i) => { pal[item] = hslToHex(i / arr.length, s, l); }); return pal; }
 
             let tSet = new Set(), rSet = new Set(), trSet = new Set(), pSet = new Set(), vSet = new Set(), mSet = new Set();
@@ -618,8 +673,7 @@
             });
 
             Array.from(tSet).sort().forEach((t, i) => { window.technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
-            window.repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); 
-            window.transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
+            window.repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); window.transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
 
             window.snowCannons.features.forEach(f => {
                 let typeLower = window.getV(f.properties, window.keyType).toLowerCase(); let color = "#FFD700";
@@ -677,8 +731,7 @@
             window.webcamsData.forEach(wc => {
                 let marker = L.marker([wc.lat, wc.lng], { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">📷</div>`, iconSize: [24,24], iconAnchor: [12,12] }) });
                 let popHtml = `<div style="text-align:center; min-width:200px;"><b>${wc.nom}</b><br><iframe src="${wc.url}" width="100%" height="150" style="border:none; border-radius:4px; margin-top:5px; background:#000;"></iframe></div>`;
-                marker.bindPopup(popHtml, {maxWidth: 300});
-                window.webcamLayerGroup.addLayer(marker);
+                marker.bindPopup(popHtml, {maxWidth: 300}); window.webcamLayerGroup.addLayer(marker);
             });
             window.webcamLayerGroup.addTo(window.map);
             
@@ -716,8 +769,7 @@
                     document.querySelectorAll('.radio-card').forEach(el => { el.style.borderBottomLeftRadius = '6px'; el.style.borderBottomRightRadius = '6px'; el.style.marginBottom = '8px'; el.style.borderColor = '#e1e8ed'; if(el.id === 'lbl-historique') el.style.borderColor = '#2ecc71'; });
                     let activeDetails = document.getElementById('details-' + window.mainTheme); let activeLabel = document.getElementById('lbl-' + window.mainTheme);
                     if (activeDetails && activeLabel) { activeDetails.style.display = 'block'; activeLabel.style.borderBottomLeftRadius = '0'; activeLabel.style.borderBottomRightRadius = '0'; activeLabel.style.marginBottom = '0'; if(window.mainTheme === 'historique') { activeLabel.style.borderColor = '#2ecc71'; } else { activeLabel.style.borderColor = '#3498db'; } }
-                    if(window.mainTheme === 'historique') window.calculateMaxes();
-                    window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
+                    if(window.mainTheme === 'historique') window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
                 });
             });
 
@@ -985,7 +1037,7 @@
             });
         };
 
-        // BOOT FORCE
+        // BOOT FORCE EN DERNIER RECOURS
         window.addEventListener('DOMContentLoaded', async () => {
             if(window.bootAttempt > 0) return;
             window.bootAttempt = 1;
@@ -1004,6 +1056,8 @@
 
             } catch (err) { window.showCrash(err.message, "Boot Principal"); }
         });
+        
+        setTimeout(() => { if(window.bootAttempt === 0) { window.document.dispatchEvent(new Event("DOMContentLoaded")); } }, 2000);
 
     </script>
 </body>
