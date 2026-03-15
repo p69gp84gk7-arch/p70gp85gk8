@@ -85,6 +85,13 @@
         .webcam-frame {width:100%;height:220px;border:none;background:#000;}
         
         @media(max-width:768px){#sidebar,#right-sidebar{width:85%;}#compare-modal{width:95%;}}
+        /* DESIGN POPUP WEBCAM PARFAIT */
+        .webcam-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 6px; background: #000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .webcam-popup .leaflet-popup-content { margin: 0; width: 320px !important; }
+        .webcam-popup .leaflet-popup-close-button { color: white !important; font-size: 18px; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border-radius: 50%; width: 24px; height: 24px; line-height: 24px; text-align: center; }
+        .webcam-popup-header { background: #2c3e50; color: white; padding: 10px; font-weight: bold; text-align: center; font-size: 13px; letter-spacing: 1px; }
+        .webcam-popup-body { padding: 0; background: #000; display: flex; justify-content: center; align-items: center; }
+        .webcam-popup-footer { padding: 8px; background: #fff; text-align: center; border-top: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -191,30 +198,72 @@
         window.getActiveTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
         window.getHistoryTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
 
-        // ==============================================================
-        // 2. WEBCAMS
+       // ==============================================================
+        // 2. GESTION DES WEBCAMS (GRILLE ET CARTE)
         // ==============================================================
         window.openWebcamGrid = function() {
-            let m = document.getElementById('webcam-modal'); 
-            let grid = document.getElementById('webcam-grid-content'); 
-            if(!m || !grid) return;
+            let m = document.getElementById('webcam-modal'); let grid = document.getElementById('webcam-grid-content'); if(!m || !grid) return;
             grid.innerHTML = "";
-            if(window.webcamsData.length === 0) { 
-                grid.innerHTML = "<p style='padding:20px;'>Aucune webcam trouvée ou configurée.</p>"; 
-            } else { 
+            if(window.webcamsData.length === 0) { grid.innerHTML = "<p style='padding:20px;'>Aucune webcam configurée.</p>"; } 
+            else { 
                 window.webcamsData.forEach(wc => { 
-                    // Détection intelligente : est-ce une image pure (.jpg) ou une page vidéo (iframe) ?
                     let isImage = wc.url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/) != null;
-                    let mediaHtml = isImage 
-                        ? `<img src="${wc.url}" style="width:100%; height:auto; display:block; object-fit:contain; background:#000;" loading="lazy" />` 
-                        : `<iframe src="${wc.url}" style="width:100%; aspect-ratio:16/9; border:none; background:#000; display:block;" allowfullscreen loading="lazy"></iframe>`;
-                        
+                    let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; height:auto; display:block;" loading="lazy" />` : `<iframe src="${wc.url}" style="width:100%; aspect-ratio:16/9; border:none; display:block;" allowfullscreen loading="lazy"></iframe>`;
                     grid.innerHTML += `<div class="webcam-card"><div class="webcam-card-title">${wc.nom}</div>${mediaHtml}</div>`; 
                 }); 
             }
             m.style.display = 'flex';
         };
+        
+        // LA VOICI ! La fonction de fermeture corrigée.
+        window.closeWebcamGrid = function() { 
+            let m = document.getElementById('webcam-modal'); if(m) m.style.display = 'none'; 
+            let grid = document.getElementById('webcam-grid-content'); if(grid) grid.innerHTML = ""; 
+        };
 
+        window.enableWebcamEdit = function(nom) {
+            window.webcamLayerGroup.eachLayer(marker => {
+                if(marker.wcData.nom === nom) {
+                    marker.dragging.enable(); // Active le glisser-déposer de l'icône !
+                    let popHtml = `
+                        <div style="padding:15px; text-align:center; background:white; color:#333;">
+                            <b style="color:#3498db; font-size:14px;">Mode Édition : ${nom}</b><br>
+                            <p style="font-size:11px; color:#555; margin:10px 0;">1. Glissez l'icône sur la carte.<br>2. Changez le logo si besoin :</p>
+                            <input type="text" id="edit-wc-icon-${nom.replace(/\s/g, '')}" value="${marker.wcData.icon}" style="width:50px; text-align:center; font-size:18px; padding:5px; border:1px solid #ccc; border-radius:4px; margin-bottom:10px;"><br>
+                            <button onclick="window.saveWebcamEdit('${nom.replace(/'/g, "\\'")}', this)" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">✅ Enregistrer</button>
+                        </div>
+                    `;
+                    marker.bindPopup(popHtml, {className: '', minWidth: 200}).openPopup();
+                }
+            });
+        };
+
+        window.saveWebcamEdit = async function(nom, btn) {
+            btn.innerText = "⏳..."; btn.disabled = true;
+            let markerToSave = null;
+            window.webcamLayerGroup.eachLayer(m => { if(m.wcData.nom === nom) markerToSave = m; });
+            if(!markerToSave) return;
+            
+            let newLat = markerToSave.getLatLng().lat.toFixed(7);
+            let newLng = markerToSave.getLatLng().lng.toFixed(7);
+            let inputIcon = document.getElementById(`edit-wc-icon-${nom.replace(/\s/g, '')}`);
+            let newIcon = inputIcon ? inputIcon.value : markerToSave.wcData.icon;
+
+            let payload = { action: "update_webcam", nom: nom, lat: parseFloat(newLat), lng: parseFloat(newLng), icon: newIcon };
+
+            try {
+                const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const result = await response.json();
+                if(result.status === "success") {
+                    markerToSave.dragging.disable();
+                    markerToSave.wcData.lat = payload.lat; markerToSave.wcData.lng = payload.lng; markerToSave.wcData.icon = payload.icon;
+                    // Mise à jour visuelle instantanée de l'icône
+                    markerToSave.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">${newIcon}</div>`, iconSize: [24,24], iconAnchor: [12,12] }));
+                    alert("✅ Position et Logo de "+nom+" enregistrés !");
+                    markerToSave.closePopup();
+                } else { alert("Erreur Google : " + result.msg); btn.innerText = "✅ Enregistrer"; btn.disabled = false; }
+            } catch(e) { alert("Échec réseau."); btn.innerText = "✅ Enregistrer"; btn.disabled = false; }
+        };
         // ==============================================================
         // 3. UI: BOUTONS CARTE & SIDEBAR
         // ==============================================================
