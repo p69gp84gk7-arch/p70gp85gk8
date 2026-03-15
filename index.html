@@ -2,11 +2,11 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GMAO Neige - Mode Expert BI</title>
+    <title>GMAO Neige - Expert BI</title>
     <script>
         window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; document.getElementById('loading-spinner').style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('loading-desc')) document.getElementById('loading-desc').style.display='none'; if(document.getElementById('loading-step')) document.getElementById('loading-step').style.display='none'; document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } else alert("🛑 CRASH : "+msg); };
         window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
-        window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau bloquée", "Réseau/Promesse"); });
+        window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
     </script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -54,12 +54,11 @@
         .custom-cannon-icon{background:none;border:none;}
         .cannon-circle{border-radius:50%;color:white;font-weight:bold;text-align:center;text-shadow:1px 1px 2px rgba(0,0,0,0.8);box-sizing:border-box;box-shadow:0 3px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
         .cannon-circle:hover{transform:scale(1.2);z-index:1000 !important;cursor:pointer;}
-        .camera-icon{font-size:22px;text-shadow:2px 2px 4px rgba(0,0,0,0.8);text-align:center;line-height:24px;cursor:pointer;}
+        .camera-icon{font-size:24px;text-shadow:2px 2px 4px rgba(0,0,0,0.8);text-align:center;line-height:24px;cursor:pointer;}
         #map-controls-tr{position:absolute;top:15px;right:15px;z-index:1000;display:flex;gap:10px;flex-direction:column;align-items:flex-end;}
         .map-btn{background:white;border:2px solid rgba(0,0,0,0.2);padding:10px 15px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.3);transition:0.3s;font-size:13px;}
         .map-btn.active{background:#3498db;color:white;border-color:#2980b9;}
-        /* PANNEAU DROIT ELARGI A 500PX POUR LA VIDEO */
-        #right-sidebar{position:absolute;top:50px;right:0;bottom:0;width:500px;background:#fff;z-index:2001;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);box-shadow:-5px 0 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+        #right-sidebar{position:absolute;top:50px;right:0;bottom:0;width:450px;background:#fff;z-index:2001;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);box-shadow:-5px 0 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
         #right-sidebar.open{transform:translateX(0);}
         .right-header{background:#fff;border-bottom:1px solid #eee;padding:20px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;color:#2c3e50;}
         .right-content{padding:20px;overflow-y:auto;flex-grow:1;background:#f9fbfc;}
@@ -81,6 +80,20 @@
         .kml-layer-item{display:flex;align-items:center;background:#fff;padding:8px;border:1px solid #ddd;border-radius:4px;margin-bottom:8px;font-size:12px;font-weight:bold;}
         .layer-color-picker{width:24px;height:24px;padding:0;border:none;}
         .layer-weight-picker{width:35px;height:22px;padding:2px;border:1px solid #ccc;text-align:center;margin-left:5px;}
+        #webcam-modal {display:none;position:fixed;top:65px;left:50%;transform:translateX(-50%);width:95%;max-width:1200px;height:calc(100vh - 80px);background:#f4f6f8;z-index:9000;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,0.5);flex-direction:column;}
+        .webcam-header {background:#2c3e50;color:white;padding:15px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;border-radius:8px 8px 0 0;}
+        .webcam-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;padding:20px;overflow-y:auto;}
+        .webcam-card {background:white;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow:hidden;}
+        .webcam-card-title {background:#34495e;color:white;padding:10px;font-size:14px;text-align:center;}
+        
+        /* DESIGN POPUP WEBCAM PARFAIT */
+        .webcam-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 6px; background: #000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .webcam-popup .leaflet-popup-content { margin: 0; width: 320px !important; }
+        .webcam-popup .leaflet-popup-close-button { color: white !important; font-size: 18px; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border-radius: 50%; width: 24px; height: 24px; line-height: 24px; text-align: center; }
+        .webcam-popup-header { background: #2c3e50; color: white; padding: 10px; font-weight: bold; text-align: center; font-size: 13px; letter-spacing: 1px; }
+        .webcam-popup-body { padding: 0; background: #000; display: flex; justify-content: center; align-items: center; }
+        .webcam-popup-footer { padding: 8px; background: #fff; text-align: center; border-top: 1px solid #ddd; }
+        
         @media(max-width:768px){#sidebar,#right-sidebar{width:100%;}#compare-modal{width:95%;}}
     </style>
 </head>
@@ -89,15 +102,17 @@
     <div id="loading-overlay"><div class="spinner" id="loading-spinner"></div><h2 style="color:#3498db; margin:0;" id="loading-title">Démarrage...</h2><p style="color:#888; font-size:12px;" id="loading-step"></p><div id="error-box"><p id="error-msg"></p></div></div>
 
     <div id="topbar">
-        <div style="display:flex; align-items:center;">
-            <button class="topbar-btn" style="margin-left:0;" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">☰ Menu</button>
-        </div>
-        <div style="color:white; font-weight:bold; font-size:16px; letter-spacing:1px; display:none;" id="app-title">GMAO NEIGE</div>
+        <div style="display:flex; align-items:center;"><button class="topbar-btn" style="margin-left:0;" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">☰ Menu</button></div>
         <div style="display:flex; align-items:center;">
             <button class="topbar-btn" onclick="window.openWebcamGrid()">📷 Webcams</button>
             <button class="topbar-btn" onclick="window.toggleRightSidebar()">📊 Tableau de Bord</button>
             <button id="btn-multi-toggle" class="topbar-btn" onclick="window.toggleMultiSelect()">🔲 Sélec. Multiple : OFF</button>
         </div>
+    </div>
+
+    <div id="webcam-modal">
+        <div class="webcam-header"><span>📷 Direct Webcams</span><button onclick="window.closeWebcamGrid()" style="background:none;border:none;color:white;cursor:pointer;font-size:24px;">&times;</button></div>
+        <div class="webcam-grid" id="webcam-grid-content"></div>
     </div>
 
     <div id="compare-modal">
@@ -135,8 +150,10 @@
                 </div>
             </details>
             <details class="panel-section" open><summary>Filtres Rapides</summary><div class="section-content" style="padding-top: 5px;">
-                <b style="font-size:12px;">Pistes :</b><div class="checkbox-list" id="piste-checkboxes"></div>
-                <b style="font-size:12px;">Type Canon :</b><div class="checkbox-list" id="type-checkboxes"></div>
+                <b style="font-size:12px;">Pistes :</b><div class="checkbox-list"><label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes</b></label><div id="individual-pistes"></div></div>
+                <b style="font-size:12px;">Type Canon :</b><div class="checkbox-list"><label><input type="checkbox" id="check-all-types" checked> <b>Tous</b></label><div id="individual-types"></div></div>
+                <b style="font-size:12px;">Vanne :</b><div class="checkbox-list"><label><input type="checkbox" id="check-all-vannes" checked> <b>Toutes</b></label><div id="individual-vannes"></div></div>
+                <b style="font-size:12px;">Module :</b><div class="checkbox-list"><label><input type="checkbox" id="check-all-modules" checked> <b>Tous</b></label><div id="individual-modules"></div></div>
                 <hr style="margin:10px 0; border-top:1px dashed #ccc;">
                 <b style="font-size:12px;">Filtre Personnalisé :</b><div id="dynamic-filters-container"></div>
             </div></details>
@@ -153,7 +170,7 @@
                     <div id="selected-list"></div>
                 </div>
                 <div id="view-edit" style="display:none;">
-                    <div style="background:#fff3cd; padding:12px; border-radius:6px; margin-bottom:15px; border:1px solid #ffeeba;"><label style="color:#856404; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="allow-move-chk"> Autoriser le déplacement GPS</label></div>
+                    <div style="background:#fff3cd; padding:12px; border-radius:6px; margin-bottom:15px; border:1px solid #ffeeba;"><label style="color:#856404; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="allow-move-chk"> Autoriser déplacement GPS</label></div>
                     <h3 style="margin-top:0; color:#3498db; border-bottom:2px solid #eee; padding-bottom:10px;">Édition Canon <span id="edit-id-display"></span></h3>
                     <input type="hidden" id="edit-id">
                     <div style="display:flex; gap:10px; margin-bottom: 15px;"><div style="flex:1;"><div class="edit-label">Latitude</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input" style="background:#fdfdfd;"></div><div style="flex:1;"><div class="edit-label">Longitude</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input" style="background:#fdfdfd;"></div></div>
@@ -163,7 +180,6 @@
             </div>
         </div>
     </div>
-
     <script>
         // ⚠️ LIEN GOOGLE APPS SCRIPT (À VÉRIFIER) ⚠️
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
@@ -175,37 +191,36 @@
         window.mainTheme = 'defauts'; window.histMetric = 'eau'; window.histSeasonIdx = 0;
         window.absoluteMaxes = { eau: 0, air: 0, temps: 0 }; window.currentMaxThreshold = { eau: 100, air: 100, temps: 100 }; window.currentMinThreshold = { eau: 0, air: 0, temps: 0 };
         window.activeFilters = [ {key:"", vals:[]} ]; 
-        window.currentPistes = ['all']; window.currentTypes = ['all'];
+        window.currentPistes = ['all']; window.currentTypes = ['all']; window.currentVannes = ['all']; window.currentModules = ['all'];
         window.geojsonLayer = null; window.webcamLayerGroup = null; window.chartInstances = {}; window.selectedCannonsMap = new Map(); window.currentlyEditingId = null; 
         window.technoColors = {}; window.repColors = {}; window.transfoColors = {}; window.externalLayers = {}; 
         window.defaultColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
-        window.keyPiste = ""; window.keyType = ""; window.keyRep = ""; window.keyTransfo = "";
+        window.keyPiste = ""; window.keyType = ""; window.keyRep = ""; window.keyTransfo = ""; window.keyVanne = ""; window.keyModule = "";
         window.localDB = null; window.bootAttempt = 0; window.tempTicketPayloads = {};
 
-        // === UTILITAIRES ===
         window.getV = function(p, key) { if(!key || !p || !p.fullData) return "N/A"; let o = p.fullData.find(x => x.k === key); return o ? o.v.toString().trim() : "N/A"; };
         window.getTicketsForCanon = function(idCanon) { return window.rawTickets.filter(t => t.idCanon === idCanon); };
         window.getActiveTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
         window.getHistoryTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
 
-        // === GESTION WEBCAMS ===
+        // === WEBCAMS ===
         window.openWebcamGrid = function() {
-            let sb = document.getElementById('right-sidebar'); let rt = document.getElementById('right-title'); let sl = document.getElementById('selected-list');
-            if(!sb || !sl) return; if(rt) rt.innerText = "📷 Toutes les Caméras";
-            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'none';
-            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
-            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block';
-
-            let html = "<div style='display:flex; flex-direction:column; gap:15px;'>";
-            if(window.webcamsData.length === 0) { html += "<p>Aucune caméra configurée.</p>"; }
+            let m = document.getElementById('webcam-modal'); let grid = document.getElementById('webcam-grid-content'); if(!m || !grid) return;
+            grid.innerHTML = "";
+            if(window.webcamsData.length === 0) { grid.innerHTML = "<p style='padding:20px;'>Aucune caméra configurée.</p>"; }
             else {
                 window.webcamsData.forEach(wc => {
                     let isImage = wc.url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/) != null;
-                    let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; border-radius:4px; background:#000;" loading="lazy" />` : `<iframe src="${wc.url}" style="width:100%; aspect-ratio:16/9; border:none; border-radius:4px; background:#000;" allowfullscreen loading="lazy"></iframe>`;
-                    html += `<div style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #eee;"><div style="font-weight:bold; margin-bottom:8px; color:#2c3e50;">${wc.nom}</div>${mediaHtml}<button onclick="window.enableWebcamEdit('${wc.nom.replace(/'/g, "\\'")}')" style="margin-top:8px; background:#f39c12; color:white; border:none; padding:6px; border-radius:4px; font-size:11px; cursor:pointer;">✏️ Éditer position/logo</button></div>`;
+                    let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; height:200px; object-fit:cover; display:block;" loading="lazy" />` : `<iframe src="${wc.url}" style="width:100%; height:200px; border:none; display:block;" allowfullscreen loading="lazy"></iframe>`;
+                    grid.innerHTML += `<div class="webcam-card"><div class="webcam-card-title">${wc.nom}</div>${mediaHtml}</div>`;
                 });
             }
-            html += "</div>"; sl.innerHTML = html; sb.classList.add('open');
+            m.style.display = 'flex';
+        };
+
+        window.closeWebcamGrid = function() { 
+            let m = document.getElementById('webcam-modal'); if(m) m.style.display = 'none'; 
+            let grid = document.getElementById('webcam-grid-content'); if(grid) grid.innerHTML = ""; 
         };
 
         window.openSingleWebcam = function(nom) {
@@ -217,7 +232,8 @@
             let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block';
 
             let isImage = wc.url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/) != null;
-            let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; border-radius:4px; background:#000;" />` : `<iframe src="${wc.url}" style="width:100%; aspect-ratio:16/9; border:none; border-radius:4px; background:#000;" allowfullscreen></iframe>`;
+            let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; height:180px; object-fit:contain; background:#000; border-radius:4px;" />` : `<iframe src="${wc.url}" style="width:100%; height:180px; border:none; border-radius:4px; background:#000;" allowfullscreen></iframe>`;
+            
             sl.innerHTML = `<div style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #eee;">${mediaHtml}<button onclick="window.enableWebcamEdit('${wc.nom.replace(/'/g, "\\'")}')" style="margin-top:15px; width:100%; background:#f39c12; color:white; border:none; padding:10px; border-radius:4px; font-size:13px; cursor:pointer; font-weight:bold;">✏️ Déplacer ou changer le logo</button></div>`;
             sb.classList.add('open');
         };
@@ -250,8 +266,8 @@
 
         // === UI ACTIONS ===
         window.toggleRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(!sb) return; if(sb.classList.contains('open')) { sb.classList.remove('open'); } else { sb.classList.add('open'); if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) { window.triggerGlobalFilterChart(); } else { window.renderSelectionPanel(); } } };
-        window.toggleMultiSelect = function() { window.isMultiSelect = !window.isMultiSelect; const btn = document.getElementById('btn-multi-toggle'); if(!btn) return; if(window.isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Multi-Sélection : ACTIVÉE"; btn.style.background = "#3498db"; } else { btn.classList.remove('active'); btn.innerText = "🔲 Sélec. Multiple : OFF"; btn.style.background = "rgba(255,255,255,0.1)"; if(window.selectedCannonsMap.size > 1) window.clearSelection(); } window.renderSelectionPanel(); };
-        window.closeRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.remove('open'); window.webcamLayerGroup.eachLayer(m => m.dragging.disable()); };
+        window.toggleMultiSelect = function() { window.isMultiSelect = !window.isMultiSelect; const btn = document.getElementById('btn-multi-toggle'); if(!btn) return; if(window.isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Sélec. Multiple : ON"; btn.style.background = "#3498db"; } else { btn.classList.remove('active'); btn.innerText = "🔲 Sélec. Multiple : OFF"; btn.style.background = "rgba(255,255,255,0.1)"; if(window.selectedCannonsMap.size > 1) window.clearSelection(); } window.renderSelectionPanel(); };
+        window.closeRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.remove('open'); if(window.webcamLayerGroup) window.webcamLayerGroup.eachLayer(m => m.dragging.disable()); };
         window.clearSelection = function() { window.selectedCannonsMap.clear(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); };
         window.cancelEdit = function() { window.currentlyEditingId = null; let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none'; let rh = document.getElementById('right-header'); if(rh) rh.classList.remove('editing'); let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📌 Fiche Détaillée"; window.updateMap(); window.renderSelectionPanel(); };
 
@@ -291,7 +307,6 @@
             });
         };
 
-        // SURBRILLANCE LEGENDE ET UPDATE MAP (RESTAURÉS)
         window.highlightLegend = function(theme, val) {
             if (theme === 'historique') return; if(!window.geojsonLayer) return;
             window.geojsonLayer.eachLayer(function(layer) {
@@ -306,36 +321,7 @@
 
         window.resetHighlight = function() { if(!window.geojsonLayer) return; window.geojsonLayer.eachLayer(function(layer) { layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = "1"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }); window.updateMap(); };
 
-        window.updateMap = function() {
-            if(!window.geojsonLayer) return;
-            let s = window.saisonsList[window.histSeasonIdx];
-            window.geojsonLayer.eachLayer(function(layer) {
-                const p = layer.feature.properties; let vis = true;
-                if (window.currentPistes && !window.currentPistes.includes('all')) { if (!window.currentPistes.includes(window.getV(p, window.keyPiste))) vis = false; }
-                if (window.currentTypes && !window.currentTypes.includes('all')) { if (!window.currentTypes.includes(window.getV(p, window.keyType).toLowerCase())) vis = false; }
-                window.activeFilters.forEach(filt => { if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; } });
-                let val = 0;
-                if (window.mainTheme === 'historique') {
-                    val = p.historique[s] ? p.historique[s][window.histMetric] : 0;
-                    if (val < window.currentMinThreshold[window.histMetric] || val > window.currentMaxThreshold[window.histMetric]) vis = false;
-                }
-                if (!vis) {
-                    p._isVisible = false; if (window.map.hasLayer(layer)) window.map.removeLayer(layer);
-                } else {
-                    p._isVisible = true; if (!window.map.hasLayer(layer)) window.map.addLayer(layer);
-                    let rad = 12; let ratio = 0;
-                    if (window.mainTheme === 'historique') { let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
-                    let bg = window.getColorByFilter(ratio, p); let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
-                    let isSel = window.selectedCannonsMap.has(p.id); let isEdit = (window.currentlyEditingId === p.id);
-                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); } else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); } else { layer.setZIndexOffset(0); }
-                    let actClass = (window.mainTheme === 'defauts' && window.getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
-                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
-                    layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = '1'; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
-                }
-            });
-        };
-
-        // === EDITEUR TICKETS COMPLET ===
+        // === EDITEUR TICKETS ===
         window.editFullTicket = function(canonId, defaut) {
             let safeDef = defaut.replace(/[^a-zA-Z0-9]/g, ""); let idDiv = `ticket-edit-${canonId}-${safeDef}`; let el = document.getElementById(idDiv); if(!el) return;
             let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut); if(!ticket) return;
@@ -659,14 +645,20 @@
             function hslToHex(h,s,l){let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}; let q=l<0.5?l*(1+s):l+s-l*s;let p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);} const toHex=x=>{const hex=Math.round(x*255).toString(16);return hex.length===1?'0'+hex:hex;};return `#${toHex(r)}${toHex(g)}${toHex(b)}`;}
             function generatePalette(arr, s = 0.7, l = 0.5) { let pal = {}; arr.forEach((item, i) => { pal[item] = hslToHex(i / arr.length, s, l); }); return pal; }
 
-            let tSet = new Set(); let pSet = new Set();
+            let tSet = new Set(), rSet = new Set(), trSet = new Set(), pSet = new Set(), vSet = new Set(), mSet = new Set();
+            
             window.snowCannons.features.forEach(f => {
                 let p = f.properties;
                 let t = window.getV(p, window.keyType); if(t!=="N/A") tSet.add(t.toLowerCase()); 
+                let r = window.getV(p, window.keyRep); if(r!=="N/A") rSet.add(r); 
+                let tr = window.getV(p, window.keyTransfo); if(tr!=="N/A") trSet.add(tr); 
                 let pi = window.getV(p, window.keyPiste); if(pi!=="N/A") pSet.add(pi);
+                let va = window.getV(p, window.keyVanne); if(va!=="N/A") vSet.add(va);
+                let mo = window.getV(p, window.keyModule); if(mo!=="N/A") mSet.add(mo);
             });
 
             Array.from(tSet).sort().forEach((t, i) => { window.technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
+            window.repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); window.transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
 
             window.snowCannons.features.forEach(f => {
                 let typeLower = window.getV(f.properties, window.keyType).toLowerCase(); let color = "#FFD700";
@@ -687,7 +679,7 @@
             if (window.saisonsList.length > 0 && sld) { sld.max = window.saisonsList.length - 1; sld.value = window.histSeasonIdx; let sdisp = document.getElementById('season-display'); if(sdisp) sdisp.innerText = window.saisonsList[window.histSeasonIdx]; }
 
             function buildCbs(id, set, cls) { const c = document.getElementById(id); if(!c) return; c.innerHTML = ''; [...set].sort().forEach(v => { let l=document.createElement('label'); let cb=document.createElement('input'); cb.type='checkbox'; cb.className=cls; cb.value=v; l.appendChild(cb); l.appendChild(document.createTextNode(' '+v)); c.appendChild(l); }); }
-            buildCbs('individual-pistes', pSet, 'piste-cb'); buildCbs('individual-types', tSet, 'type-cb');
+            buildCbs('individual-pistes', pSet, 'piste-cb'); buildCbs('individual-types', tSet, 'type-cb'); buildCbs('individual-vannes', vSet, 'vanne-cb'); buildCbs('individual-modules', mSet, 'module-cb');
 
             function setupCbs(allId, cls, cbk) { 
                 const aBtn = document.getElementById(allId); if(!aBtn) return;
@@ -696,7 +688,9 @@
                 cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) aBtn.checked=false; else if(Array.from(cbs).every(x=>!x.checked)) aBtn.checked=true; cbk(getVals()); })); 
             }
             setupCbs('check-all-pistes', 'piste-cb', vals => { window.currentPistes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
-            setupCbs('check-all-types', 'type-cb', vals => { window.currentTypes = vals; window.updateMap(); window.triggerGlobalFilterChart(); });
+            setupCbs('check-all-types', 'type-cb', vals => { window.currentTypes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
+            setupCbs('check-all-vannes', 'vanne-cb', vals => { window.currentVannes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
+            setupCbs('check-all-modules', 'module-cb', vals => { window.currentModules = vals; window.updateMap(); window.triggerGlobalFilterChart(); });
 
             window.generateDynamicFiltersUI(); window.renderCloudLayersList(); window.calculateMaxes();
 
@@ -713,7 +707,7 @@
                         let sb = document.getElementById('right-sidebar'); if (window.selectedCannonsMap.size > 0 && sb) sb.classList.add('open');
                     });
                 }
-            }).addTo(map);
+            }).addTo(window.map);
 
             if (window.snowCannons.features.length > 0) { let bounds = window.geojsonLayer.getBounds(); if(bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] }); }
 
@@ -730,6 +724,33 @@
             window.webcamLayerGroup.addTo(window.map);
             
             window.attachEvents(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
+        };
+
+        window.getColorByFilter = function(ratio, props) {
+            const inter = (c1,c2,f) => { let r=c1.slice(); for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`;};
+            if (window.mainTheme === 'defauts') { let act = window.getActiveTickets(props.id); if (act.length === 0) return '#bdc3c7'; if (act.some(t => t.statut.includes('faire'))) return '#e74c3c'; return '#f39c12'; }
+            if (window.mainTheme === 'historique') { if (window.histMetric === 'eau') return inter([173,216,230], [41,128,185], ratio); if (window.histMetric === 'air') return inter([250,219,94], [211,84,0], ratio); if (window.histMetric === 'temps') return inter([171,235,198], [39,174,96], ratio); }
+            if (window.mainTheme === 'repeteur') return window.repColors[window.getV(props, window.keyRep)] || '#7f8c8d';
+            if (window.mainTheme === 'transfo') return window.transfoColors[window.getV(props, window.keyTransfo)] || '#7f8c8d';
+            let typeVal = window.getV(props, window.keyType).toLowerCase();
+            if (["demak lenko", "demac lenko"].includes(typeVal)) return "#0000FF";
+            if (["sufag", "street", "taurus", "taurax", "peak"].includes(typeVal)) return "#008000";
+            return window.technoColors[typeVal] || "#FFD700";
+        };
+
+        window.updateLegend = function() {
+            let elDef = document.getElementById('legend-defauts');
+            if (window.mainTheme === 'defauts' && elDef) { elDef.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'urgent')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'encours')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'ras')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;}
+            else if (window.mainTheme === 'type') { let elTy = document.getElementById('legend-type'); if(elTy) elTy.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('type', 'demac')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'sufag')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #008000;"></div> Sufag / Peak</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'techno')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: linear-gradient(to right, #f1c40f, #e67e22);"></div> Technoalpin</div>`;}
+            else if (window.mainTheme === 'repeteur') { let h=''; Object.keys(window.repColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('repeteur', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.repColors[k]};"></div> Répéteur ${k}</div>`); let elRep = document.getElementById('legend-repeteur'); if(elRep) elRep.innerHTML = h;}
+            else if (window.mainTheme === 'transfo') { let h=''; Object.keys(window.transfoColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('transfo', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.transfoColors[k]};"></div> Transfo ${k}</div>`); let elTr = document.getElementById('legend-transfo'); if(elTr) elTr.innerHTML = h;}
+            else if (window.mainTheme === 'historique') {
+                let hL = document.getElementById('legend-historique');
+                if(!hL) return;
+                if (window.histMetric === 'eau') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #add8e6, #2980b9);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`;
+                else if (window.histMetric === 'air') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
+                else if (window.histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
+            }
         };
 
         window.generateDynamicFiltersUI = function() {
@@ -806,7 +827,7 @@
         window.triggerGlobalFilterChart = function() {
             if (window.selectedCannonsMap.size > 0 || window.currentlyEditingId) return;
             let hasDyn = window.activeFilters.some(f => f.key && f.vals.length > 0 && !f.vals.includes('all'));
-            let hasStat = !window.currentPistes.includes('all') || !window.currentTypes.includes('all');
+            let hasStat = !window.currentPistes.includes('all') || !window.currentTypes.includes('all') || !window.currentVannes.includes('all') || !window.currentModules.includes('all');
             
             let visibleCannons = window.snowCannons.features.filter(f => f.properties._isVisible);
             let html = `<div style="background:#eafaf1; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px; border:1px solid #d5f5e3;"><span style="font-size:24px; font-weight:bold; color:#27ae60;">${visibleCannons.length}</span><br><span style="font-size:12px; color:#555; text-transform:uppercase;">Canons affichés</span></div>`;
@@ -874,7 +895,6 @@
                 }
             }
 
-            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'flex';
             let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; 
             let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
             let sl = document.getElementById('selected-list'); if(sl) sl.innerHTML = html; 
@@ -885,32 +905,6 @@
                 window.chartInstances['global-filter-chart'] = new Chart(ctx.getContext('2d'), { type: chartType, data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors, borderRadius: chartType==='bar'?4:0 }] }, options: chartOptions });
             }, 50);
         };
-        window.getColorByFilter = function(ratio, props) {
-            const inter = (c1,c2,f) => { let r=c1.slice(); for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`;};
-            if (window.mainTheme === 'defauts') { let act = window.getActiveTickets(props.id); if (act.length === 0) return '#bdc3c7'; if (act.some(t => t.statut.includes('faire'))) return '#e74c3c'; return '#f39c12'; }
-            if (window.mainTheme === 'historique') { if (window.histMetric === 'eau') return inter([173,216,230], [41,128,185], ratio); if (window.histMetric === 'air') return inter([250,219,94], [211,84,0], ratio); if (window.histMetric === 'temps') return inter([171,235,198], [39,174,96], ratio); }
-            if (window.mainTheme === 'repeteur') return window.repColors[window.getV(props, window.keyRep)] || '#7f8c8d';
-            if (window.mainTheme === 'transfo') return window.transfoColors[window.getV(props, window.keyTransfo)] || '#7f8c8d';
-            let typeVal = window.getV(props, window.keyType).toLowerCase();
-            if (["demak lenko", "demac lenko"].includes(typeVal)) return "#0000FF";
-            if (["sufag", "street", "taurus", "taurax", "peak"].includes(typeVal)) return "#008000";
-            return window.technoColors[typeVal] || "#FFD700";
-        };
-
-        window.updateLegend = function() {
-            let elDef = document.getElementById('legend-defauts');
-            if (window.mainTheme === 'defauts' && elDef) { elDef.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'urgent')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'encours')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'ras')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;}
-            else if (window.mainTheme === 'type') { let elTy = document.getElementById('legend-type'); if(elTy) elTy.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('type', 'demac')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'sufag')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #008000;"></div> Sufag / Peak</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'techno')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: linear-gradient(to right, #f1c40f, #e67e22);"></div> Technoalpin</div>`;}
-            else if (window.mainTheme === 'repeteur') { let h=''; Object.keys(window.repColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('repeteur', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.repColors[k]};"></div> Répéteur ${k}</div>`); let elRep = document.getElementById('legend-repeteur'); if(elRep) elRep.innerHTML = h;}
-            else if (window.mainTheme === 'transfo') { let h=''; Object.keys(window.transfoColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('transfo', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.transfoColors[k]};"></div> Transfo ${k}</div>`); let elTr = document.getElementById('legend-transfo'); if(elTr) elTr.innerHTML = h;}
-            else if (window.mainTheme === 'historique') {
-                let hL = document.getElementById('legend-historique');
-                if(!hL) return;
-                if (window.histMetric === 'eau') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #add8e6, #2980b9);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`;
-                else if (window.histMetric === 'air') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
-                else if (window.histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
-            }
-        };
 
         window.updateMap = function() {
             if(!window.geojsonLayer) return;
@@ -918,14 +912,11 @@
 
             window.geojsonLayer.eachLayer(function(layer) {
                 const p = layer.feature.properties; let vis = true;
-                
                 if (window.currentPistes && !window.currentPistes.includes('all')) { if (!window.currentPistes.includes(window.getV(p, window.keyPiste))) vis = false; }
                 if (window.currentTypes && !window.currentTypes.includes('all')) { if (!window.currentTypes.includes(window.getV(p, window.keyType).toLowerCase())) vis = false; }
 
                 window.activeFilters.forEach(filt => {
-                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) {
-                        let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false;
-                    }
+                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; }
                 });
 
                 let val = 0;
