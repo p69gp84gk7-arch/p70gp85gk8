@@ -347,34 +347,50 @@
 
             let globalType = document.getElementById('bi-type').value;
             let isCombo = (globalType === 'combo');
-            let isPie = (globalType === 'pie');
+            let isPie = (globalType === 'pie' || globalType === 'doughnut' || globalType === 'polarArea');
+            let isRadar = (globalType === 'radar');
             let showPoints = document.getElementById('bi-points').checked;
             
             let idxX = parseInt(document.getElementById('bi-x').value);
+            
+            // Filtre optionnel
+            let filtCol = document.getElementById('bi-filter-col').value;
+            let filtValRaw = document.getElementById('bi-filter-val').value.trim();
+            
             let yCbx = document.querySelectorAll('.bi-y-cbx:checked');
             if(yCbx.length === 0) return;
 
-            // Récupération des configurations pour chaque axe Y coché
+            // Récupération des configurations
             let yConfigs = Array.from(yCbx).map(cb => {
                 let i = cb.value; let parent = document.getElementById(`bi-opts-${i}`);
                 return {
                     idx: parseInt(i),
                     label: data[0][i],
                     agg: parent.querySelector('.bi-y-agg').value, // 'sum' ou 'count'
-                    type: isCombo ? parent.querySelector('.bi-y-type').value : (isPie ? 'pie' : globalType),
-                    axis: isPie ? 'y' : parent.querySelector('.bi-y-axis').value,
-                    color: parent.querySelector('.bi-y-color').value
+                    type: isCombo ? parent.querySelector('.bi-y-type').value : (isPie ? globalType : globalType),
+                    axis: isPie || isRadar ? 'y' : parent.querySelector('.bi-y-axis').value,
+                    color: parent.querySelector('.bi-y-color').value,
+                    uniqueValues: new Set() // Pour stocker les catégories de texte !
                 };
             });
 
-            // MOTEUR D'AGRÉGATION INTELLIGENT
+            // MOTEUR D'AGRÉGATION AVANCÉ (Catégorisation Texte)
             let grouped = {};
             for(let r=1; r<data.length; r++) {
                 let row = data[r]; let rawX = row[idxX];
                 if(rawX == null || rawX === "") continue;
                 
+                // Application du Filtre
+                if(filtCol !== "" && filtValRaw !== "") {
+                    let cellVal = (row[filtCol] || "").toString().toLowerCase();
+                    let fVal = filtValRaw.toLowerCase();
+                    if (fVal.startsWith('>')) { if(parseFloat(cellVal) <= parseFloat(fVal.substring(1))) continue; }
+                    else if (fVal.startsWith('<')) { if(parseFloat(cellVal) >= parseFloat(fVal.substring(1))) continue; }
+                    else if (fVal.startsWith('=')) { if(cellVal !== fVal.substring(1).trim()) continue; }
+                    else { if(!cellVal.includes(fVal)) continue; }
+                }
+
                 let strX = rawX.toString().trim();
-                // Formatage intelligent des dates
                 if(strX.length >= 10 && !isNaN(Date.parse(strX))) strX = new Date(strX).toLocaleDateString('fr-FR');
                 
                 if(!grouped[strX]) grouped[strX] = {};
@@ -382,77 +398,121 @@
                 yConfigs.forEach(cfg => {
                     let val = row[cfg.idx];
                     if(cfg.agg === 'count') {
-                        // On compte chaque case non vide (idéal pour compter les pannes/textes)
-                        if(val != null && val.toString().trim() !== "") {
-                            grouped[strX][cfg.idx] = (grouped[strX][cfg.idx] || 0) + 1;
-                        } else {
-                            grouped[strX][cfg.idx] = (grouped[strX][cfg.idx] || 0);
-                        }
+                        // SÉPARATION DES TEXTES : On extrait la valeur texte exacte pour la catégoriser
+                        let textVal = (val != null && val.toString().trim() !== "") ? val.toString().trim() : "Non spécifié";
+                        if (!grouped[strX][cfg.idx]) grouped[strX][cfg.idx] = {};
+                        grouped[strX][cfg.idx][textVal] = (grouped[strX][cfg.idx][textVal] || 0) + 1;
+                        cfg.uniqueValues.add(textVal);
                     } else {
-                        // On additionne les valeurs chiffrées
+                        // SOMME NUMÉRIQUE CLASSIQUE
                         let num = parseFloat(val) || 0;
                         grouped[strX][cfg.idx] = (grouped[strX][cfg.idx] || 0) + num;
                     }
                 });
             }
 
-            // Tri de l'axe X (Gère les nombres et le texte)
+            // Tri de l'axe X (Mixte: nombres et textes)
             let labels = Object.keys(grouped).sort((a,b) => {
                 let na = parseFloat(a), nb = parseFloat(b);
                 if(!isNaN(na) && !isNaN(nb)) return na - nb;
                 return a.localeCompare(b);
             });
 
-            let datasets = yConfigs.map(cfg => {
-                let datasetData = labels.map(k => grouped[k][cfg.idx] || 0);
-                
-                // Couleurs dynamiques pour le camembert
-                let bgColorsArray = [];
-                if (isPie) {
-                    const pieColors = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
-                    bgColorsArray = labels.map((_, i) => pieColors[i % pieColors.length]);
-                }
+            // Palettes de couleurs
+            let paletteChoice = document.getElementById('bi-palette').value;
+            let pDef = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e', '#7f8c8d', '#FF69B4', '#16A085', '#D35400'];
+            let pCold = ['#81D4FA', '#26C6DA', '#00BCD4', '#00ACC1', '#0097A7', '#00838F', '#006064'];
+            let pWarm = ['#FFD54F', '#FFCA28', '#FFC107', '#FFB300', '#FFA000', '#FF8F00', '#FF6F00', '#E65100'];
+            let pMono = ['#1A252C', '#2C3E50', '#34495E', '#5D6D7E', '#7F8C8D', '#95A5A6', '#BDC3C7'];
+            let colors = paletteChoice === 'cold' ? pCold : (paletteChoice === 'warm' ? pWarm : (paletteChoice === 'mono' ? pMono : pDef));
 
-                return {
-                    label: cfg.label,
-                    type: cfg.type,
-                    data: datasetData,
-                    backgroundColor: isPie ? bgColorsArray : (cfg.type === 'line' ? cfg.color+'33' : cfg.color),
-                    borderColor: isPie ? '#fff' : cfg.color,
-                    borderWidth: cfg.type === 'bar' ? 0 : 2,
-                    fill: cfg.type === 'line',
-                    yAxisID: cfg.axis, // Affectation à l'Axe Gauche ou Droit
-                    tension: 0.3,
-                    pointRadius: showPoints ? 4 : 0,
-                    pointHoverRadius: 6
-                };
+            let datasets = [];
+            let colorIndex = 0;
+
+            yConfigs.forEach((cfg) => {
+                let finalType = isCombo ? cfg.type : (isRadar ? 'radar' : globalType);
+                let isLineType = (finalType === 'line' || finalType === 'radar');
+
+                if (cfg.agg === 'count' && cfg.uniqueValues.size > 0) {
+                    // CRÉATION DE MULTIPLES DATASETS : Un par valeur texte unique !
+                    let sortedCats = Array.from(cfg.uniqueValues).sort();
+                    
+                    sortedCats.forEach(cat => {
+                        if(cat === "Non spécifié" && sortedCats.length > 1) return; // masque les cases vides si d'autres données existent
+                        
+                        let datasetData = labels.map(k => (grouped[k][cfg.idx] && grouped[k][cfg.idx][cat]) ? grouped[k][cfg.idx][cat] : 0);
+                        let color = colors[colorIndex % colors.length];
+                        let bgColorsArray = labels.map((_, i) => colors[(colorIndex + i) % colors.length]);
+
+                        datasets.push({
+                            label: `${cfg.label} : ${cat}`,
+                            type: finalType === 'combo' ? 'bar' : finalType,
+                            data: datasetData,
+                            backgroundColor: isPie ? bgColorsArray : (isLineType ? color+'33' : color),
+                            borderColor: isPie ? '#fff' : color,
+                            borderWidth: (finalType === 'bar' && !isPie) ? 0 : 2,
+                            fill: isLineType,
+                            yAxisID: cfg.axis,
+                            tension: 0.3,
+                            pointRadius: showPoints ? 4 : 0,
+                            pointHoverRadius: 6,
+                            borderRadius: finalType === 'bar' ? 4 : 0
+                        });
+                        colorIndex++;
+                    });
+                } else {
+                    // DATASET UNIQUE (Somme numérique normale)
+                    let datasetData = labels.map(k => grouped[k][cfg.idx] || 0);
+                    let color = cfg.color; // Couleur choisie par l'utilisateur avec la pipette
+                    let bgColorsArray = labels.map((_, i) => colors[(colorIndex + i) % colors.length]);
+
+                    datasets.push({
+                        label: cfg.label,
+                        type: finalType === 'combo' ? 'bar' : finalType,
+                        data: datasetData,
+                        backgroundColor: isPie ? bgColorsArray : (isLineType ? color+'33' : color),
+                        borderColor: isPie ? '#fff' : color,
+                        borderWidth: (finalType === 'bar' && !isPie) ? 0 : 2,
+                        fill: isLineType,
+                        yAxisID: cfg.axis,
+                        tension: 0.3,
+                        pointRadius: showPoints ? 4 : 0,
+                        pointHoverRadius: 6,
+                        borderRadius: finalType === 'bar' ? 4 : 0
+                    });
+                    colorIndex++;
+                }
             });
 
-            if(isPie && datasets.length > 1) datasets = [datasets[0]]; // 1 seul dataset si camembert
+            if(isPie && datasets.length > 1) { datasets = [datasets[0]]; } // 1 seul dataset possible en mode camembert
 
             let ctx = document.getElementById('bi-canvas'); if(!ctx) return;
             if(window.chartInstances['bi-chart']) window.chartInstances['bi-chart'].destroy();
             
-            // Fond blanc pour un export propre
+            // Fond blanc pour un export PNG parfait
             const customBg = { id: 'customBg', beforeDraw: (chart) => { const c = chart.ctx; c.save(); c.globalCompositeOperation = 'destination-over'; c.fillStyle = '#ffffff'; c.fillRect(0, 0, chart.width, chart.height); c.restore(); } };
 
-            // Vérifier s'il faut afficher le double axe
             let hasRightAxis = datasets.some(d => d.yAxisID === 'y1');
+            let finalMainType = isCombo ? 'bar' : (isPie ? globalType : (isRadar ? 'radar' : globalType));
+            
+            // Si c'est un graphique en barre avec beaucoup de textes catégorisés, on empile (Stacked) pour une meilleure lecture
+            let isStacked = datasets.length > 1 && globalType === 'bar';
 
             window.chartInstances['bi-chart'] = new Chart(ctx.getContext('2d'), {
-                type: isCombo ? 'bar' : globalType, // Type principal
+                type: finalMainType, 
                 data: { labels: labels, datasets: datasets },
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
-                    interaction: { mode: 'index', intersect: false }, // CURSEUR VERTICAL AU SURVOL !
+                    interaction: { mode: 'index', intersect: false }, // Curseurs survol croisé !
                     plugins: { 
-                        legend: { display: true, position: isPie ? 'right' : 'top' },
-                        title: { display: true, text: 'GMAO BI - Analyse croisée (' + data[0][idxX] + ')', font: {size: 16} }
+                        legend: { display: true, position: isPie || isRadar ? 'right' : 'top' },
+                        title: { display: true, text: 'GMAO BI - ' + data[0][idxX], font: {size: 16} },
+                        zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } // Activation du Zoom et Pan
                     }, 
-                    scales: isPie ? {} : { 
-                        x: { ticks: { maxRotation: 45, minRotation: 45 }, grid: { display: false } },
-                        y: { type: 'linear', display: true, position: 'left' },
-                        y1: { type: 'linear', display: hasRightAxis, position: 'right', grid: { drawOnChartArea: false } } // Double Axe
+                    scales: (isPie || isRadar) ? {} : { 
+                        x: { stacked: isStacked, ticks: { maxRotation: 45, minRotation: 45 }, grid: { display: false } },
+                        y: { stacked: isStacked, type: 'linear', display: true, position: 'left' },
+                        y1: { type: 'linear', display: hasRightAxis, position: 'right', grid: { drawOnChartArea: false } }
                     } 
                 },
                 plugins: [customBg]
