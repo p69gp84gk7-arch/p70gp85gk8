@@ -517,9 +517,12 @@ Ligne: 357</div>
             }
 
             // Tri de l'axe X (Mixte: nombres et textes)
-            let labels = Object.keys(grouped).sort((a,b) => {
-                let na = parseFloat(a), nb = parseFloat(b);
-                if(!isNaN(na) && !isNaN(nb)) return na - nb;
+            let labels = Object.keys(grouped).sort(function(a, b) {
+                let na = parseFloat(a);
+                let nb = parseFloat(b);
+                if(!isNaN(na) && !isNaN(nb)) {
+                    return na - nb;
+                }
                 return a.localeCompare(b);
             });
 
