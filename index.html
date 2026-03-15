@@ -203,14 +203,16 @@
                 grid.innerHTML = "<p style='padding:20px;'>Aucune webcam trouvée ou configurée.</p>"; 
             } else { 
                 window.webcamsData.forEach(wc => { 
-                    grid.innerHTML += `<div class="webcam-card"><div class="webcam-card-title">${wc.nom}</div><iframe class="webcam-frame" src="${wc.url}" loading="lazy"></iframe></div>`; 
+                    // Détection intelligente : est-ce une image pure (.jpg) ou une page vidéo (iframe) ?
+                    let isImage = wc.url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/) != null;
+                    let mediaHtml = isImage 
+                        ? `<img src="${wc.url}" style="width:100%; height:auto; display:block; object-fit:contain; background:#000;" loading="lazy" />` 
+                        : `<iframe src="${wc.url}" style="width:100%; aspect-ratio:16/9; border:none; background:#000; display:block;" allowfullscreen loading="lazy"></iframe>`;
+                        
+                    grid.innerHTML += `<div class="webcam-card"><div class="webcam-card-title">${wc.nom}</div>${mediaHtml}</div>`; 
                 }); 
             }
             m.style.display = 'flex';
-        };
-        window.closeWebcamGrid = function() { 
-            document.getElementById('webcam-modal').style.display = 'none'; 
-            document.getElementById('webcam-grid-content').innerHTML = ""; 
         };
 
         // ==============================================================
