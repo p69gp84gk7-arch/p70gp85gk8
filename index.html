@@ -1356,6 +1356,48 @@
                 } else { alert("Erreur Google : " + result.msg); window.renderSelectionPanel(); }
             } catch(e) { alert("Échec réseau."); window.renderSelectionPanel(); }
         };
+        // === COMPARAISONS GLOBALES (RESTAURÉ) ===
+        window.openGlobalCompareModal = function(show) {
+            let m = document.getElementById('compare-modal'); if(!m) return; if(!show) { m.style.display = 'none'; return; }
+            let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2'); let pList = document.getElementById('comp-piste');
+            if(s1) s1.innerHTML = ""; if(s2) s2.innerHTML = ""; window.saisonsList.forEach((s, i) => { if(s1) s1.innerHTML += `<option value="${s}" ${i===0?'selected':''}>${s}</option>`; if(s2) s2.innerHTML += `<option value="${s}" ${i===1?'selected':''}>${s}</option>`; });
+            if(pList) { pList.innerHTML = `<option value="all">Toutes les pistes</option>`; Array.from(window.columnValuesSets[window.keyPiste] || []).sort().forEach(p => { pList.innerHTML += `<option value="${p}">${p}</option>`; }); }
+            m.style.display = 'flex'; window.renderGlobalComparison();
+        };
+
+        window.renderGlobalComparison = function() {
+            let s1 = document.getElementById('comp-s1').value; let s2 = document.getElementById('comp-s2').value; let metric = document.getElementById('comp-metric').value; let targetPiste = document.getElementById('comp-piste').value;
+            let labels = []; let d1 = []; let d2 = [];
+            if (targetPiste === 'all') {
+                let t1 = document.getElementById('comp-title-1'); if(t1) t1.innerText = `Saison ${s1} - ${metric.toUpperCase()} (Toutes pistes)`; let t2 = document.getElementById('comp-title-2'); if(t2) t2.innerText = `Saison ${s2} - ${metric.toUpperCase()} (Toutes pistes)`;
+                labels = Array.from(window.columnValuesSets[window.keyPiste] || []).sort();
+                labels.forEach(p => { let sum1 = 0; let sum2 = 0; window.snowCannons.features.forEach(f => { if (window.getV(f.properties, window.keyPiste) === p) { if(f.properties.historique[s1]) sum1 += f.properties.historique[s1][metric]; if(f.properties.historique[s2]) sum2 += f.properties.historique[s2][metric]; } }); d1.push(sum1); d2.push(sum2); });
+            } else {
+                let t1 = document.getElementById('comp-title-1'); if(t1) t1.innerText = `Saison ${s1} - ${metric.toUpperCase()} (Piste: ${targetPiste})`; let t2 = document.getElementById('comp-title-2'); if(t2) t2.innerText = `Saison ${s2} - ${metric.toUpperCase()} (Piste: ${targetPiste})`;
+                let canons = window.snowCannons.features.filter(f => window.getV(f.properties, window.keyPiste) === targetPiste).sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
+                labels = canons.map(c => c.properties.id); canons.forEach(c => { d1.push(c.properties.historique[s1] ? c.properties.historique[s1][metric] : 0); d2.push(c.properties.historique[s2] ? c.properties.historique[s2][metric] : 0); });
+            }
+            if(window.chartInstances['c1']) window.chartInstances['c1'].destroy(); let c1Ctx = document.getElementById('comp-canvas-1'); if(c1Ctx) window.chartInstances['c1'] = new Chart(c1Ctx.getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: d1, backgroundColor: '#3498db' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            if(window.chartInstances['c2']) window.chartInstances['c2'].destroy(); let c2Ctx = document.getElementById('comp-canvas-2'); if(c2Ctx) window.chartInstances['c2'] = new Chart(c2Ctx.getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: d2, backgroundColor: '#e67e22' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+        };
+
+        window.drawPisteCompareChart = function(targetCannon) {
+            let canvasId = `chart-${targetCannon.id}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
+            if(window.chartInstances[canvasId]) window.chartInstances[canvasId].destroy();
+            let s = window.saisonsList[window.histSeasonIdx]; let pName = window.getV(targetCannon, window.keyPiste);
+            let pisteCannons = window.snowCannons.features.filter(f => window.getV(f.properties, window.keyPiste) === pName && f.properties.historique[s]);
+            pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id)); let bgColors = pisteCannons.map(f => f.properties.id === targetCannon.id ? '#e74c3c' : '#3498db');
+            window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[s][window.histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
+        };
+
+        window.drawSecondPisteChart = function(targetId, seasonStr) {
+            let canvasId = `chart2-${targetId}`; let ctx = document.getElementById(canvasId); if(!ctx) return;
+            if(window.chartInstances[canvasId]) { window.chartInstances[canvasId].destroy(); } if(!seasonStr) return;
+            let targetCannon = window.snowCannons.features.find(f => f.properties.id === targetId).properties; let pName = window.getV(targetCannon, window.keyPiste);
+            let pisteCannons = window.snowCannons.features.filter(f => window.getV(f.properties, window.keyPiste) === pName && f.properties.historique[seasonStr]);
+            pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id)); let bgColors = pisteCannons.map(f => f.properties.id === targetId ? '#e74c3c' : '#9b59b6');
+            window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][window.histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
+        };
 
         // BOOT FORCE
         window.addEventListener('DOMContentLoaded', async () => {
