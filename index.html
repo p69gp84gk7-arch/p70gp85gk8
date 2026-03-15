@@ -3,11 +3,6 @@
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GMAO Neige - Expert BI</title>
-    <script>
-        window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; document.getElementById('loading-spinner').style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('error-box')) { document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } } else alert("🛑 CRASH : "+msg); };
-        window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
-        window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
-    </script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -22,7 +17,7 @@
         #loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.95);z-index:9999;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
         .spinner{border:4px solid #f3f3f3;border-top:4px solid #3498db;border-radius:50%;width:50px;height:50px;animation:spin 1s linear infinite;margin-bottom:20px;}
         @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
-        #error-box{display:none;background:#fdf0ed;border:2px solid #e74c3c;padding:20px;border-radius:8px;max-width:600px;color:#c0392b;}
+        #error-box{display:none;background:#fdf0ed;border:2px solid #e74c3c;padding:20px;border-radius:8px;max-width:600px;color:#c0392b;margin-top:20px;}
         #sidebar{width:360px;flex-shrink:0;background:#fff;display:flex;flex-direction:column;z-index:2500;overflow-y:auto;box-shadow:2px 0 15px rgba(0,0,0,0.08);transition:transform 0.3s;position:absolute;height:calc(100% - 50px);left:0;top:50px;}
         #sidebar.collapsed{transform:translateX(-100%);}
         .sidebar-header-bg{background:#f8f9fa;padding:10px 20px;border-bottom:1px solid #eee;font-weight:bold;color:#2c3e50;font-size:14px;text-transform:uppercase;}
@@ -55,12 +50,13 @@
         .cannon-circle{border-radius:50%;color:white;font-weight:bold;text-align:center;text-shadow:1px 1px 2px rgba(0,0,0,0.8);box-sizing:border-box;box-shadow:0 3px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
         .cannon-circle:hover{transform:scale(1.2);z-index:1000 !important;cursor:pointer;}
         .camera-icon{font-size:24px;text-shadow:2px 2px 4px rgba(0,0,0,0.8);text-align:center;line-height:24px;cursor:pointer;}
-        #map-controls-tr{position:absolute;top:15px;right:15px;z-index:1000;display:flex;gap:10px;flex-direction:column;align-items:flex-end;}
-        .map-btn{background:white;border:2px solid rgba(0,0,0,0.2);padding:10px 15px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.3);transition:0.3s;font-size:13px;}
-        .map-btn.active{background:#3498db;color:white;border-color:#2980b9;}
-        /* PANNEAU DROIT ELARGI A 550PX */
-      #right-sidebar{position:absolute;top:50px;right:0;bottom:0;width:680px;max-width:100%;background:#fff;z-index:2001;transform:translateX(100%);transition:transform 0.3s;box-shadow:-5px 0 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+        
+        /* PANNEAU DROIT ELARGI A 680PX + REDIMENSIONNEMENT */
+        #right-sidebar{position:absolute;top:50px;right:0;bottom:0;width:680px;min-width:300px;max-width:90vw;background:#fff;z-index:2001;transform:translateX(100%);transition:transform 0.3s;box-shadow:-5px 0 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
         #right-sidebar.open{transform:translateX(0);}
+        .resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; background: rgba(0,0,0,0.05); z-index: 3000; border-left: 1px solid #ddd; transition: background 0.2s; }
+        .resizer:hover, .resizer.active { background: #3498db; }
+        
         .right-header{background:#fff;border-bottom:1px solid #eee;padding:20px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;color:#2c3e50;}
         .right-content{padding:20px;overflow-y:auto;flex-grow:1;background:#f9fbfc;}
         .sel-details{background:#fff;margin-bottom:20px;border:1px solid #e1e8ed;border-radius:8px;overflow:hidden;}
@@ -69,10 +65,11 @@
         .badge{display:inline-block;background:#f0f3f5;padding:5px 10px;border-radius:4px;font-size:11px;margin:0 4px 6px 0;border:1px solid #e1e8ed;}
         .ticket-card{background:#fff;border:1px solid #eee;border-left:4px solid #e74c3c;padding:12px;margin-bottom:10px;border-radius:4px;}
         .piste-chart-container{background:#fff;border:1px solid #eee;padding:15px;border-radius:6px;margin-top:15px;}
-        .btn-action-primary{background:#3498db;color:white;border:none;padding:12px;border-radius:6px;cursor:pointer;font-size:13px;margin-top:15px;width:100%;font-weight:bold;}
-        .edit-input{width:100%;box-sizing:border-box;padding:10px;margin-top:4px;margin-bottom:12px;border:1px solid #ccc;border-radius:4px;font-size:13px;}
-        .edit-label{font-size:11px;font-weight:bold;color:#555;}
-        #dynamic-edit-fields{background:#f9f9f9;padding:15px;border:1px solid #ddd;border-radius:6px;max-height:45vh;overflow-y:auto;}
+        .btn-action-primary{background:#3498db;color:white;border:none;padding:12px;border-radius:6px;cursor:pointer;font-size:13px;margin-top:15px;width:100%;font-weight:bold;transition:0.2s;}
+        .btn-action-primary:hover{background:#2980b9;}
+        .edit-input{width:100%;box-sizing:border-box;padding:10px;margin-top:4px;margin-bottom:12px;border:1px solid #ccc;border-radius:4px;font-size:13px;outline:none;}
+        .edit-label{font-size:11px;font-weight:bold;color:#555;text-transform:uppercase;}
+        
         #compare-modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:800px;max-width:95%;background:white;z-index:9999;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,0.5);border:1px solid #ccc;flex-direction:column;overflow:hidden;}
         .comp-header{background:#2c3e50;color:white;padding:15px 20px;display:flex;justify-content:space-between;font-size:16px;font-weight:bold;}
         .comp-body{padding:20px;max-height:80vh;overflow-y:auto;background:#f4f6f8;}
@@ -81,24 +78,71 @@
         .kml-layer-item{display:flex;align-items:center;background:#fff;padding:8px;border:1px solid #ddd;border-radius:4px;margin-bottom:8px;font-size:12px;font-weight:bold;}
         .layer-color-picker{width:24px;height:24px;padding:0;border:none;}
         .layer-weight-picker{width:35px;height:22px;padding:2px;border:1px solid #ccc;text-align:center;margin-left:5px;}
-        @media(max-width:768px){#sidebar,#right-sidebar{width:100%;}#compare-modal{width:95%;}}
-        /* REDIMENSIONNEMENT VOLET DROIT */
-        .resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; background: rgba(0,0,0,0.05); z-index: 3000; border-left: 1px solid #ddd; transition: background 0.2s; }
-        .resizer:hover, .resizer.active { background: #3498db; }
-        #right-sidebar { min-width: 300px; max-width: 90vw; }
+        
+        /* POPUP WEBCAM SUR CARTE (INVISIBLE CAR ON OUVRE LE VOLET MAINTENANT) */
+        .webcam-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 6px; background: #000; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .webcam-popup .leaflet-popup-content { margin: 0; width: 320px !important; }
+        .webcam-popup .leaflet-popup-close-button { color: white !important; font-size: 18px; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border-radius: 50%; width: 24px; height: 24px; line-height: 24px; text-align: center; }
+        .webcam-popup-header { background: #2c3e50; color: white; padding: 10px; font-weight: bold; text-align: center; font-size: 13px; letter-spacing: 1px; }
+        .webcam-popup-body { padding: 0; background: #000; display: flex; justify-content: center; align-items: center; }
+        .webcam-popup-footer { padding: 8px; background: #fff; text-align: center; border-top: 1px solid #ddd; }
+        
+        /* TABLEAU DE BORD BI METEO */
+        #bi-meteo-modal {display:none;position:fixed;top:50px;left:0;right:0;bottom:0;background:#f4f6f8;z-index:8000;flex-direction:column;}
+        .bi-header {background:#2c3e50;color:white;padding:15px 20px;font-size:18px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;}
+        .bi-container {display:flex;flex:1;overflow:hidden;}
+        .bi-sidebar {width:320px;background:#fff;border-right:1px solid #ddd;padding:20px;overflow-y:auto;box-shadow:2px 0 10px rgba(0,0,0,0.05);}
+        .bi-content {flex:1;padding:20px;display:flex;flex-direction:column;}
+        .bi-canvas-box {background:#fff;border-radius:8px;border:1px solid #ddd;padding:20px;flex:1;position:relative;box-shadow:0 4px 15px rgba(0,0,0,0.05);}
+        
+        @media(max-width:768px){#sidebar,#right-sidebar{width:100%;}#compare-modal{width:95%;} .bi-container{flex-direction:column;} .bi-sidebar{width:100%;border-right:none;border-bottom:1px solid #ddd;height:40%;} .bi-content{height:60%;}}
     </style>
 </head>
 <body>
     <div id="datalists-container"></div> 
-    <div id="loading-overlay"><div class="spinner" id="loading-spinner"></div><h2 style="color:#3498db; margin:0;" id="loading-title">Démarrage...</h2><div id="error-box"><p id="error-msg"></p></div></div>
+    <div id="loading-overlay"><div class="spinner" id="loading-spinner"></div><h2 style="color:#3498db; margin:0;" id="loading-title">Démarrage...</h2><p style="color:#888; font-size:12px;" id="loading-step"></p><div id="error-box"><p id="error-msg"></p></div></div>
 
     <div id="topbar">
         <div style="display:flex; align-items:center;"><button class="topbar-btn" style="margin-left:0;" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">☰ Menu</button></div>
         <div style="display:flex; align-items:center;">
-            <button class="topbar-btn" onclick="window.openMeteo()">⛅ Météo</button>
+            <button class="topbar-btn" onclick="window.openBiMeteo()" style="background:#8e44ad; border-color:#9b59b6;">❄️ Data Météo</button>
+            <button class="topbar-btn" onclick="window.openMeteoWidget()">⛅ Prévisions</button>
             <button class="topbar-btn" onclick="window.openWebcamGrid()">📷 Webcams</button>
             <button class="topbar-btn" onclick="window.toggleRightSidebar()">📊 Tableau de Bord</button>
             <button id="btn-multi-toggle" class="topbar-btn" onclick="window.toggleMultiSelect()">🔲 Sélec. Multiple : OFF</button>
+        </div>
+    </div>
+
+    <div id="bi-meteo-modal">
+        <div class="bi-header"><span>❄️ Studio Data Météo & Neige (Expert BI)</span><button onclick="document.getElementById('bi-meteo-modal').style.display='none'" style="background:none;border:none;color:white;font-size:28px;cursor:pointer;">&times;</button></div>
+        <div class="bi-container">
+            <div class="bi-sidebar">
+                <div class="edit-label">1. Source des données (Google Sheets)</div>
+                <select id="bi-source" class="edit-input" onchange="window.biLoadSource()">
+                    <option value="hist">Historique Météo</option>
+                    <option value="froid">Répartition Heures de Froid</option>
+                </select>
+                
+                <div class="edit-label">2. Type de Graphique</div>
+                <select id="bi-type" class="edit-input" onchange="window.biDrawChart()">
+                    <option value="bar">📊 Barres (Comparaisons)</option>
+                    <option value="line">📈 Courbe (Évolutions)</option>
+                    <option value="pie">🥧 Camembert (Répartitions)</option>
+                    <option value="doughnut">🍩 Anneau</option>
+                </select>
+
+                <div class="edit-label">3. Axe Horizontal (Donnée de Base)</div>
+                <select id="bi-x" class="edit-input" onchange="window.biDrawChart()"></select>
+
+                <div class="edit-label">4. Axe Vertical (Valeur Mesurée)</div>
+                <select id="bi-y" class="edit-input" onchange="window.biDrawChart()"></select>
+                
+                <button class="btn-action-primary" style="background:#27ae60; margin-top:5px;" onclick="window.biDrawChart()">🔄 Mettre à jour le graphique</button>
+                <p style="font-size:11px; color:#888; margin-top:20px; font-style:italic;">Les graphiques se construisent automatiquement à partir des colonnes de vos fichiers Google Sheets.</p>
+            </div>
+            <div class="bi-content">
+                <div class="bi-canvas-box"><canvas id="bi-canvas"></canvas></div>
+            </div>
         </div>
     </div>
 
@@ -145,11 +189,7 @@
             <details class="panel-section" open><summary>Calques & Tracés (KMZ)</summary><div class="section-content" style="padding-top: 5px;"><p style="font-size:11px; color:#666; margin-bottom:10px;"><b>1. Cloud (Depuis Sheets) :</b></p><div id="cloud-layers-container"></div><hr style="margin:15px 0; border-top:1px dashed #ccc;"><p style="font-size:11px; color:#666; margin-bottom:10px;"><b>2. Import PC :</b></p><input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="window.handleKMLUpload(event)"><button class="btn-action-primary" style="margin-top:0; background:#8e44ad;" onclick="document.getElementById('kml-upload').click()">📂 Importer...</button><div id="custom-layers-list" style="margin-top:15px;"></div></div></details>
         </div>
 
-        <div id="map-container">
-            
-            
-            <div id="map"></div>
-        </div>
+        <div id="map-container"><div id="map"></div></div>
 
         <div id="right-sidebar">
             <div class="right-header" id="right-header"><span id="right-title">📌 Analyse Détaillée</span><button onclick="window.closeRightSidebar()" style="background:none; border:none; color:#bdc3c7; font-size:28px; cursor:pointer;">&times;</button></div>
@@ -159,7 +199,7 @@
                     <div id="selected-list"></div>
                 </div>
                 <div id="view-edit" style="display:none;">
-                    <div style="background:#fff3cd; padding:12px; border-radius:6px; margin-bottom:15px; border:1px solid #ffeeba;"><label style="color:#856404; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="allow-move-chk"> Autoriser déplacement GPS</label></div>
+                    <div style="background:#fff3cd; padding:12px; border-radius:6px; margin-bottom:15px; border:1px solid #ffeeba;"><label style="color:#856404; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="allow-move-chk"> Autoriser le déplacement GPS</label></div>
                     <h3 style="margin-top:0; color:#3498db; border-bottom:2px solid #eee; padding-bottom:10px;">Édition Canon <span id="edit-id-display"></span></h3>
                     <input type="hidden" id="edit-id">
                     <div style="display:flex; gap:10px; margin-bottom: 15px;"><div style="flex:1;"><div class="edit-label">Latitude</div><input type="number" step="0.0000001" id="edit-lat" class="edit-input" style="background:#fdfdfd;"></div><div style="flex:1;"><div class="edit-label">Longitude</div><input type="number" step="0.0000001" id="edit-lng" class="edit-input" style="background:#fdfdfd;"></div></div>
@@ -169,16 +209,14 @@
             </div>
         </div>
     </div>
-
     <script>
-        // ⚠️ LIEN GOOGLE APPS SCRIPT (À VÉRIFIER) ⚠️
+        // ⚠️ LIEN GOOGLE APPS SCRIPT ⚠️
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
-
-
         
         window.map = null; window.satLayer = null;
         window.snowCannons = { "type": "FeatureCollection", "features": [] };
         window.rawTickets = []; window.saisonsList = []; window.cloudKmzLayers = []; window.webcamsData = [];
+        window.meteoHistData = []; window.meteoFroidData = []; // Nouvelles variables Météo
         window.isMultiSelect = false; window.columnValuesSets = {}; window.availableColumns = [];
         window.mainTheme = 'defauts'; window.histMetric = 'eau'; window.histSeasonIdx = 0;
         window.absoluteMaxes = { eau: 0, air: 0, temps: 0 }; window.currentMaxThreshold = { eau: 100, air: 100, temps: 100 }; window.currentMinThreshold = { eau: 0, air: 0, temps: 0 };
@@ -191,12 +229,106 @@
         window.localDB = null; window.bootAttempt = 0; window.tempTicketPayloads = {};
 
         // === UTILITAIRES ===
+        window.showError = function(msg) { window.showCrash(msg, "App"); };
         window.getV = function(p, key) { if(!key || !p || !p.fullData) return "N/A"; let o = p.fullData.find(x => x.k === key); return o ? o.v.toString().trim() : "N/A"; };
         window.getTicketsForCanon = function(idCanon) { return window.rawTickets.filter(t => t.idCanon === idCanon); };
         window.getActiveTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); };
         window.getHistoryTickets = function(idCanon) { return window.getTicketsForCanon(idCanon).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
 
-        // === GESTION WEBCAMS ===
+        // === NOVEAU STUDIO BI METEO ===
+        window.openBiMeteo = function() {
+            document.getElementById('bi-meteo-modal').style.display = 'flex';
+            window.biLoadSource();
+        };
+
+        window.biLoadSource = function() {
+            let src = document.getElementById('bi-source').value;
+            let dataSheet = src === 'hist' ? window.meteoHistData : window.meteoFroidData;
+            
+            let selX = document.getElementById('bi-x'); let selY = document.getElementById('bi-y');
+            selX.innerHTML = ""; selY.innerHTML = "";
+            
+            if(!dataSheet || dataSheet.length < 2) { alert("Aucune donnée trouvée dans cet onglet (vérifiez que l'onglet existe dans le G-Drive)."); return; }
+            
+            let headers = dataSheet[0];
+            headers.forEach((h, i) => {
+                if(h.toString().trim() === "") return;
+                selX.innerHTML += `<option value="${i}">${h}</option>`;
+                selY.innerHTML += `<option value="${i}">${h}</option>`;
+            });
+            
+            if(headers.length > 1) { selX.selectedIndex = 0; selY.selectedIndex = 1; }
+            window.biDrawChart();
+        };
+
+        window.biDrawChart = function() {
+            let src = document.getElementById('bi-source').value;
+            let dataSheet = src === 'hist' ? window.meteoHistData : window.meteoFroidData;
+            if(!dataSheet || dataSheet.length < 2) return;
+
+            let type = document.getElementById('bi-type').value;
+            let idxX = parseInt(document.getElementById('bi-x').value);
+            let idxY = parseInt(document.getElementById('bi-y').value);
+            let labelY = dataSheet[0][idxY];
+
+            let labels = []; let values = []; let bgColors = [];
+            const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e', '#7f8c8d'];
+
+            for(let i=1; i<dataSheet.length; i++) {
+                let row = dataSheet[i];
+                if(row[idxX] == null || row[idxX] === "") continue;
+                
+                let valX = row[idxX].toString();
+                if(valX.length > 20 && !isNaN(Date.parse(valX))) valX = new Date(valX).toLocaleDateString('fr-FR');
+                let valY = parseFloat(row[idxY] || 0);
+                
+                labels.push(valX); values.push(valY); bgColors.push(colors[i % colors.length]);
+            }
+
+            let ctx = document.getElementById('bi-canvas'); if(!ctx) return;
+            if(window.chartInstances['bi-chart']) window.chartInstances['bi-chart'].destroy();
+            
+            let isPie = (type === 'pie' || type === 'doughnut');
+            
+            window.chartInstances['bi-chart'] = new Chart(ctx.getContext('2d'), {
+                type: type,
+                data: { labels: labels, datasets: [{ label: labelY, data: values, backgroundColor: isPie ? bgColors : '#3498db', borderColor: isPie ? '#fff' : '#2980b9', borderWidth: 1, fill: type === 'line' ? true : false, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: isPie, position: 'right' } }, scales: isPie ? {} : { x: { ticks: { maxRotation: 45, minRotation: 45 } } } }
+            });
+        };
+
+        // === PREVISIONS METEO 3 JOURS (VOLET DROIT) ===
+        window.openMeteoWidget = function() {
+            let sb = document.getElementById('right-sidebar'); let rt = document.getElementById('right-title'); let sl = document.getElementById('selected-list');
+            if(!sb || !sl) return;
+            if(rt) rt.innerText = "⛅ Météo Pro - Superbagnères (1800m)";
+            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'none';
+            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
+            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block';
+
+            window.switchMeteoTab = function(provider) {
+                let container = document.getElementById('meteo-content'); if(!container) return;
+                document.querySelectorAll('.meteo-tab-btn').forEach(btn => btn.style.opacity = '0.5');
+                document.getElementById('btn-meteo-' + provider).style.opacity = '1';
+
+                if (provider === 'meteoblue') { container.innerHTML = `<iframe src="https://www.meteoblue.com/fr/meteo/widget/three/42.767N0.582E1791_Europe%2FParis?geoloc=fixed&nocurrent=0&noforecast=0&days=3&temp=1&layout=light" frameborder="0" scrolling="NO" allowtransparency="true" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox" style="width: 100%; height: 100%;"></iframe>`; } 
+                else if (provider === 'windy') { container.innerHTML = `<iframe src="https://embed.windy.com/embed2.html?lat=42.767&lon=0.582&detailLat=42.767&detailLon=0.582&width=650&height=450&zoom=12&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" frameborder="0" style="width: 100%; height: 100%; border-radius:4px;"></iframe>`; } 
+                else if (provider === 'ventusky') { container.innerHTML = `<iframe src="https://www.ventusky.com/?p=42.767;0.582;12&l=snow" frameborder="0" style="width: 100%; height: 100%; border-radius:4px;"></iframe>`; }
+            };
+
+            sl.innerHTML = `
+                <div style="display:flex; gap:5px; margin-bottom:15px;">
+                    <button id="btn-meteo-meteoblue" class="meteo-tab-btn" onclick="window.switchMeteoTab('meteoblue')" style="flex:1; background:#3498db; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:1; transition:0.2s;">Meteoblue</button>
+                    <button id="btn-meteo-windy" class="meteo-tab-btn" onclick="window.switchMeteoTab('windy')" style="flex:1; background:#e67e22; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:0.5; transition:0.2s;">Windy</button>
+                    <button id="btn-meteo-ventusky" class="meteo-tab-btn" onclick="window.switchMeteoTab('ventusky')" style="flex:1; background:#2c3e50; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:0.5; transition:0.2s;">Ventusky (Neige)</button>
+                </div>
+                <div id="meteo-content" style="background:#fff; border-radius:6px; border:1px solid #eee; padding:10px; height:calc(100vh - 200px);">
+                    <iframe src="https://www.meteoblue.com/fr/meteo/widget/three/42.767N0.582E1791_Europe%2FParis?geoloc=fixed&nocurrent=0&noforecast=0&days=3&temp=1&layout=light" frameborder="0" scrolling="NO" allowtransparency="true" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox" style="width: 100%; height: 100%;"></iframe>
+                </div>`;
+            sb.classList.add('open');
+        };
+
+        // === WEBCAMS ===
         window.openWebcamGrid = function() {
             let sb = document.getElementById('right-sidebar'); let rt = document.getElementById('right-title'); let sl = document.getElementById('selected-list');
             if(!sb || !sl) return; if(rt) rt.innerText = "📷 Toutes les Caméras";
@@ -226,15 +358,11 @@
 
             let isImage = wc.url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/) != null;
             let mediaHtml = isImage ? `<img src="${wc.url}" style="width:100%; border-radius:4px; background:#000;" />` : `<div style="width:100%; height:300px; border-radius:4px; overflow:hidden; background:#000;"><iframe src="${wc.url}" style="width:100%; height:100%; border:none;" scrolling="no" allowfullscreen></iframe></div><a href="${wc.url}" target="_blank" style="display:block; text-align:center; background:#34495e; color:white; padding:8px; border-radius:4px; text-decoration:none; font-size:12px; margin-top:8px; font-weight:bold;">↗️ Ouvrir en plein écran</a>`;
-            
             sl.innerHTML = `<div style="background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #ddd;">${mediaHtml}<button onclick="window.enableWebcamEdit('${wc.nom.replace(/'/g, "\\'")}')" style="margin-top:15px; width:100%; background:#f39c12; color:white; border:none; padding:10px; border-radius:4px; font-size:13px; cursor:pointer; font-weight:bold;">✏️ Déplacer ou changer le logo</button></div>`;
             sb.classList.add('open');
         };
 
-        window.closeWebcamGrid = function() { 
-            let m = document.getElementById('webcam-modal'); if(m) m.style.display = 'none'; 
-            let grid = document.getElementById('webcam-grid-content'); if(grid) grid.innerHTML = ""; 
-        };
+        window.closeWebcamGrid = function() { let m = document.getElementById('webcam-modal'); if(m) m.style.display = 'none'; let grid = document.getElementById('webcam-grid-content'); if(grid) grid.innerHTML = ""; };
 
         window.enableWebcamEdit = function(nom) {
             window.webcamLayerGroup.eachLayer(marker => {
@@ -262,14 +390,13 @@
             } catch(e) { alert("Échec réseau."); btn.innerText = "✅ Enregistrer"; btn.disabled = false; }
         };
 
-        // === ACTIONS INTERFACE ===
+        // === UI ACTIONS ===
         window.toggleRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(!sb) return; if(sb.classList.contains('open')) { sb.classList.remove('open'); } else { sb.classList.add('open'); if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) { window.triggerGlobalFilterChart(); } else { window.renderSelectionPanel(); } } };
         window.toggleMultiSelect = function() { window.isMultiSelect = !window.isMultiSelect; const btn = document.getElementById('btn-multi-toggle'); if(!btn) return; if(window.isMultiSelect) { btn.classList.add('active'); btn.innerText = "🔲 Sélec. Multiple : ON"; btn.style.background = "#3498db"; } else { btn.classList.remove('active'); btn.innerText = "🔲 Sélec. Multiple : OFF"; btn.style.background = "rgba(255,255,255,0.1)"; if(window.selectedCannonsMap.size > 1) window.clearSelection(); } window.renderSelectionPanel(); };
         window.closeRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.remove('open'); if(window.webcamLayerGroup) window.webcamLayerGroup.eachLayer(m => m.dragging.disable()); };
         window.clearSelection = function() { window.selectedCannonsMap.clear(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); };
         window.cancelEdit = function() { window.currentlyEditingId = null; let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none'; let rh = document.getElementById('right-header'); if(rh) rh.classList.remove('editing'); let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📌 Fiche Détaillée"; window.updateMap(); window.renderSelectionPanel(); };
 
-        // === ÉDITION CANONS ===
         window.saveEditData = async function() {
             if (!window.currentlyEditingId) return;
             const btn = document.getElementById('btn-save-edit'); if(btn) { btn.innerText = "⏳ Envoi..."; btn.disabled = true; }
@@ -297,13 +424,6 @@
             }
             let chk = document.getElementById('allow-move-chk'); if(chk) chk.checked = false; let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'none'; let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'block';
             let rh = document.getElementById('right-header'); if(rh) rh.classList.add('editing'); let rt = document.getElementById('right-title'); if(rt) rt.innerText = "✏️ Édition Complète"; window.updateMap(); 
-        };
-
-        window.focusCannon = function(id) {
-            if(!window.geojsonLayer) return;
-            window.geojsonLayer.eachLayer(function(l) {
-                if (l.feature.properties.id === id) { window.selectedCannonsMap.clear(); window.selectedCannonsMap.set(id, l); window.map.setView(l.getLatLng(), 17); window.updateMap(); window.renderSelectionPanel(); let sb = document.getElementById('right-sidebar'); if(sb) sb.classList.add('open'); }
-            });
         };
 
         // === GESTION DES COULEURS ET LÉGENDES ===
@@ -356,11 +476,8 @@
                 const p = layer.feature.properties; let vis = true;
                 if (window.currentPistes && !window.currentPistes.includes('all')) { if (!window.currentPistes.includes(window.getV(p, window.keyPiste))) vis = false; }
                 if (window.currentTypes && !window.currentTypes.includes('all')) { if (!window.currentTypes.includes(window.getV(p, window.keyType).toLowerCase())) vis = false; }
-
-                window.activeFilters.forEach(filt => {
-                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; }
-                });
-
+                window.activeFilters.forEach(filt => { if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; } });
+                
                 let val = 0;
                 if (window.mainTheme === 'historique') {
                     val = p.historique[s] ? p.historique[s][window.histMetric] : 0;
@@ -384,7 +501,6 @@
         };
 
         // === AFFICHAGE DU PANNEAU DETAILS (CANON) ===
-        // === AFFICHAGE DU PANNEAU DETAILS (CANON) ===
         window.renderSelectionPanel = function() {
             if(window.selectedCannonsMap.size === 0) { window.triggerGlobalFilterChart(); return; }
             let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'flex';
@@ -398,7 +514,6 @@
                 const p = layer.feature.properties; let active = window.getActiveTickets(p.id); let history = window.getHistoryTickets(p.id);
                 let mainContent = ""; let histHtml = ""; let prodHtml = "";
 
-                // 1. DOSSIER D'HISTORIQUE DES PANNES PASSÉES
                 if (history.length > 0) {
                     histHtml = `<details class="ticket-history" style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">📁 Historique d'interventions (${history.length})</summary><ul style="padding-left:15px; margin-top:10px;">`;
                     history.forEach(t => {
@@ -409,7 +524,6 @@
                     histHtml += `</ul></details>`;
                 }
 
-                // 2. GRAPHIQUES DE PRODUCTION (Toutes les saisons)
                 if (window.saisonsList && window.saisonsList.length > 0) {
                     prodHtml = `
                     <div style="margin-top:15px; font-size:12px; font-weight:bold; color:#2c3e50; border-bottom:2px solid #eee; padding-bottom:5px;">📊 Évolution de la production</div>
@@ -426,8 +540,7 @@
                         <div class="hist-card"><div style="font-size:14px; color:#555; margin-bottom:10px; text-transform:uppercase;">Saison <b>${s}</b></div><div style="display:flex; justify-content: space-around;"><div><div style="font-size:24px; font-weight:bold; color:#2980b9;">${hd.eau}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">m³ Eau</div></div><div><div style="font-size:24px; font-weight:bold; color:#e67e22;">${hd.air}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Air</div></div><div><div style="font-size:24px; font-weight:bold; color:#27ae60;">${hd.temps}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Heures</div></div></div></div>
                         <div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; color:#34495e; text-align:center;">Comparatif sur la piste (${window.getV(p, window.keyPiste)})</div><div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart-${p.id}"></canvas></div></div>
                         <div class="piste-chart-container" style="background:#fafbfc;"><div style="font-size:11px; font-weight:bold; color:#555; text-align:center;">➕ Comparer avec une autre saison : <select onchange="window.drawSecondPisteChart('${p.id}', this.value)" style="padding:4px; border-radius:4px; border:1px solid #ccc; outline:none;"><option value="">-- Choisir --</option>${window.saisonsList.filter(x => x !== s).map(x => `<option value="${x}">${x}</option>`).join('')}</select></div><div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart2-${p.id}"></canvas></div></div>
-                        ${histHtml}
-                        ${prodHtml}`;
+                        ${histHtml}${prodHtml}`;
                 } 
                 else if (window.mainTheme === 'defauts') {
                     if (active.length === 0) { mainContent = `<div style="background:#eafaf1; color:#27ae60; padding:15px; border-radius:6px; text-align:center; font-weight:bold; border:1px solid #d5f5e3; margin-bottom:15px;">✅ Aucun défaut en cours</div>${histHtml}`; } 
@@ -444,16 +557,13 @@
                         }).join('') + histHtml;
                     }
                 } 
-                else { // Vues Type de canon, Répéteurs, Transformateurs
+                else {
                     let badges = `<span class="badge"><b>Modèle:</b> ${window.getV(p, window.keyType)}</span> <span class="badge"><b>Rép:</b> ${window.getV(p, window.keyRep)}</span> <span class="badge"><b>Trans:</b> ${window.getV(p, window.keyTransfo)}</span>`;
                     let fullDataHTML = `<details style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">➕ Caractéristiques Complètes</summary><div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:8px;">`;
                     p.fullData.forEach(item => { if(!item.k.toLowerCase().includes('xy') && !item.k.toLowerCase().includes('gps')) { fullDataHTML += `<div style="border-bottom:1px solid #f0f0f0; padding-bottom:4px;"><span style="color:#7f8c8d;">${item.k} :</span> <b style="color:#2c3e50; float:right;">${item.v}</b></div>`; } });
                     fullDataHTML += `</div></details>`; 
-                    
                     mainContent = `<div style="margin-bottom:10px;">${badges}</div>${fullDataHTML}`;
                     if (active.length > 0) mainContent += `<div style="margin-top:15px; padding:10px; background:#fdf0ed; border-radius:6px; font-size:12px; color:#e74c3c; font-weight:bold; border:1px solid #fadbd8;">⚠️ Ce canon a ${active.length} défaut(s) en cours.</div>`;
-                    
-                    // Ajout de l'historique et des graphiques
                     mainContent += histHtml + prodHtml;
                 }
 
@@ -467,10 +577,8 @@
                     
                 setTimeout(() => {
                     if(window.mainTheme === 'historique' && !window.isMultiSelect) window.drawPisteCompareChart(p);
-
-                    // INITIALISATION DES 3 GRAPHIQUES HISTORIQUES
                     if((window.mainTheme === 'type' || window.mainTheme === 'historique' || window.mainTheme === 'repeteur' || window.mainTheme === 'transfo') && window.saisonsList.length > 0) {
-                        let labels = window.saisonsList.map(s => s.substring(0,5)); // Ex: "22/23"
+                        let labels = window.saisonsList.map(s => s.substring(0,5)); 
                         let dEau = window.saisonsList.map(s => p.historique[s] ? p.historique[s].eau : 0);
                         let dAir = window.saisonsList.map(s => p.historique[s] ? p.historique[s].air : 0);
                         let dTemps = window.saisonsList.map(s => p.historique[s] ? p.historique[s].temps : 0);
@@ -479,16 +587,8 @@
                             let canvas = document.getElementById(id); if(!canvas) return;
                             if(window.chartInstances[id]) window.chartInstances[id].destroy();
                             window.chartInstances[id] = new Chart(canvas.getContext('2d'), {
-                                type: 'bar',
-                                data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 2 }] },
-                                options: { 
-                                    responsive: true, maintainAspectRatio: false, 
-                                    plugins: { legend: { display: false }, tooltip: {titleFont: {size: 10}, bodyFont: {size: 10}} }, 
-                                    scales: { 
-                                        x: { ticks: {font:{size:8}, maxRotation:45, minRotation:45}, grid: {display:false} }, 
-                                        y: { ticks: {font:{size:8}, maxTicksLimit: 4} } 
-                                    } 
-                                }
+                                type: 'bar', data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 2 }] },
+                                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: {titleFont: {size: 10}, bodyFont: {size: 10}} }, scales: { x: { ticks: {font:{size:8}, maxRotation:45, minRotation:45}, grid: {display:false} }, y: { ticks: {font:{size:8}, maxTicksLimit: 4} } } }
                             });
                         };
                         drawMiniChart(`hist-eau-${p.id}`, dEau, '#3498db');
@@ -549,7 +649,7 @@
             } catch(e) { alert("Échec réseau."); window.renderSelectionPanel(); }
         };
 
-        // === COMPARAISONS ===
+        // === COMPARAISONS GLOBALES ===
         window.openGlobalCompareModal = function(show) {
             let m = document.getElementById('compare-modal'); if(!m) return; if(!show) { m.style.display = 'none'; return; }
             let s1 = document.getElementById('comp-s1'); let s2 = document.getElementById('comp-s2'); let pList = document.getElementById('comp-piste');
@@ -592,9 +692,83 @@
             window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][window.histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
         };
 
-        // ==============================================================
-        // 7. DB LOCALE KML/KMZ
-        // ==============================================================
+        window.triggerGlobalFilterChart = function() {
+            if (window.selectedCannonsMap.size > 0 || window.currentlyEditingId) return;
+            let visibleCannons = window.snowCannons.features.filter(f => f.properties._isVisible);
+            let html = `<div style="background:#eafaf1; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px; border:1px solid #d5f5e3;"><span style="font-size:24px; font-weight:bold; color:#27ae60;">${visibleCannons.length}</span><br><span style="font-size:12px; color:#555; text-transform:uppercase;">Canons affichés</span></div>`;
+
+            let chartLabels = []; let chartData = []; let chartColors = []; let chartType = 'bar';
+            let chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+            if (window.mainTheme === 'defauts') {
+                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : Défauts";
+                let activeList = []; let cUrgent = 0, cEnCours = 0, cRas = 0;
+                visibleCannons.forEach(f => {
+                    let p = f.properties; let acts = window.getActiveTickets(p.id);
+                    if(acts.length === 0) { cRas++; }
+                    else { acts.forEach(t => { if(t.statut.includes('faire')) cUrgent++; else cEnCours++; activeList.push({id: p.id, piste: window.getV(p, window.keyPiste), ticket: t}); }); }
+                });
+                chartLabels = ['À faire', 'En cours', 'RAS']; chartData = [cUrgent, cEnCours, cRas]; chartColors = ['#e74c3c', '#f39c12', '#bdc3c7']; chartType = 'doughnut';
+                let total = cUrgent + cEnCours + cRas; let faultPerc = total > 0 ? (((cUrgent + cEnCours) / total) * 100).toFixed(1) : 0;
+
+                chartOptions.plugins.legend = { position: 'right', labels: { boxWidth: 12, font: {size: 11} } };
+                html += `<div class="piste-chart-container"><div style="text-align:center; font-size:16px; font-weight:bold; color:#e74c3c; margin-bottom:5px;">Taux de pannes : ${faultPerc}%</div><div style="height:180px;position:relative;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                html += `<div style="font-size:13px; font-weight:bold; margin-top:15px; border-bottom:2px solid #eee; padding-bottom:5px;">Liste détaillée des défauts :</div>`;
+                if (activeList.length === 0) { html += `<div style="font-size:12px; color:#7f8c8d; text-align:center; padding:10px;">Aucun défaut sur les canons affichés.</div>`; } 
+                else {
+                    activeList.sort((a,b) => { let wA = a.ticket.statut.includes('faire') ? 1 : 0; let wB = b.ticket.statut.includes('faire') ? 1 : 0; return wB - wA; });
+                    let listHtml = activeList.map(item => {
+                        let color = item.ticket.statut.includes('faire') ? '#e74c3c' : '#f39c12';
+                        return `<div style="border-left:3px solid ${color}; background:#fff; padding:8px; margin-top:8px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); font-size:12px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:#2c3e50;">Canon ${item.id}</b> <span style="color:#7f8c8d; font-size:10px;">(${item.piste})</span><br><span style="color:${color}; font-weight:bold;">${item.ticket.defaut}</span></div><button onclick="window.focusCannon('${item.id}');" style="background:none; border:1px solid #ddd; border-radius:4px; cursor:pointer; font-size:10px; padding:4px 8px;">Cibler 📍</button></div>`; 
+                    }).join('');
+                    html += `<div style="max-height: 40vh; overflow-y: auto; padding-right:5px;">${listHtml}</div>`;
+                }
+            } 
+            else if (window.mainTheme === 'type' || window.mainTheme === 'repeteur' || window.mainTheme === 'transfo') {
+                let key = window.mainTheme === 'type' ? window.keyType : (window.mainTheme === 'repeteur' ? window.keyRep : window.keyTransfo);
+                let title = window.mainTheme === 'type' ? 'Types de canon' : (window.mainTheme === 'repeteur' ? 'Répéteurs' : 'Transformateurs');
+                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : " + title;
+                let counts = {};
+                visibleCannons.forEach(f => { let v = window.getV(f.properties, key); counts[v] = (counts[v] || 0) + 1; });
+                chartLabels = Object.keys(counts).sort(); chartData = chartLabels.map(k => counts[k]);
+                
+                if (window.mainTheme === 'type') {
+                    chartColors = chartLabels.map(k => { let kL = k.toLowerCase(); if(["demak lenko", "demac lenko"].includes(kL)) return '#0000FF'; if(["sufag", "street", "taurus", "taurax", "peak"].includes(kL)) return '#008000'; return window.technoColors[kL] || '#FFD700'; });
+                } else if (window.mainTheme === 'repeteur') { chartColors = chartLabels.map(k => window.repColors[k] || '#3498db'); } 
+                else { chartColors = chartLabels.map(k => window.transfoColors[k] || '#3498db'); }
+
+                html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Répartition par ${title}</div><div style="height:200px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
+            } 
+            else if (window.mainTheme === 'historique') {
+                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : Historique";
+                let s = window.saisonsList[window.histSeasonIdx]; let metricName = window.histMetric === 'eau' ? 'Eau (m³)' : (window.histMetric === 'air' ? 'Air' : 'Temps (h)');
+                let isSinglePiste = (window.currentPistes.length === 1 && window.currentPistes[0] !== 'all');
+                
+                if (isSinglePiste || visibleCannons.length <= 40) {
+                    let sorted = [...visibleCannons].sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
+                    chartLabels = sorted.map(c => c.properties.id); chartData = sorted.map(c => c.properties.historique[s] ? c.properties.historique[s][window.histMetric] : 0); chartColors = '#3498db'; let pisteName = isSinglePiste ? window.currentPistes[0] : "Canons";
+                    html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Détail par canon (${metricName}) - ${pisteName}</div><div style="height:250px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                } else {
+                    let pisteTotals = {};
+                    visibleCannons.forEach(f => { let p = window.getV(f.properties, window.keyPiste); let val = f.properties.historique[s] ? f.properties.historique[s][window.histMetric] : 0; pisteTotals[p] = (pisteTotals[p] || 0) + val; });
+                    chartLabels = Object.keys(pisteTotals).sort(); chartData = chartLabels.map(k => pisteTotals[k]); chartColors = '#2980b9';
+                    html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Total ${metricName} par Piste (Saison ${s})</div><div style="height:250px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                }
+            }
+
+            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'flex';
+            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; 
+            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
+            let sl = document.getElementById('selected-list'); if(sl) sl.innerHTML = html; 
+
+            setTimeout(() => {
+                let ctx = document.getElementById('global-filter-chart'); if(!ctx) return;
+                if(window.chartInstances['global-filter-chart']) window.chartInstances['global-filter-chart'].destroy();
+                window.chartInstances['global-filter-chart'] = new Chart(ctx.getContext('2d'), { type: chartType, data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors, borderRadius: chartType==='bar'?4:0 }] }, options: chartOptions });
+            }, 50);
+        };
+
+        // === DB LOCALE KML/KMZ ===
         window.initLocalDB = function() {
             try {
                 if (!window.indexedDB) return; const request = window.indexedDB.open("GMAONeigeDB", 2);
@@ -607,9 +781,107 @@
         window.updateLayerDataInDB = function(id, updates) { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readwrite"); const store = tx.objectStore("kmz_layers"); const req = store.get(id); req.onsuccess = function() { let data = req.result; if(data) { Object.assign(data, updates); store.put(data); } }; };
         window.loadSavedLayersFromDB = function() { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readonly"); const req = tx.objectStore("kmz_layers").getAll(); req.onsuccess = function() { req.result.forEach(item => { window.addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); }); }; };
 
-        // ==============================================================
-        // 8. LECTURE DONNÉES GOOGLE
-        // ==============================================================
+        window.buildGeoJsonStyle = function(hexColor, weight) {
+            let finalWeight = weight ? parseInt(weight) : 4;
+            return {
+                style: function (feature) { return { color: hexColor, weight: finalWeight, opacity: 0.8, fillColor: hexColor }; },
+                pointToLayer: function(feature, latlng) { return L.circleMarker(latlng, {radius: 6, color: hexColor, fillColor: hexColor, fillOpacity: 0.8, weight: 1}); },
+                onEachFeature: function (feature, layer) { if (feature.properties && feature.properties.name) { layer.bindPopup(`<b style='color:${hexColor}'>` + feature.properties.name + "</b><br>" + (feature.properties.description || "")); } }
+            };
+        };
+
+        window.fetchGitHubKMZ = async function(url) {
+            const response = await window.fetchWithTimeout(url); if (!response.ok) throw new Error("GitHub refuse l'accès.");
+            let kmlString = "";
+            if (url.toLowerCase().endsWith('.kmz')) {
+                const blob = await response.blob(); const arrayBuffer = await blob.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer);
+                const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string");
+            } else { kmlString = await response.text(); }
+            const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); return toGeoJSON.kml(xmlDoc);
+        };
+
+        window.renderCloudLayersList = function() {
+            const container = document.getElementById('cloud-layers-container'); if(!container) return; container.innerHTML = "";
+            if (window.cloudKmzLayers.length === 0) { container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré.</p>`; return; }
+            window.cloudKmzLayers.forEach((layer, idx) => {
+                container.innerHTML += `<div class="kml-layer-item" style="border-color:#e1e8ed; background:#fafbfc; display:flex; flex-wrap:wrap; gap:5px; align-items:center;"><input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="window.toggleCloudLayer(${idx})" style="margin:0 5px 0 0;"><input type="color" class="layer-color-picker" value="${layer.color}" onchange="window.changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur"><input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="window.changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur"><label style="cursor:pointer; display:flex; flex-direction:column; flex-grow:1; margin-left:8px; min-width:120px;" for="cloud-cbx-${idx}"><span style="color:#2c3e50; font-size:12px;">${layer.nom}</span><span style="font-size:10px; color:#7f8c8d; font-weight:normal;">${layer.commentaire}</span></label><span id="cloud-status-${idx}" style="min-width:20px; text-align:right;"></span></div>`;
+            });
+        };
+
+        window.toggleCloudLayer = async function(idx) {
+            let layerObj = window.cloudKmzLayers[idx]; let cbx = document.getElementById('cloud-cbx-' + idx); let statusSpan = document.getElementById('cloud-status-' + idx);
+            if (!cbx || !statusSpan) return; if (!cbx.checked) { if(layerObj.leafletLayer) map.removeLayer(layerObj.leafletLayer); layerObj.isVisible = false; statusSpan.innerText = ""; return; }
+            if (layerObj.leafletLayer) { map.addLayer(layerObj.leafletLayer); layerObj.isVisible = true; return; }
+            statusSpan.innerText = " ⏳"; cbx.disabled = true;
+            try {
+                const geojson = await window.fetchGitHubKMZ(layerObj.url); layerObj.leafletLayer = L.geoJSON(geojson, window.buildGeoJsonStyle(layerObj.color, layerObj.weight)).addTo(map);
+                layerObj.isVisible = true; if(layerObj.leafletLayer.getBounds().isValid()) { map.fitBounds(layerObj.leafletLayer.getBounds()); } statusSpan.innerText = " ✅";
+            } catch(err) { statusSpan.innerText = " ❌"; alert("Erreur calque : " + err.message); cbx.checked = false; }
+            cbx.disabled = false;
+        };
+
+        window.changeCloudLayerStyle = function(idx, newColor, newWeight) {
+            let layerObj = window.cloudKmzLayers[idx]; if (newColor !== null) layerObj.color = newColor; if (newWeight !== null) layerObj.weight = parseInt(newWeight);
+            fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: 'update_kmz', nom: layerObj.nom, color: layerObj.color, weight: layerObj.weight }) });
+            if(layerObj.leafletLayer) { layerObj.leafletLayer.setStyle({ color: layerObj.color, fillColor: layerObj.color, weight: layerObj.weight }); layerObj.leafletLayer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: layerObj.color, fillColor: layerObj.color }); } }); }
+        };
+
+        window.handleKMLUpload = async function(event) {
+            const file = event.target.files[0]; if(!file) return;
+            let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'flex'; let sp = document.getElementById('loading-spinner'); if(sp) sp.style.display = 'block';
+            let ti = document.getElementById('loading-title'); if(ti) ti.innerText = "Importation locale..."; let de = document.getElementById('loading-desc'); if(de) de.innerText = "Analyse de " + file.name;
+            setTimeout(async () => {
+                try {
+                    const fileName = file.name; const layerId = 'layer_' + Date.now(); let kmlString = ""; let defaultColor = '#e67e22'; let defaultWeight = 4;
+                    if (fileName.toLowerCase().endsWith('.kmz')) {
+                        const arrayBuffer = await file.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer);
+                        const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string");
+                    } else if (fileName.toLowerCase().endsWith('.kml')) { kmlString = await file.text(); } else { throw new Error("Format non supporté."); }
+                    const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); const geojson = toGeoJSON.kml(xmlDoc);
+                    window.saveLayerToDB(layerId, fileName, geojson, defaultColor, defaultWeight); window.addGeoJsonToMap(layerId, fileName, geojson, true, defaultColor, defaultWeight);
+                    if(ov) ov.style.display = 'none';
+                } catch (err) { if(ov) ov.style.display = 'none'; alert("Erreur d'import : " + err.message); }
+                event.target.value = ""; 
+            }, 100);
+        };
+
+        window.addGeoJsonToMap = function(id, name, geojson, isVisible, hexColor, weight) {
+            let finalWeight = weight || 4; const layer = L.geoJSON(geojson, window.buildGeoJsonStyle(hexColor, finalWeight));
+            if(isVisible) layer.addTo(map); window.externalLayers[id] = { name: name, layer: layer, isVisible: isVisible, color: hexColor, weight: finalWeight }; window.renderCustomLayersList();
+            if(isVisible && layer.getBounds && typeof layer.getBounds === 'function') { let b = layer.getBounds(); if(b.isValid()) map.fitBounds(b); }
+        };
+
+        window.renderCustomLayersList = function() {
+            const container = document.getElementById('custom-layers-list'); if(!container) return; container.innerHTML = "";
+            for (let id in window.externalLayers) {
+                const ext = window.externalLayers[id];
+                container.innerHTML += `<div class="kml-layer-item"><input type="checkbox" id="loc-cbx-${id}" ${ext.isVisible ? 'checked' : ''} onchange="window.toggleExtLayer('${id}')" style="margin:0 5px 0 0;"><input type="color" class="layer-color-picker" value="${ext.color}" onchange="window.changeExtLayerStyle('${id}', this.value, null)" title="Couleur"><input type="number" class="layer-weight-picker" value="${ext.weight || 4}" min="1" max="15" onchange="window.changeExtLayerStyle('${id}', null, this.value)" title="Épaisseur"><label for="loc-cbx-${id}" style="cursor:pointer; flex-grow:1; margin-left:8px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#34495e;">${ext.name}</label><button onclick="window.deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button></div>`;
+            }
+        };
+
+        window.toggleExtLayer = function(id) { const ext = window.externalLayers[id]; ext.isVisible = !ext.isVisible; if(ext.isVisible) { map.addLayer(ext.layer); } else { map.removeLayer(ext.layer); } window.updateLayerDataInDB(id, { isVisible: ext.isVisible }); window.renderCustomLayersList(); };
+        window.changeExtLayerStyle = function(id, newColor, newWeight) {
+            if(window.externalLayers[id]) {
+                if (newColor !== null) window.externalLayers[id].color = newColor; if (newWeight !== null) window.externalLayers[id].weight = parseInt(newWeight);
+                let col = window.externalLayers[id].color; let w = window.externalLayers[id].weight;
+                if(window.externalLayers[id].layer) { window.externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w}); window.externalLayers[id].layer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: col, fillColor: col }); } }); }
+                window.updateLayerDataInDB(id, { color: col, weight: w });
+            }
+        };
+        window.deleteExtLayer = function(id) { map.removeLayer(window.externalLayers[id].layer); delete window.externalLayers[id]; window.deleteLayerFromDB(id); window.renderCustomLayersList(); };
+
+        // === SYSTEME DE REDIMENSIONNEMENT DU PANNEAU ===
+        window.initSidebarResizer = function() {
+            const sidebar = document.getElementById('right-sidebar'); if (!sidebar) return;
+            const resizer = document.createElement('div'); resizer.className = 'resizer'; sidebar.appendChild(resizer);
+            let isResizing = false;
+            resizer.addEventListener('mousedown', (e) => { isResizing = true; resizer.classList.add('active'); document.body.style.cursor = 'ew-resize'; if(window.map) window.map.dragging.disable(); });
+            document.addEventListener('mousemove', (e) => { if (!isResizing) return; let newWidth = document.body.clientWidth - e.clientX; if (newWidth < 350) newWidth = 350; if (newWidth > document.body.clientWidth * 0.9) newWidth = document.body.clientWidth * 0.9; sidebar.style.width = newWidth + 'px'; });
+            document.addEventListener('mouseup', () => { if (isResizing) { isResizing = false; resizer.classList.remove('active'); document.body.style.cursor = 'default'; if(window.map) window.map.dragging.enable(); } });
+        };
+        setTimeout(window.initSidebarResizer, 1000);
+
+        // === LECTURE DONNÉES GOOGLE ===
         window.setStep = function(step, desc) { let elStep = document.getElementById('loading-step'); let elDesc = document.getElementById('loading-desc'); if (elStep) elStep.innerText = "Étape " + step + "/5"; if (elDesc) elDesc.innerText = desc; };
 
         window.fetchWithTimeout = async function(resource, options = {}) {
@@ -626,6 +898,10 @@
             let textData = await response.text(); let data;
             try { data = JSON.parse(textData); } catch(e) { throw new Error("Format invalide."); }
             
+            // DONNÉES MÉTÉO BI
+            window.meteoHistData = data.meteo_hist || [];
+            window.meteoFroidData = data.meteo_froid || [];
+
             window.setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
             const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
@@ -656,7 +932,6 @@
                 if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
                 dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
             });
-            if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté.");
 
             window.setStep(3, "Analyse de l'Historique...");
             if (data.historique && data.historique.length > 1) {
@@ -708,115 +983,7 @@
             setTimeout(() => { window.initAppUI(); let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'none'; }, 800);
         };
 
-        // ==============================================================
-        // 9. GESTION DES CALQUES KML/KMZ (LOGIQUE LEAFLET)
-        // ==============================================================
-        window.buildGeoJsonStyle = function(hexColor, weight) {
-            let finalWeight = weight ? parseInt(weight) : 4;
-            return {
-                style: function (feature) { return { color: hexColor, weight: finalWeight, opacity: 0.8, fillColor: hexColor }; },
-                pointToLayer: function(feature, latlng) { return L.circleMarker(latlng, {radius: 6, color: hexColor, fillColor: hexColor, fillOpacity: 0.8, weight: 1}); },
-                onEachFeature: function (feature, layer) { if (feature.properties && feature.properties.name) { layer.bindPopup(`<b style='color:${hexColor}'>` + feature.properties.name + "</b><br>" + (feature.properties.description || "")); } }
-            };
-        };
-
-        window.fetchGitHubKMZ = async function(url) {
-            const response = await window.fetchWithTimeout(url); if (!response.ok) throw new Error("GitHub refuse l'accès.");
-            let kmlString = "";
-            if (url.toLowerCase().endsWith('.kmz')) {
-                const blob = await response.blob(); const arrayBuffer = await blob.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer);
-                const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string");
-            } else { kmlString = await response.text(); }
-            const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); return toGeoJSON.kml(xmlDoc);
-        };
-
-        window.renderCloudLayersList = function() {
-            const container = document.getElementById('cloud-layers-container'); if(!container) return; container.innerHTML = "";
-            if (window.cloudKmzLayers.length === 0) { container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré.</p>`; return; }
-            window.cloudKmzLayers.forEach((layer, idx) => {
-                container.innerHTML += `
-                    <div class="kml-layer-item" style="border-color:#e1e8ed; background:#fafbfc; display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
-                        <input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="window.toggleCloudLayer(${idx})" style="margin:0 5px 0 0;">
-                        <input type="color" class="layer-color-picker" value="${layer.color}" onchange="window.changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur">
-                        <input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="window.changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur">
-                        <label style="cursor:pointer; display:flex; flex-direction:column; flex-grow:1; margin-left:8px; min-width:120px;" for="cloud-cbx-${idx}"><span style="color:#2c3e50; font-size:12px;">${layer.nom}</span><span style="font-size:10px; color:#7f8c8d; font-weight:normal;">${layer.commentaire}</span></label>
-                        <span id="cloud-status-${idx}" style="min-width:20px; text-align:right;"></span>
-                    </div>`;
-            });
-        };
-
-        window.toggleCloudLayer = async function(idx) {
-            let layerObj = window.cloudKmzLayers[idx]; let cbx = document.getElementById('cloud-cbx-' + idx); let statusSpan = document.getElementById('cloud-status-' + idx);
-            if (!cbx || !statusSpan) return; if (!cbx.checked) { if(layerObj.leafletLayer) map.removeLayer(layerObj.leafletLayer); layerObj.isVisible = false; statusSpan.innerText = ""; return; }
-            if (layerObj.leafletLayer) { map.addLayer(layerObj.leafletLayer); layerObj.isVisible = true; return; }
-            statusSpan.innerText = " ⏳"; cbx.disabled = true;
-            try {
-                const geojson = await window.fetchGitHubKMZ(layerObj.url); layerObj.leafletLayer = L.geoJSON(geojson, window.buildGeoJsonStyle(layerObj.color, layerObj.weight)).addTo(map);
-                layerObj.isVisible = true; if(layerObj.leafletLayer.getBounds().isValid()) { map.fitBounds(layerObj.leafletLayer.getBounds()); } statusSpan.innerText = " ✅";
-            } catch(err) { statusSpan.innerText = " ❌"; alert("Erreur calque : " + err.message); cbx.checked = false; }
-            cbx.disabled = false;
-        };
-
-        window.changeCloudLayerStyle = function(idx, newColor, newWeight) {
-            let layerObj = window.cloudKmzLayers[idx]; if (newColor !== null) layerObj.color = newColor; if (newWeight !== null) layerObj.weight = parseInt(newWeight);
-            fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: 'update_kmz', nom: layerObj.nom, color: layerObj.color, weight: layerObj.weight }) });
-            if(layerObj.leafletLayer) { layerObj.leafletLayer.setStyle({ color: layerObj.color, fillColor: layerObj.color, weight: layerObj.weight }); layerObj.leafletLayer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: layerObj.color, fillColor: layerObj.color }); } }); }
-        };
-
-        window.handleKMLUpload = async function(event) {
-            const file = event.target.files[0]; if(!file) return;
-            let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'flex'; let sp = document.getElementById('loading-spinner'); if(sp) sp.style.display = 'block';
-            let ti = document.getElementById('loading-title'); if(ti) ti.innerText = "Importation locale..."; let de = document.getElementById('loading-desc'); if(de) de.innerText = "Analyse de " + file.name;
-            setTimeout(async () => {
-                try {
-                    const fileName = file.name; const layerId = 'layer_' + Date.now(); let kmlString = ""; let defaultColor = '#e67e22'; let defaultWeight = 4;
-                    if (fileName.toLowerCase().endsWith('.kmz')) {
-                        const arrayBuffer = await file.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer);
-                        const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string");
-                    } else if (fileName.toLowerCase().endsWith('.kml')) { kmlString = await file.text(); } else { throw new Error("Format non supporté."); }
-                    const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); const geojson = toGeoJSON.kml(xmlDoc);
-                    window.saveLayerToDB(layerId, fileName, geojson, defaultColor, defaultWeight); window.addGeoJsonToMap(layerId, fileName, geojson, true, defaultColor, defaultWeight);
-                    if(ov) ov.style.display = 'none';
-                } catch (err) { if(ov) ov.style.display = 'none'; alert("Erreur d'import : " + err.message); }
-                event.target.value = ""; 
-            }, 100);
-        };
-
-        window.addGeoJsonToMap = function(id, name, geojson, isVisible, hexColor, weight) {
-            let finalWeight = weight || 4; const layer = L.geoJSON(geojson, window.buildGeoJsonStyle(hexColor, finalWeight));
-            if(isVisible) layer.addTo(map); window.externalLayers[id] = { name: name, layer: layer, isVisible: isVisible, color: hexColor, weight: finalWeight }; window.renderCustomLayersList();
-            if(isVisible && layer.getBounds && typeof layer.getBounds === 'function') { let b = layer.getBounds(); if(b.isValid()) map.fitBounds(b); }
-        };
-
-        window.renderCustomLayersList = function() {
-            const container = document.getElementById('custom-layers-list'); if(!container) return; container.innerHTML = "";
-            for (let id in window.externalLayers) {
-                const ext = window.externalLayers[id];
-                container.innerHTML += `
-                    <div class="kml-layer-item">
-                        <input type="checkbox" id="loc-cbx-${id}" ${ext.isVisible ? 'checked' : ''} onchange="window.toggleExtLayer('${id}')" style="margin:0 5px 0 0;">
-                        <input type="color" class="layer-color-picker" value="${ext.color}" onchange="window.changeExtLayerStyle('${id}', this.value, null)" title="Couleur">
-                        <input type="number" class="layer-weight-picker" value="${ext.weight || 4}" min="1" max="15" onchange="window.changeExtLayerStyle('${id}', null, this.value)" title="Épaisseur">
-                        <label for="loc-cbx-${id}" style="cursor:pointer; flex-grow:1; margin-left:8px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#34495e;">${ext.name}</label>
-                        <button onclick="window.deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button>
-                    </div>`;
-            }
-        };
-
-        window.toggleExtLayer = function(id) { const ext = window.externalLayers[id]; ext.isVisible = !ext.isVisible; if(ext.isVisible) { map.addLayer(ext.layer); } else { map.removeLayer(ext.layer); } window.updateLayerDataInDB(id, { isVisible: ext.isVisible }); window.renderCustomLayersList(); };
-        window.changeExtLayerStyle = function(id, newColor, newWeight) {
-            if(window.externalLayers[id]) {
-                if (newColor !== null) window.externalLayers[id].color = newColor; if (newWeight !== null) window.externalLayers[id].weight = parseInt(newWeight);
-                let col = window.externalLayers[id].color; let w = window.externalLayers[id].weight;
-                if(window.externalLayers[id].layer) { window.externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w}); window.externalLayers[id].layer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: col, fillColor: col }); } }); }
-                window.updateLayerDataInDB(id, { color: col, weight: w });
-            }
-        };
-        window.deleteExtLayer = function(id) { map.removeLayer(window.externalLayers[id].layer); delete window.externalLayers[id]; window.deleteLayerFromDB(id); window.renderCustomLayersList(); };
-
-        // ==============================================================
-        // 10. INITIALISATION PRINCIPALE
-        // ==============================================================
+        // === INITIALISATION UI GLOBALE ===
         window.initAppUI = function() {
             let dTitle = document.getElementById('app-title'); if(dTitle) dTitle.style.display = 'block';
 
@@ -824,18 +991,13 @@
             function generatePalette(arr, s = 0.7, l = 0.5) { let pal = {}; arr.forEach((item, i) => { pal[item] = hslToHex(i / arr.length, s, l); }); return pal; }
 
             let tSet = new Set(), rSet = new Set(), trSet = new Set(), pSet = new Set();
-            
             window.snowCannons.features.forEach(f => {
-                let p = f.properties;
-                let t = window.getV(p, window.keyType); if(t!=="N/A") tSet.add(t.toLowerCase()); 
-                let r = window.getV(p, window.keyRep); if(r!=="N/A") rSet.add(r); 
-                let tr = window.getV(p, window.keyTransfo); if(tr!=="N/A") trSet.add(tr); 
-                let pi = window.getV(p, window.keyPiste); if(pi!=="N/A") pSet.add(pi);
+                let p = f.properties; let t = window.getV(p, window.keyType); if(t!=="N/A") tSet.add(t.toLowerCase()); 
+                let r = window.getV(p, window.keyRep); if(r!=="N/A") rSet.add(r); let tr = window.getV(p, window.keyTransfo); if(tr!=="N/A") trSet.add(tr); let pi = window.getV(p, window.keyPiste); if(pi!=="N/A") pSet.add(pi);
             });
 
             Array.from(tSet).sort().forEach((t, i) => { window.technoColors[t] = hslToHex(0.14, 1.0, tSet.size > 1 ? 0.8 - (i / (tSet.size - 1)) * 0.4 : 0.6); });
-            window.repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); 
-            window.transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
+            window.repColors = generatePalette(Array.from(rSet).sort(), 0.8, 0.45); window.transfoColors = generatePalette(Array.from(trSet).sort(), 0.65, 0.55);
 
             window.snowCannons.features.forEach(f => {
                 let typeLower = window.getV(f.properties, window.keyType).toLowerCase(); let color = "#FFD700";
@@ -846,11 +1008,7 @@
             });
 
             let dlContainer = document.getElementById('datalists-container');
-            if (dlContainer) {
-                let dlHtml = "";
-                for(let header in window.columnValuesSets) { let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-'); dlHtml += `<datalist id="${safeId}">${Array.from(window.columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`; }
-                dlContainer.innerHTML = dlHtml;
-            }
+            if (dlContainer) { let dlHtml = ""; for(let header in window.columnValuesSets) { let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-'); dlHtml += `<datalist id="${safeId}">${Array.from(window.columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`; } dlContainer.innerHTML = dlHtml; }
 
             let sld = document.getElementById('season-slider');
             if (window.saisonsList.length > 0 && sld) { sld.max = window.saisonsList.length - 1; sld.value = window.histSeasonIdx; let sdisp = document.getElementById('season-display'); if(sdisp) sdisp.innerText = window.saisonsList[window.histSeasonIdx]; }
@@ -878,10 +1036,7 @@
                         const id = feature.properties.id;
                         if (!window.isMultiSelect) window.selectedCannonsMap.clear(); 
                         if (window.selectedCannonsMap.has(id)) window.selectedCannonsMap.delete(id); else window.selectedCannonsMap.set(id, layer);
-                        
-                        // NOUVEAUTÉ : Centrage de la carte
                         window.map.setView(layer.getLatLng(), 17, {animate: true});
-                        
                         window.updateMap(); window.renderSelectionPanel();
                         let sb = document.getElementById('right-sidebar'); if (window.selectedCannonsMap.size > 0 && sb) sb.classList.add('open');
                     });
@@ -893,21 +1048,13 @@
             window.webcamLayerGroup = L.layerGroup();
             window.webcamsData.forEach(wc => {
                 let marker = L.marker([wc.lat, wc.lng], { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">${wc.icon}</div>`, iconSize: [24,24], iconAnchor: [12,12] }), draggable: false });
-                marker.on('click', function(e) {
-                    L.DomEvent.stopPropagation(e);
-                    if(marker.dragging && marker.dragging.enabled()) return;
-                    
-                    // NOUVEAUTÉ : Centrage de la carte
-                    window.map.setView([wc.lat, wc.lng], 17, {animate: true});
-                    
-                    window.openSingleWebcam(wc.nom);
-                });
+                marker.on('click', function(e) { L.DomEvent.stopPropagation(e); if(marker.dragging && marker.dragging.enabled()) return; window.map.setView([wc.lat, wc.lng], 17, {animate: true}); window.openSingleWebcam(wc.nom); });
                 marker.wcData = wc; window.webcamLayerGroup.addLayer(marker);
             });
             window.webcamLayerGroup.addTo(window.map);
             
             window.attachEvents(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
-        }; // <-- FIN DE LA FONCTION initAppUI
+        };
 
         window.generateDynamicFiltersUI = function() {
             let container = document.getElementById('dynamic-filters-container'); if(!container) return; container.innerHTML = "";
@@ -918,14 +1065,10 @@
         window.renderCheckboxesForFilter = function(idx, colName) {
             let cbxContainer = document.getElementById(`filter-cbx-${idx}`); if(!cbxContainer) return;
             if(!colName) { cbxContainer.style.display = 'none'; window.activeFilters[idx] = {key:"", vals:[]}; window.updateMap(); window.triggerGlobalFilterChart(); return; }
-            
-            cbxContainer.style.display = 'block';
-            let vals = Array.from(window.columnValuesSets[colName] || []).sort();
+            cbxContainer.style.display = 'block'; let vals = Array.from(window.columnValuesSets[colName] || []).sort();
             let html = `<label><input type="checkbox" class="cb-all-${idx}" checked> <b>Tout sélectionner</b></label><hr style="margin:4px 0; border-top:1px solid #eee;">`;
             vals.forEach(v => html += `<label><input type="checkbox" class="cb-val-${idx}" value="${v}"> ${v}</label>`);
-            cbxContainer.innerHTML = html;
-            window.activeFilters[idx] = {key: colName, vals: ['all']};
-
+            cbxContainer.innerHTML = html; window.activeFilters[idx] = {key: colName, vals: ['all']};
             let allBtn = cbxContainer.querySelector(`.cb-all-${idx}`); let cbs = cbxContainer.querySelectorAll(`.cb-val-${idx}`);
             const updateLogic = () => { window.activeFilters[idx].vals = allBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); window.updateMap(); window.triggerGlobalFilterChart(); };
             if(allBtn) allBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); updateLogic(); });
@@ -958,254 +1101,11 @@
                         let elng = document.getElementById('edit-lng'); if(elng) elng.value = e.latlng.lng.toFixed(7); 
                         let layer = window.selectedCannonsMap.get(window.currentlyEditingId);
                         if(layer) { layer.setLatLng(e.latlng); layer.feature.geometry.coordinates = [e.latlng.lng, e.latlng.lat]; }
-                    } else {
-                        // NOUVEAUTÉ : on ferme le panneau latéral
-                        window.closeRightSidebar();
-                    }
+                    } else { window.closeRightSidebar(); }
                 });
             }
         };
 
-        window.calculateMaxes = function() {
-            if(!window.saisonsList[window.histSeasonIdx]) return;
-            let s = window.saisonsList[window.histSeasonIdx]; window.absoluteMaxes = { eau: 0, air: 0, temps: 0 };
-            window.snowCannons.features.forEach(f => {
-                if (f.properties.historique[s]) {
-                    window.absoluteMaxes.eau = Math.max(window.absoluteMaxes.eau, f.properties.historique[s].eau);
-                    window.absoluteMaxes.air = Math.max(window.absoluteMaxes.air, f.properties.historique[s].air);
-                    window.absoluteMaxes.temps = Math.max(window.absoluteMaxes.temps, f.properties.historique[s].temps);
-                }
-            });
-            window.currentMaxThreshold = { ...window.absoluteMaxes }; window.currentMinThreshold = { eau:0, air:0, temps:0 };
-            let smin = document.getElementById('slider-min'); if(smin) { smin.max = window.absoluteMaxes[window.histMetric] || 1; smin.value = 0; }
-            let smax = document.getElementById('slider-max'); if(smax) { smax.max = window.absoluteMaxes[window.histMetric] || 1; smax.value = window.absoluteMaxes[window.histMetric] || 1; }
-            let vmin = document.getElementById('val-min'); if(vmin) vmin.innerText = 0; 
-            let vmax = document.getElementById('val-max'); if(vmax) vmax.innerText = window.absoluteMaxes[window.histMetric] || 1;
-        };
-
-        window.triggerGlobalFilterChart = function() {
-            if (window.selectedCannonsMap.size > 0 || window.currentlyEditingId) return;
-            let hasDyn = window.activeFilters.some(f => f.key && f.vals.length > 0 && !f.vals.includes('all'));
-            let hasStat = !window.currentPistes.includes('all') || !window.currentTypes.includes('all');
-            
-            let visibleCannons = window.snowCannons.features.filter(f => f.properties._isVisible);
-            let html = `<div style="background:#eafaf1; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px; border:1px solid #d5f5e3;"><span style="font-size:24px; font-weight:bold; color:#27ae60;">${visibleCannons.length}</span><br><span style="font-size:12px; color:#555; text-transform:uppercase;">Canons affichés</span></div>`;
-
-            let chartLabels = []; let chartData = []; let chartColors = []; let chartType = 'bar';
-            let chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
-
-            if (window.mainTheme === 'defauts') {
-                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : Défauts";
-                let activeList = []; let cUrgent = 0, cEnCours = 0, cRas = 0;
-                visibleCannons.forEach(f => {
-                    let p = f.properties; let acts = window.getActiveTickets(p.id);
-                    if(acts.length === 0) { cRas++; }
-                    else { acts.forEach(t => { if(t.statut.includes('faire')) cUrgent++; else cEnCours++; activeList.push({id: p.id, piste: window.getV(p, window.keyPiste), ticket: t}); }); }
-                });
-
-                chartLabels = ['À faire', 'En cours', 'RAS']; chartData = [cUrgent, cEnCours, cRas]; chartColors = ['#e74c3c', '#f39c12', '#bdc3c7']; chartType = 'doughnut';
-                let total = cUrgent + cEnCours + cRas; let faultPerc = total > 0 ? (((cUrgent + cEnCours) / total) * 100).toFixed(1) : 0;
-
-                chartOptions.plugins.legend = { position: 'right', labels: { boxWidth: 12, font: {size: 11} } };
-                chartOptions.plugins.tooltip = { callbacks: { label: function(context) { let label = context.label || ''; let value = context.parsed || 0; let total = context.chart._metasets[context.datasetIndex].total; let perc = total > 0 ? ((value/total)*100).toFixed(1) : 0; return `${label} : ${value} (${perc}%)`; } } };
-
-                html += `<div class="piste-chart-container"><div style="text-align:center; font-size:16px; font-weight:bold; color:#e74c3c; margin-bottom:5px;">Taux de pannes : ${faultPerc}%</div><div style="height:180px;position:relative;"><canvas id="global-filter-chart"></canvas></div></div>`;
-                html += `<div style="font-size:13px; font-weight:bold; margin-top:15px; border-bottom:2px solid #eee; padding-bottom:5px;">Liste détaillée des défauts :</div>`;
-                if (activeList.length === 0) { html += `<div style="font-size:12px; color:#7f8c8d; text-align:center; padding:10px;">Aucun défaut sur les canons affichés.</div>`; } 
-                else {
-                    activeList.sort((a,b) => { let wA = a.ticket.statut.includes('faire') ? 1 : 0; let wB = b.ticket.statut.includes('faire') ? 1 : 0; return wB - wA; });
-                    let listHtml = activeList.map(item => {
-                        let color = item.ticket.statut.includes('faire') ? '#e74c3c' : '#f39c12';
-                        return `<div style="border-left:3px solid ${color}; background:#fff; padding:8px; margin-top:8px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); font-size:12px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:#2c3e50;">Canon ${item.id}</b> <span style="color:#7f8c8d; font-size:10px;">(${item.piste})</span><br><span style="color:${color}; font-weight:bold;">${item.ticket.defaut}</span></div><button onclick="window.focusCannon('${item.id}');" style="background:none; border:1px solid #ddd; border-radius:4px; cursor:pointer; font-size:10px; padding:4px 8px;">Cibler 📍</button></div>`; 
-                    }).join('');
-                    html += `<div style="max-height: 40vh; overflow-y: auto; padding-right:5px;">${listHtml}</div>`;
-                }
-            } 
-            else if (window.mainTheme === 'type' || window.mainTheme === 'repeteur' || window.mainTheme === 'transfo') {
-                let key = window.mainTheme === 'type' ? window.keyType : (window.mainTheme === 'repeteur' ? window.keyRep : window.keyTransfo);
-                let title = window.mainTheme === 'type' ? 'Types de canon' : (window.mainTheme === 'repeteur' ? 'Répéteurs' : 'Transformateurs');
-                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : " + title;
-                
-                let counts = {};
-                visibleCannons.forEach(f => { let v = window.getV(f.properties, key); counts[v] = (counts[v] || 0) + 1; });
-                chartLabels = Object.keys(counts).sort(); chartData = chartLabels.map(k => counts[k]);
-                
-                if (window.mainTheme === 'type') {
-                    chartColors = chartLabels.map(k => { let kL = k.toLowerCase(); if(["demak lenko", "demac lenko"].includes(kL)) return '#0000FF'; if(["sufag", "street", "taurus", "taurax", "peak"].includes(kL)) return '#008000'; return window.technoColors[kL] || '#FFD700'; });
-                } else if (window.mainTheme === 'repeteur') { chartColors = chartLabels.map(k => window.repColors[k] || '#3498db'); } 
-                else { chartColors = chartLabels.map(k => window.transfoColors[k] || '#3498db'); }
-
-                html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Répartition par ${title}</div><div style="height:200px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
-            } 
-            else if (window.mainTheme === 'historique') {
-                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : Historique";
-                let s = window.saisonsList[window.histSeasonIdx]; let metricName = window.histMetric === 'eau' ? 'Eau (m³)' : (window.histMetric === 'air' ? 'Air' : 'Temps (h)');
-                let isSinglePiste = (window.currentPistes.length === 1 && window.currentPistes[0] !== 'all');
-                
-                if (isSinglePiste || visibleCannons.length <= 40) {
-                    let sorted = [...visibleCannons].sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
-                    chartLabels = sorted.map(c => c.properties.id); chartData = sorted.map(c => c.properties.historique[s] ? c.properties.historique[s][window.histMetric] : 0); chartColors = '#3498db'; let pisteName = isSinglePiste ? window.currentPistes[0] : "Canons";
-                    html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Détail par canon (${metricName}) - ${pisteName}</div><div style="height:250px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
-                } else {
-                    let pisteTotals = {};
-                    visibleCannons.forEach(f => { let p = window.getV(f.properties, window.keyPiste); let val = f.properties.historique[s] ? f.properties.historique[s][window.histMetric] : 0; pisteTotals[p] = (pisteTotals[p] || 0) + val; });
-                    chartLabels = Object.keys(pisteTotals).sort(); chartData = chartLabels.map(k => pisteTotals[k]); chartColors = '#2980b9';
-                    html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e;">Total ${metricName} par Piste (Saison ${s})</div><div style="height:250px;position:relative;margin-top:10px;"><canvas id="global-filter-chart"></canvas></div></div>`;
-                }
-            }
-
-            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'flex';
-            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block'; 
-            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
-            let sl = document.getElementById('selected-list'); if(sl) sl.innerHTML = html; 
-
-            setTimeout(() => {
-                let ctx = document.getElementById('global-filter-chart'); if(!ctx) return;
-                if(window.chartInstances['global-filter-chart']) window.chartInstances['global-filter-chart'].destroy();
-                window.chartInstances['global-filter-chart'] = new Chart(ctx.getContext('2d'), { type: chartType, data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors, borderRadius: chartType==='bar'?4:0 }] }, options: chartOptions });
-            }, 50);
-        };
-
-        window.getColorByFilter = function(ratio, props) {
-            const inter = (c1,c2,f) => { let r=c1.slice(); for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`;};
-            if (window.mainTheme === 'defauts') { let act = window.getActiveTickets(props.id); if (act.length === 0) return '#bdc3c7'; if (act.some(t => t.statut.includes('faire'))) return '#e74c3c'; return '#f39c12'; }
-            if (window.mainTheme === 'historique') { if (window.histMetric === 'eau') return inter([173,216,230], [41,128,185], ratio); if (window.histMetric === 'air') return inter([250,219,94], [211,84,0], ratio); if (window.histMetric === 'temps') return inter([171,235,198], [39,174,96], ratio); }
-            if (window.mainTheme === 'repeteur') return window.repColors[window.getV(props, window.keyRep)] || '#7f8c8d';
-            if (window.mainTheme === 'transfo') return window.transfoColors[window.getV(props, window.keyTransfo)] || '#7f8c8d';
-            let typeVal = window.getV(props, window.keyType).toLowerCase();
-            if (["demak lenko", "demac lenko"].includes(typeVal)) return "#0000FF";
-            if (["sufag", "street", "taurus", "taurax", "peak"].includes(typeVal)) return "#008000";
-            return window.technoColors[typeVal] || "#FFD700";
-        };
-
-        window.updateLegend = function() {
-            let elDef = document.getElementById('legend-defauts');
-            if (window.mainTheme === 'defauts' && elDef) { elDef.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'urgent')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'encours')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'ras')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;}
-            else if (window.mainTheme === 'type') { let elTy = document.getElementById('legend-type'); if(elTy) elTy.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('type', 'demac')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #0000FF;"></div> Demac Lenko</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'sufag')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #008000;"></div> Sufag / Peak</div><div class="legend-item" onmouseenter="window.highlightLegend('type', 'techno')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: linear-gradient(to right, #f1c40f, #e67e22);"></div> Technoalpin</div>`;}
-            else if (window.mainTheme === 'repeteur') { let h=''; Object.keys(window.repColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('repeteur', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.repColors[k]};"></div> Répéteur ${k}</div>`); let elRep = document.getElementById('legend-repeteur'); if(elRep) elRep.innerHTML = h;}
-            else if (window.mainTheme === 'transfo') { let h=''; Object.keys(window.transfoColors).sort().forEach(k => h += `<div class="legend-item" onmouseenter="window.highlightLegend('transfo', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.transfoColors[k]};"></div> Transfo ${k}</div>`); let elTr = document.getElementById('legend-transfo'); if(elTr) elTr.innerHTML = h;}
-            else if (window.mainTheme === 'historique') {
-                let hL = document.getElementById('legend-historique');
-                if(!hL) return;
-                if (window.histMetric === 'eau') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #add8e6, #2980b9);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`;
-                else if (window.histMetric === 'air') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
-                else if (window.histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
-            }
-        };
-
-        window.updateMap = function() {
-            if(!window.geojsonLayer) return;
-            let s = window.saisonsList[window.histSeasonIdx];
-
-            window.geojsonLayer.eachLayer(function(layer) {
-                const p = layer.feature.properties; let vis = true;
-                
-                if (window.currentPistes && !window.currentPistes.includes('all')) { if (!window.currentPistes.includes(window.getV(p, window.keyPiste))) vis = false; }
-                if (window.currentTypes && !window.currentTypes.includes('all')) { if (!window.currentTypes.includes(window.getV(p, window.keyType).toLowerCase())) vis = false; }
-
-                window.activeFilters.forEach(filt => {
-                    if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; }
-                });
-
-                let val = 0;
-                if (window.mainTheme === 'historique') {
-                    val = p.historique[s] ? p.historique[s][window.histMetric] : 0;
-                    if (val < window.currentMinThreshold[window.histMetric] || val > window.currentMaxThreshold[window.histMetric]) vis = false;
-                }
-
-                if (!vis) {
-                    p._isVisible = false; if (window.map.hasLayer(layer)) window.map.removeLayer(layer);
-                } else {
-                    p._isVisible = true; if (!window.map.hasLayer(layer)) window.map.addLayer(layer);
-                    let rad = 12; let ratio = 0;
-                    if (window.mainTheme === 'historique') { let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
-                    let bg = window.getColorByFilter(ratio, p); let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
-                    let isSel = window.selectedCannonsMap.has(p.id); let isEdit = (window.currentlyEditingId === p.id);
-                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); } else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); } else { layer.setZIndexOffset(0); }
-                    let actClass = (window.mainTheme === 'defauts' && window.getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
-                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
-                    layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = '1'; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
-                }
-            });
-        };
-
-        // === MÉTÉO (METEOGRAMME 3 JOURS) ===
-      // === MÉTÉO MULTI-SOURCES (SUPERBAGNÈRES) ===
-        window.openMeteo = function() {
-            let sb = document.getElementById('right-sidebar'); let rt = document.getElementById('right-title'); let sl = document.getElementById('selected-list');
-            if(!sb || !sl) return;
-            if(rt) rt.innerText = "⛅ Météo Pro - Superbagnères (1800m)";
-            let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'none';
-            let ve = document.getElementById('view-edit'); if(ve) ve.style.display = 'none';
-            let vs = document.getElementById('view-selection'); if(vs) vs.style.display = 'block';
-
-            // Fonction locale pour changer d'onglet météo
-            window.switchMeteoTab = function(provider) {
-                let container = document.getElementById('meteo-content');
-                if(!container) return;
-                
-                // Effet visuel sur les boutons (grise les inactifs)
-                document.querySelectorAll('.meteo-tab-btn').forEach(btn => btn.style.opacity = '0.5');
-                document.getElementById('btn-meteo-' + provider).style.opacity = '1';
-
-                if (provider === 'meteoblue') {
-                    container.innerHTML = `<iframe src="https://www.meteoblue.com/fr/meteo/widget/three/42.767N0.582E1791_Europe%2FParis?geoloc=fixed&nocurrent=0&noforecast=0&days=3&temp=1&layout=light" frameborder="0" scrolling="NO" allowtransparency="true" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox" style="width: 100%; height: 100%;"></iframe>`;
-                } else if (provider === 'windy') {
-                    // Windy centré sur la station
-                    container.innerHTML = `<iframe src="https://embed.windy.com/embed2.html?lat=42.767&lon=0.582&detailLat=42.767&detailLon=0.582&width=650&height=450&zoom=12&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" frameborder="0" style="width: 100%; height: 100%; border-radius:4px;"></iframe>`;
-                } else if (provider === 'ventusky') {
-                    // Ventusky centré sur la station avec la couche "Neige" activée par défaut
-                    container.innerHTML = `<iframe src="https://www.ventusky.com/?p=42.767;0.582;12&l=snow" frameborder="0" style="width: 100%; height: 100%; border-radius:4px;"></iframe>`;
-                }
-            };
-
-            sl.innerHTML = `
-                <div style="display:flex; gap:5px; margin-bottom:15px;">
-                    <button id="btn-meteo-meteoblue" class="meteo-tab-btn" onclick="window.switchMeteoTab('meteoblue')" style="flex:1; background:#3498db; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:1; transition:0.2s;">Meteoblue</button>
-                    <button id="btn-meteo-windy" class="meteo-tab-btn" onclick="window.switchMeteoTab('windy')" style="flex:1; background:#e67e22; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:0.5; transition:0.2s;">Windy</button>
-                    <button id="btn-meteo-ventusky" class="meteo-tab-btn" onclick="window.switchMeteoTab('ventusky')" style="flex:1; background:#2c3e50; color:white; border:none; padding:10px 5px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; opacity:0.5; transition:0.2s;">Ventusky (Neige)</button>
-                </div>
-                <div id="meteo-content" style="background:#fff; border-radius:6px; border:1px solid #eee; padding:10px; height:calc(100vh - 200px);">
-                    <iframe src="https://www.meteoblue.com/fr/meteo/widget/three/42.767N0.582E1791_Europe%2FParis?geoloc=fixed&nocurrent=0&noforecast=0&days=3&temp=1&layout=light" frameborder="0" scrolling="NO" allowtransparency="true" sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox" style="width: 100%; height: 100%;"></iframe>
-                </div>`;
-            sb.classList.add('open');
-        };
-
-        // === SYSTÈME DE REDIMENSIONNEMENT DU VOLET DROIT ===
-        window.initSidebarResizer = function() {
-            const sidebar = document.getElementById('right-sidebar');
-            if (!sidebar) return;
-            const resizer = document.createElement('div');
-            resizer.className = 'resizer';
-            sidebar.appendChild(resizer);
-
-            let isResizing = false;
-            resizer.addEventListener('mousedown', (e) => {
-                isResizing = true;
-                resizer.classList.add('active');
-                document.body.style.cursor = 'ew-resize';
-                if(window.map) window.map.dragging.disable(); // Bloque la carte pendant qu'on étire le menu
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
-                let newWidth = document.body.clientWidth - e.clientX;
-                if (newWidth < 350) newWidth = 350; // Largeur minimale
-                if (newWidth > document.body.clientWidth * 0.9) newWidth = document.body.clientWidth * 0.9; // Largeur maximale (90% de l'écran)
-                sidebar.style.width = newWidth + 'px';
-            });
-
-            document.addEventListener('mouseup', () => {
-                if (isResizing) {
-                    isResizing = false;
-                    resizer.classList.remove('active');
-                    document.body.style.cursor = 'default';
-                    if(window.map) window.map.dragging.enable(); // Réactive la carte
-                }
-            });
-        };
-        // Activer la poignée de redimensionnement après le chargement
-        setTimeout(window.initSidebarResizer, 1000);
         // BOOT FORCE
         window.addEventListener('DOMContentLoaded', async () => {
             if(window.bootAttempt > 0) return;
@@ -1225,5 +1125,5 @@
         
         setTimeout(() => { if(window.bootAttempt === 0) { window.document.dispatchEvent(new Event("DOMContentLoaded")); } }, 2000);
     </script>
-    </body>
+</body>
 </html>
