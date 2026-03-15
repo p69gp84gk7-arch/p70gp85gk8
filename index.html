@@ -964,6 +964,73 @@
             
             setTimeout(() => { window.initAppUI(); let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'none'; }, 800);
         };
+        // === GESTION DES FILTRES ET ÉVÉNEMENTS (RESTAURÉS) ===
+        window.generateDynamicFiltersUI = function() {
+            let container = document.getElementById('dynamic-filters-container'); if(!container) return; container.innerHTML = "";
+            let optionsHTML = `<option value="">-- Choisir un critère --</option>` + window.availableColumns.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
+            container.innerHTML = `<div class="dynamic-filter-slot" style="margin-bottom:0; border:none; padding:0;"><select class="filter-select" id="filter-sel-0" data-idx="0">${optionsHTML}</select><div class="checkbox-list" id="filter-cbx-0" style="display:none;"></div></div>`;
+        };
+
+        window.renderCheckboxesForFilter = function(idx, colName) {
+            let cbxContainer = document.getElementById(`filter-cbx-${idx}`); if(!cbxContainer) return;
+            if(!colName) { cbxContainer.style.display = 'none'; window.activeFilters[idx] = {key:"", vals:[]}; window.updateMap(); window.triggerGlobalFilterChart(); return; }
+            cbxContainer.style.display = 'block'; let vals = Array.from(window.columnValuesSets[colName] || []).sort();
+            let html = `<label><input type="checkbox" class="cb-all-${idx}" checked> <b>Tout sélectionner</b></label><hr style="margin:4px 0; border-top:1px solid #eee;">`;
+            vals.forEach(v => html += `<label><input type="checkbox" class="cb-val-${idx}" value="${v}"> ${v}</label>`);
+            cbxContainer.innerHTML = html; window.activeFilters[idx] = {key: colName, vals: ['all']};
+            let allBtn = cbxContainer.querySelector(`.cb-all-${idx}`); let cbs = cbxContainer.querySelectorAll(`.cb-val-${idx}`);
+            const updateLogic = () => { window.activeFilters[idx].vals = allBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); window.updateMap(); window.triggerGlobalFilterChart(); };
+            if(allBtn) allBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); updateLogic(); });
+            cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) { if(allBtn) allBtn.checked=false; } else if(Array.from(cbs).every(x=>!x.checked)) { if(allBtn) allBtn.checked=true; } updateLogic(); }));
+        };
+
+        window.attachEvents = function() {
+            document.querySelectorAll('input[name="main_theme"]').forEach(r => {
+                r.addEventListener('change', e => {
+                    window.mainTheme = e.target.value;
+                    document.querySelectorAll('.theme-details, .theme-details-hist').forEach(el => el.style.display = 'none');
+                    document.querySelectorAll('.radio-card').forEach(el => { el.style.borderBottomLeftRadius = '6px'; el.style.borderBottomRightRadius = '6px'; el.style.marginBottom = '8px'; el.style.borderColor = '#e1e8ed'; if(el.id === 'lbl-historique') el.style.borderColor = '#2ecc71'; });
+                    let activeDetails = document.getElementById('details-' + window.mainTheme); let activeLabel = document.getElementById('lbl-' + window.mainTheme);
+                    if (activeDetails && activeLabel) { activeDetails.style.display = 'block'; activeLabel.style.borderBottomLeftRadius = '0'; activeLabel.style.borderBottomRightRadius = '0'; activeLabel.style.marginBottom = '0'; if(window.mainTheme === 'historique') { activeLabel.style.borderColor = '#2ecc71'; } else { activeLabel.style.borderColor = '#3498db'; } }
+                    if(window.mainTheme === 'historique') window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
+                });
+            });
+
+            document.querySelectorAll('input[name="hist_metric"]').forEach(r => { r.addEventListener('change', e => { window.histMetric = e.target.value; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart(); }); });
+            let ssl = document.getElementById('season-slider'); if(ssl) ssl.addEventListener('input', e => { window.histSeasonIdx = parseInt(e.target.value); let sd = document.getElementById('season-display'); if(sd) sd.innerText = window.saisonsList[window.histSeasonIdx]; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart(); });
+            let slmin = document.getElementById('slider-min'); if(slmin) slmin.addEventListener('input', e => { let val = parseFloat(e.target.value); if(val > window.currentMaxThreshold[window.histMetric]) { val = window.currentMaxThreshold[window.histMetric]; e.target.value = val; } window.currentMinThreshold[window.histMetric] = val; let vm = document.getElementById('val-min'); if(vm) vm.innerText = val; window.updateMap(); window.triggerGlobalFilterChart();});
+            let slmax = document.getElementById('slider-max'); if(slmax) slmax.addEventListener('input', e => { let val = parseFloat(e.target.value); if(val < window.currentMinThreshold[window.histMetric]) { val = window.currentMinThreshold[window.histMetric]; e.target.value = val; } window.currentMaxThreshold[window.histMetric] = val; let vmx = document.getElementById('val-max'); if(vmx) vmx.innerText = val; window.updateMap(); window.triggerGlobalFilterChart();});
+            let dfc = document.getElementById('dynamic-filters-container'); if(dfc) dfc.addEventListener('change', e => { if(e.target.classList.contains('filter-select')) window.renderCheckboxesForFilter(e.target.getAttribute('data-idx'), e.target.value); });
+        
+            if(window.map) {
+                window.map.on('click', function(e) {
+                    let amc = document.getElementById('allow-move-chk');
+                    if (window.currentlyEditingId && amc && amc.checked) { 
+                        let elat = document.getElementById('edit-lat'); if(elat) elat.value = e.latlng.lat.toFixed(7); 
+                        let elng = document.getElementById('edit-lng'); if(elng) elng.value = e.latlng.lng.toFixed(7); 
+                        let layer = window.selectedCannonsMap.get(window.currentlyEditingId);
+                        if(layer) { layer.setLatLng(e.latlng); layer.feature.geometry.coordinates = [e.latlng.lng, e.latlng.lat]; }
+                    } else { window.closeRightSidebar(); }
+                });
+            }
+        };
+
+        window.calculateMaxes = function() {
+            if(!window.saisonsList[window.histSeasonIdx]) return;
+            let s = window.saisonsList[window.histSeasonIdx]; window.absoluteMaxes = { eau: 0, air: 0, temps: 0 };
+            window.snowCannons.features.forEach(f => {
+                if (f.properties.historique[s]) {
+                    window.absoluteMaxes.eau = Math.max(window.absoluteMaxes.eau, f.properties.historique[s].eau);
+                    window.absoluteMaxes.air = Math.max(window.absoluteMaxes.air, f.properties.historique[s].air);
+                    window.absoluteMaxes.temps = Math.max(window.absoluteMaxes.temps, f.properties.historique[s].temps);
+                }
+            });
+            window.currentMaxThreshold = { ...window.absoluteMaxes }; window.currentMinThreshold = { eau:0, air:0, temps:0 };
+            let smin = document.getElementById('slider-min'); if(smin) { smin.max = window.absoluteMaxes[window.histMetric] || 1; smin.value = 0; }
+            let smax = document.getElementById('slider-max'); if(smax) { smax.max = window.absoluteMaxes[window.histMetric] || 1; smax.value = window.absoluteMaxes[window.histMetric] || 1; }
+            let vmin = document.getElementById('val-min'); if(vmin) vmin.innerText = 0; 
+            let vmax = document.getElementById('val-max'); if(vmax) vmax.innerText = window.absoluteMaxes[window.histMetric] || 1;
+        };
 
         // === INITIALISATION UI GLOBALE ===
         window.initAppUI = function() {
