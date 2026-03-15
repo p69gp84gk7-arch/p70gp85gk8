@@ -59,7 +59,7 @@
         .map-btn{background:white;border:2px solid rgba(0,0,0,0.2);padding:10px 15px;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.3);transition:0.3s;font-size:13px;}
         .map-btn.active{background:#3498db;color:white;border-color:#2980b9;}
         /* PANNEAU DROIT ELARGI A 550PX */
-        #right-sidebar{position:absolute;top:50px;right:0;bottom:0;width:550px;background:#fff;z-index:2001;transform:translateX(100%);transition:transform 0.3s;box-shadow:-5px 0 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+      #right-sidebar{position:absolute;top:50px;right:0;bottom:0;width:680px;max-width:100%;background:#fff;z-index:2001;transform:translateX(100%);transition:transform 0.3s;box-shadow:-5px 0 25px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
         #right-sidebar.open{transform:translateX(0);}
         .right-header{background:#fff;border-bottom:1px solid #eee;padding:20px;font-size:16px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;color:#2c3e50;}
         .right-content{padding:20px;overflow-y:auto;flex-grow:1;background:#f9fbfc;}
@@ -946,6 +946,9 @@
                         let elng = document.getElementById('edit-lng'); if(elng) elng.value = e.latlng.lng.toFixed(7); 
                         let layer = window.selectedCannonsMap.get(window.currentlyEditingId);
                         if(layer) { layer.setLatLng(e.latlng); layer.feature.geometry.coordinates = [e.latlng.lng, e.latlng.lat]; }
+                    } else {
+                        // NOUVEAUTÉ : on ferme le panneau latéral
+                        window.closeRightSidebar();
                     }
                 });
             }
