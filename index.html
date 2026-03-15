@@ -92,7 +92,7 @@
         #bi-meteo-modal {display:none;position:fixed;top:50px;left:0;right:0;bottom:0;background:#f4f6f8;z-index:8000;flex-direction:column;}
         .bi-header {background:#2c3e50;color:white;padding:15px 20px;font-size:18px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;}
         .bi-container {display:flex;flex:1;overflow:hidden;}
-        .bi-sidebar {width:320px;background:#fff;border-right:1px solid #ddd;padding:20px;overflow-y:auto;box-shadow:2px 0 10px rgba(0,0,0,0.05);}
+        .bi-sidebar {width:400px;background:#fff;border-right:1px solid #ddd;padding:20px;overflow-y:auto;box-shadow:2px 0 10px rgba(0,0,0,0.05);}
         .bi-content {flex:1;padding:20px;display:flex;flex-direction:column;}
         .bi-canvas-box {background:#fff;border-radius:8px;border:1px solid #ddd;padding:20px;flex:1;position:relative;box-shadow:0 4px 15px rgba(0,0,0,0.05);}
         
@@ -114,17 +114,75 @@
         </div>
     </div>
 
-    <div id="bi-meteo-modal" style="display:none;position:fixed;top:50px;left:0;right:0;bottom:0;background:#f4f6f8;z-index:8000;flex-direction:column;">
-        <div class="bi-header" style="background:#2c3e50;color:white;padding:15px 20px;font-size:18px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
+    <div id="bi-meteo-modal">
+        <div class="bi-header">
             <span>❄️ PowerBI Neige (Analyse & Graphiques Avancés)</span>
             <button onclick="document.getElementById('bi-meteo-modal').style.display='none'" style="background:none;border:none;color:white;font-size:28px;cursor:pointer;">&times;</button>
         </div>
-        <div class="bi-container" style="display:flex;flex:1;overflow:hidden;">
-            Détail: TypeError: null is not an object (evaluating 'document.getElementById('bi-filter-col').value')
-Ligne: 357</div>
+        <div class="bi-container">
+            <div class="bi-sidebar">
+                
+                <div class="edit-label">1. Source des données</div>
+                <select id="bi-source" class="edit-input" onchange="window.biLoadSource()">
+                    <optgroup label="Données Brutes (Google Sheets)">
+                        <option value="raw_gen">Tableau Général Canons</option>
+                        <option value="raw_hist">Historique Enneigeurs</option>
+                        <option value="raw_tick">Maintenance Neige (Tickets)</option>
+                        <option value="hist">Météo : Historique</option>
+                        <option value="froid">Météo : Heures de Froid</option>
+                    </optgroup>
+                    <optgroup label="Données Calculées (Temps Réel)">
+                        <option value="conso">Production : Volumes par Saison</option>
+                        <option value="defauts">Maintenance : Pannes par Mois</option>
+                        <option value="types">Parc : Types de Canons</option>
+                    </optgroup>
+                </select>
+                
+                <div class="edit-label">2. Format Global</div>
+                <select id="bi-type" class="edit-input" onchange="window.biUpdateUI()">
+                    <option value="bar">📊 Barres</option>
+                    <option value="line">📈 Courbes</option>
+                    <option value="combo">📉 Combiné (Personnalisé)</option>
+                    <option value="pie">🥧 Camembert</option>
+                    <option value="doughnut">🍩 Anneau</option>
+                    <option value="polarArea">🎯 Zone Polaire</option>
+                </select>
+
+                <div class="edit-label">3. Axe Horizontal (Abscisses)</div>
+                <select id="bi-x" class="edit-input" onchange="window.biDrawChart()"></select>
+
+                <div class="edit-label">4. Axes Verticaux (Cochez pour ajouter)</div>
+                <div id="bi-y-container" style="background:#fdfdfd; border:1px solid #ccc; border-radius:4px; padding:10px; max-height:280px; overflow-y:auto; margin-bottom:12px; font-size:12px;">
+                    </div>
+
+                <div class="edit-label">🔍 Filtrer les données (Optionnel)</div>
+                <div style="display:flex; gap:5px; margin-bottom:12px;">
+                    <select id="bi-filter-col" class="edit-input" style="margin:0; flex:1;" onchange="window.biDrawChart()"></select>
+                    <input type="text" id="bi-filter-val" class="edit-input" style="margin:0; flex:1;" placeholder="Ex: Fait, >10..." onkeyup="window.biDrawChart()">
+                </div>
+
+                <div class="edit-label">Options Graphiques</div>
+                <label style="display:flex; align-items:center; gap:5px; margin-bottom:10px; font-size:12px; cursor:pointer;">
+                    <input type="checkbox" id="bi-points" checked onchange="window.biDrawChart()"> Afficher les points sur les courbes
+                </label>
+
+                <div class="edit-label">🎨 Palette Globale</div>
+                <select id="bi-palette" class="edit-input" onchange="window.biDrawChart()">
+                    <option value="default">Standard (Bleu, Rouge, Vert...)</option>
+                    <option value="cold">Froid (Nuances de Bleu/Cyan)</option>
+                    <option value="warm">Chaud (Jaune, Orange, Rouge)</option>
+                    <option value="mono">Monochrome (Bleu nuit)</option>
+                </select>
+                
+                <button class="btn-action-primary" style="background:#27ae60; margin-top:5px; padding:12px;" onclick="window.biDrawChart()">🔄 Actualiser le Graphique</button>
+                <button class="btn-action-primary" style="background:#8e44ad; margin-top:10px; padding:12px;" onclick="window.exportBiChart()">💾 Télécharger l'Image (PNG)</button>
+                
+                <div style="margin-top:15px; padding:10px; background:#eafaf1; border:1px solid #a2d9ce; border-radius:6px; font-size:11px; color:#27ae60; text-align:center;">
+                    <b>💡 Mode d'emploi :</b><br>Survolez le graphique avec la souris pour afficher le curseur de lecture précis. Utilisez la molette pour zoomer !
+                </div>
             </div>
-            <div class="bi-content" style="flex:1;padding:20px;display:flex;flex-direction:column;">
-                <div class="bi-canvas-box" style="background:#fff;border-radius:8px;border:1px solid #ddd;padding:20px;flex:1;position:relative;box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+            <div class="bi-content">
+                <div class="bi-canvas-box">
                     <canvas id="bi-canvas"></canvas>
                 </div>
             </div>
@@ -162,7 +220,7 @@ Ligne: 357</div>
                         <div id="legend-historique" style="margin-top:15px; margin-bottom:5px;"></div>
                         <div style="margin-top:15px; padding-top:15px; border-top:1px dashed #bdc3c7;"><div class="slider-label">Cacher en dessous de : <span id="val-min" class="val-badge">0</span></div><input type="range" id="slider-min" min="0" max="100" value="0"><div class="slider-label" style="margin-top:12px;">Cacher au dessus de : <span id="val-max" class="val-badge" style="color:#2980b9;">100</span></div><input type="range" id="slider-max" min="0" max="100" value="100"></div>
                         <button class="btn-action-primary" style="background:#27ae60; margin-top:15px;" onclick="window.openGlobalCompareModal(true)">📊 Comparer 2 Saisons</button>
-                    </div>
+                    </div></div>
                 </div>
             </details>
             <details class="panel-section" open><summary>Filtres Rapides</summary><div class="section-content" style="padding-top: 5px;">
@@ -197,7 +255,7 @@ Ligne: 357</div>
 
     <script>
         // ⚠️ LIEN GOOGLE APPS SCRIPT ⚠️
-        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbx7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
+        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbz7MOw-b9DNQlLtgxpou_sg2-5BcFS0b2i7NZKxfNNAB8kiLH8L9Z3lV06-gxjsmui0mw/exec";
         
         window.map = null; window.satLayer = null; window.geojsonLayer = null; window.webcamLayerGroup = null;
         window.snowCannons = { "type": "FeatureCollection", "features": [] };
@@ -239,11 +297,38 @@ Ligne: 357</div>
             else if (src === 'raw_gen') data = window.rawGeneral || [];
             else if (src === 'raw_hist') data = window.rawHistorique || [];
             else if (src === 'raw_tick') data = window.rawTicketsSheet || [];
+            else if (src === 'conso') {
+                data.push(["Saison", "Eau (m³)", "Air", "Heures"]);
+                window.saisonsList.forEach(s => {
+                    let e = 0, a = 0, t = 0;
+                    window.snowCannons.features.forEach(f => {
+                        let h = f.properties.historique[s];
+                        if(h) { e += h.eau || 0; a += h.air || 0; t += h.temps || 0; }
+                    });
+                    data.push([s, Math.round(e), Math.round(a), Math.round(t)]);
+                });
+            }
+            else if (src === 'defauts') {
+                data.push(["Mois", "Nombre de Pannes"]);
+                let counts = {};
+                window.rawTickets.forEach(t => {
+                    if(!t.date) return; let d = new Date(t.date); if(isNaN(d.getTime())) return;
+                    let m = (d.getMonth()+1).toString().padStart(2,'0') + "/" + d.getFullYear();
+                    counts[m] = (counts[m] || 0) + 1;
+                });
+                Object.keys(counts).sort((a,b) => { let pa = a.split('/'); let pb = b.split('/'); return new Date(pa[1], pa[0]-1) - new Date(pb[1], pb[0]-1); }).forEach(k => data.push([k, counts[k]]));
+                if(data.length === 1) data.push(["Aucun ticket", 0]);
+            }
+            else if (src === 'types') {
+                data.push(["Modèle de Canon", "Quantité"]); let counts = {};
+                window.snowCannons.features.forEach(f => { let t = window.getV(f.properties, window.keyType); if(t !== "N/A") counts[t] = (counts[t] || 0) + 1; });
+                Object.keys(counts).sort().forEach(k => data.push([k, counts[k]]));
+            }
 
             window.biCurrentData = data;
             let selX = document.getElementById('bi-x'); 
             let containerY = document.getElementById('bi-y-container');
-            let selFilt = document.getElementById('bi-filter-col'); // Nouveau
+            let selFilt = document.getElementById('bi-filter-col'); 
             
             if(selX) selX.innerHTML = ""; 
             if(containerY) containerY.innerHTML = "";
@@ -257,7 +342,7 @@ Ligne: 357</div>
             headers.forEach((h, i) => {
                 if(h.toString().trim() === "") return;
                 if(selX) selX.innerHTML += `<option value="${i}">${h}</option>`;
-                if(selFilt) selFilt.innerHTML += `<option value="${i}">${h}</option>`; // Nouveau
+                if(selFilt) selFilt.innerHTML += `<option value="${i}">${h}</option>`; 
                 
                 let checked = (i === 1) ? 'checked' : '';
                 let color = colors[i % colors.length];
@@ -325,7 +410,6 @@ Ligne: 357</div>
             let elX = document.getElementById('bi-x');
             let idxX = elX ? parseInt(elX.value) : 0;
             
-            // SÉCURITÉ : Lecture des filtres sans crash
             let elFiltCol = document.getElementById('bi-filter-col');
             let elFiltVal = document.getElementById('bi-filter-val');
             let filtCol = elFiltCol ? elFiltCol.value : "";
@@ -380,18 +464,23 @@ Ligne: 357</div>
                 });
             }
 
-            let labels = Object.keys(grouped).sort((a,b) => {
-                let na = parseFloat(a), nb = parseFloat(b);
-                if(!isNaN(na) && !isNaN(nb)) return na - nb;
+            // CORRECTION DE L'ERREUR DE SYNTAXE (Ligne 594) : UTILISATION D'UNE FONCTION CLASSIQUE
+            let labels = Object.keys(grouped).sort(function(a, b) {
+                let na = parseFloat(a);
+                let nb = parseFloat(b);
+                if(!isNaN(na) && !isNaN(nb)) {
+                    return na - nb;
+                }
                 return a.localeCompare(b);
             });
 
             let elPal = document.getElementById('bi-palette');
             let paletteChoice = elPal ? elPal.value : 'default';
-            let pDef = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+            let pDef = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e', '#7f8c8d', '#FF69B4', '#16A085'];
             let pCold = ['#81D4FA', '#26C6DA', '#00BCD4', '#00ACC1', '#0097A7', '#00838F', '#006064'];
             let pWarm = ['#FFD54F', '#FFCA28', '#FFC107', '#FFB300', '#FFA000', '#FF8F00', '#E65100'];
-            let colors = paletteChoice === 'cold' ? pCold : (paletteChoice === 'warm' ? pWarm : pDef);
+            let pMono = ['#1A252C', '#2C3E50', '#34495E', '#5D6D7E', '#7F8C8D', '#95A5A6', '#BDC3C7'];
+            let colors = paletteChoice === 'cold' ? pCold : (paletteChoice === 'warm' ? pWarm : (paletteChoice === 'mono' ? pMono : pDef));
 
             let datasets = [];
             let colorIndex = 0;
@@ -479,160 +568,13 @@ Ligne: 357</div>
             });
         };
 
-            // MOTEUR D'AGRÉGATION AVANCÉ (Catégorisation Texte)
-            let grouped = {};
-            for(let r=1; r<data.length; r++) {
-                let row = data[r]; let rawX = row[idxX];
-                if(rawX == null || rawX === "") continue;
-                
-                // Application du Filtre
-                if(filtCol !== "" && filtValRaw !== "") {
-                    let cellVal = (row[filtCol] || "").toString().toLowerCase();
-                    let fVal = filtValRaw.toLowerCase();
-                    if (fVal.startsWith('>')) { if(parseFloat(cellVal) <= parseFloat(fVal.substring(1))) continue; }
-                    else if (fVal.startsWith('<')) { if(parseFloat(cellVal) >= parseFloat(fVal.substring(1))) continue; }
-                    else if (fVal.startsWith('=')) { if(cellVal !== fVal.substring(1).trim()) continue; }
-                    else { if(!cellVal.includes(fVal)) continue; }
-                }
-
-                let strX = rawX.toString().trim();
-                if(strX.length >= 10 && !isNaN(Date.parse(strX))) strX = new Date(strX).toLocaleDateString('fr-FR');
-                
-                if(!grouped[strX]) grouped[strX] = {};
-                
-                yConfigs.forEach(cfg => {
-                    let val = row[cfg.idx];
-                    if(cfg.agg === 'count') {
-                        // SÉPARATION DES TEXTES : On extrait la valeur texte exacte pour la catégoriser
-                        let textVal = (val != null && val.toString().trim() !== "") ? val.toString().trim() : "Non spécifié";
-                        if (!grouped[strX][cfg.idx]) grouped[strX][cfg.idx] = {};
-                        grouped[strX][cfg.idx][textVal] = (grouped[strX][cfg.idx][textVal] || 0) + 1;
-                        cfg.uniqueValues.add(textVal);
-                    } else {
-                        // SOMME NUMÉRIQUE CLASSIQUE
-                        let num = parseFloat(val) || 0;
-                        grouped[strX][cfg.idx] = (grouped[strX][cfg.idx] || 0) + num;
-                    }
-                });
-            }
-
-            // Tri de l'axe X (Mixte: nombres et textes)
-            let labels = Object.keys(grouped).sort(function(a, b) {
-                let na = parseFloat(a);
-                let nb = parseFloat(b);
-                if(!isNaN(na) && !isNaN(nb)) {
-                    return na - nb;
-                }
-                return a.localeCompare(b);
-            });
-
-            // Palettes de couleurs
-            let paletteChoice = document.getElementById('bi-palette').value;
-            let pDef = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e', '#7f8c8d', '#FF69B4', '#16A085', '#D35400'];
-            let pCold = ['#81D4FA', '#26C6DA', '#00BCD4', '#00ACC1', '#0097A7', '#00838F', '#006064'];
-            let pWarm = ['#FFD54F', '#FFCA28', '#FFC107', '#FFB300', '#FFA000', '#FF8F00', '#FF6F00', '#E65100'];
-            let pMono = ['#1A252C', '#2C3E50', '#34495E', '#5D6D7E', '#7F8C8D', '#95A5A6', '#BDC3C7'];
-            let colors = paletteChoice === 'cold' ? pCold : (paletteChoice === 'warm' ? pWarm : (paletteChoice === 'mono' ? pMono : pDef));
-
-            let datasets = [];
-            let colorIndex = 0;
-
-            yConfigs.forEach((cfg) => {
-                let finalType = isCombo ? cfg.type : (isRadar ? 'radar' : globalType);
-                let isLineType = (finalType === 'line' || finalType === 'radar');
-
-                if (cfg.agg === 'count' && cfg.uniqueValues.size > 0) {
-                    // CRÉATION DE MULTIPLES DATASETS : Un par valeur texte unique !
-                    let sortedCats = Array.from(cfg.uniqueValues).sort();
-                    
-                    sortedCats.forEach(cat => {
-                        if(cat === "Non spécifié" && sortedCats.length > 1) return; // masque les cases vides si d'autres données existent
-                        
-                        let datasetData = labels.map(k => (grouped[k][cfg.idx] && grouped[k][cfg.idx][cat]) ? grouped[k][cfg.idx][cat] : 0);
-                        let color = colors[colorIndex % colors.length];
-                        let bgColorsArray = labels.map((_, i) => colors[(colorIndex + i) % colors.length]);
-
-                        datasets.push({
-                            label: `${cfg.label} : ${cat}`,
-                            type: finalType === 'combo' ? 'bar' : finalType,
-                            data: datasetData,
-                            backgroundColor: isPie ? bgColorsArray : (isLineType ? color+'33' : color),
-                            borderColor: isPie ? '#fff' : color,
-                            borderWidth: (finalType === 'bar' && !isPie) ? 0 : 2,
-                            fill: isLineType,
-                            yAxisID: cfg.axis,
-                            tension: 0.3,
-                            pointRadius: showPoints ? 4 : 0,
-                            pointHoverRadius: 6,
-                            borderRadius: finalType === 'bar' ? 4 : 0
-                        });
-                        colorIndex++;
-                    });
-                } else {
-                    // DATASET UNIQUE (Somme numérique normale)
-                    let datasetData = labels.map(k => grouped[k][cfg.idx] || 0);
-                    let color = cfg.color; // Couleur choisie par l'utilisateur avec la pipette
-                    let bgColorsArray = labels.map((_, i) => colors[(colorIndex + i) % colors.length]);
-
-                    datasets.push({
-                        label: cfg.label,
-                        type: finalType === 'combo' ? 'bar' : finalType,
-                        data: datasetData,
-                        backgroundColor: isPie ? bgColorsArray : (isLineType ? color+'33' : color),
-                        borderColor: isPie ? '#fff' : color,
-                        borderWidth: (finalType === 'bar' && !isPie) ? 0 : 2,
-                        fill: isLineType,
-                        yAxisID: cfg.axis,
-                        tension: 0.3,
-                        pointRadius: showPoints ? 4 : 0,
-                        pointHoverRadius: 6,
-                        borderRadius: finalType === 'bar' ? 4 : 0
-                    });
-                    colorIndex++;
-                }
-            });
-
-            if(isPie && datasets.length > 1) { datasets = [datasets[0]]; } // 1 seul dataset possible en mode camembert
-
-            let ctx = document.getElementById('bi-canvas'); if(!ctx) return;
-            if(window.chartInstances['bi-chart']) window.chartInstances['bi-chart'].destroy();
-            
-            // Fond blanc pour un export PNG parfait
-            const customBg = { id: 'customBg', beforeDraw: (chart) => { const c = chart.ctx; c.save(); c.globalCompositeOperation = 'destination-over'; c.fillStyle = '#ffffff'; c.fillRect(0, 0, chart.width, chart.height); c.restore(); } };
-
-            let hasRightAxis = datasets.some(d => d.yAxisID === 'y1');
-            let finalMainType = isCombo ? 'bar' : (isPie ? globalType : (isRadar ? 'radar' : globalType));
-            
-            // Si c'est un graphique en barre avec beaucoup de textes catégorisés, on empile (Stacked) pour une meilleure lecture
-            let isStacked = datasets.length > 1 && globalType === 'bar';
-
-            window.chartInstances['bi-chart'] = new Chart(ctx.getContext('2d'), {
-                type: finalMainType, 
-                data: { labels: labels, datasets: datasets },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    interaction: { mode: 'index', intersect: false }, // Curseurs survol croisé !
-                    plugins: { 
-                        legend: { display: true, position: isPie || isRadar ? 'right' : 'top' },
-                        title: { display: true, text: 'GMAO BI - ' + data[0][idxX], font: {size: 16} },
-                        zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } // Activation du Zoom et Pan
-                    }, 
-                    scales: (isPie || isRadar) ? {} : { 
-                        x: { stacked: isStacked, ticks: { maxRotation: 45, minRotation: 45 }, grid: { display: false } },
-                        y: { stacked: isStacked, type: 'linear', display: true, position: 'left' },
-                        y1: { type: 'linear', display: hasRightAxis, position: 'right', grid: { drawOnChartArea: false } }
-                    } 
-                },
-                plugins: [customBg]
-            });
-        };
-
         window.exportBiChart = function() {
             let canvas = document.getElementById('bi-canvas'); if(!canvas) return;
             let url = canvas.toDataURL('image/png');
             let a = document.createElement('a'); a.href = url; a.download = 'GMAO_Expert_BI_Export.png';
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
         };
+
         // === PREVISIONS METEO LIVE ===
         window.openMeteoWidget = function() {
             let sb = document.getElementById('right-sidebar'); let rt = document.getElementById('right-title'); let sl = document.getElementById('selected-list');
@@ -1297,6 +1239,7 @@ Ligne: 357</div>
             
             window.attachEvents(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
         };
+
         window.generateDynamicFiltersUI = function() {
             let container = document.getElementById('dynamic-filters-container'); if(!container) return; container.innerHTML = "";
             let optionsHTML = `<option value="">-- Choisir un critère --</option>` + window.availableColumns.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
@@ -1363,6 +1306,7 @@ Ligne: 357</div>
             let vmin = document.getElementById('val-min'); if(vmin) vmin.innerText = 0; 
             let vmax = document.getElementById('val-max'); if(vmax) vmax.innerText = window.absoluteMaxes[window.histMetric] || 1;
         };
+
         // === EDITEUR TICKETS (RESTAURÉ) ===
         window.editFullTicket = function(canonId, defaut) {
             let safeDef = defaut.replace(/[^a-zA-Z0-9]/g, ""); let idDiv = `ticket-edit-${canonId}-${safeDef}`; let el = document.getElementById(idDiv); if(!el) return;
