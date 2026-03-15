@@ -380,6 +380,7 @@
         };
 
         // === AFFICHAGE DU PANNEAU DETAILS (CANON) ===
+        // === AFFICHAGE DU PANNEAU DETAILS (CANON) ===
         window.renderSelectionPanel = function() {
             if(window.selectedCannonsMap.size === 0) { window.triggerGlobalFilterChart(); return; }
             let mt = document.getElementById('multi-tools'); if(mt) mt.style.display = 'flex';
@@ -391,10 +392,11 @@
             
             window.selectedCannonsMap.forEach((layer, id) => {
                 const p = layer.feature.properties; let active = window.getActiveTickets(p.id); let history = window.getHistoryTickets(p.id);
-                let mainContent = ""; let histHtml = "";
+                let mainContent = ""; let histHtml = ""; let prodHtml = "";
 
+                // 1. DOSSIER D'HISTORIQUE DES PANNES PASSÉES
                 if (history.length > 0) {
-                    histHtml = `<details class="ticket-history"><summary>📁 Historique d'interventions passées (${history.length})</summary><ul style="padding-left:15px; margin-top:10px;">`;
+                    histHtml = `<details class="ticket-history" style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">📁 Historique d'interventions (${history.length})</summary><ul style="padding-left:15px; margin-top:10px;">`;
                     history.forEach(t => {
                         let dateStr = isNaN(new Date(t.date).getTime()) ? (t.date || "Inconnue") : new Date(t.date).toLocaleDateString('fr-FR');
                         let cause = t.fullData.find(x => x.k.toLowerCase().includes('cause') || x.k.toLowerCase().includes('intervention') || x.k.toLowerCase().includes('commentaire'));
@@ -403,12 +405,25 @@
                     histHtml += `</ul></details>`;
                 }
 
+                // 2. GRAPHIQUES DE PRODUCTION (Toutes les saisons)
+                if (window.saisonsList && window.saisonsList.length > 0) {
+                    prodHtml = `
+                    <div style="margin-top:15px; font-size:12px; font-weight:bold; color:#2c3e50; border-bottom:2px solid #eee; padding-bottom:5px;">📊 Évolution de la production</div>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <div style="flex:1; background:#fff; border:1px solid #eee; border-radius:4px; padding:5px;"><div style="font-size:10px; font-weight:bold; color:#3498db; text-align:center;">Eau (m³)</div><div style="height:90px; position:relative;"><canvas id="hist-eau-${p.id}"></canvas></div></div>
+                        <div style="flex:1; background:#fff; border:1px solid #eee; border-radius:4px; padding:5px;"><div style="font-size:10px; font-weight:bold; color:#e67e22; text-align:center;">Air</div><div style="height:90px; position:relative;"><canvas id="hist-air-${p.id}"></canvas></div></div>
+                        <div style="flex:1; background:#fff; border:1px solid #eee; border-radius:4px; padding:5px;"><div style="font-size:10px; font-weight:bold; color:#27ae60; text-align:center;">Heures</div><div style="height:90px; position:relative;"><canvas id="hist-temps-${p.id}"></canvas></div></div>
+                    </div>`;
+                }
+
                 if (window.mainTheme === 'historique') {
                     let s = window.saisonsList[window.histSeasonIdx]; let hd = p.historique[s] || {eau:0, air:0, temps:0};
                     mainContent = `
                         <div class="hist-card"><div style="font-size:14px; color:#555; margin-bottom:10px; text-transform:uppercase;">Saison <b>${s}</b></div><div style="display:flex; justify-content: space-around;"><div><div style="font-size:24px; font-weight:bold; color:#2980b9;">${hd.eau}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">m³ Eau</div></div><div><div style="font-size:24px; font-weight:bold; color:#e67e22;">${hd.air}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Air</div></div><div><div style="font-size:24px; font-weight:bold; color:#27ae60;">${hd.temps}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Heures</div></div></div></div>
                         <div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; color:#34495e; text-align:center;">Comparatif sur la piste (${window.getV(p, window.keyPiste)})</div><div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart-${p.id}"></canvas></div></div>
-                        <div class="piste-chart-container" style="background:#fafbfc;"><div style="font-size:11px; font-weight:bold; color:#555; text-align:center;">➕ Comparer avec une autre saison : <select onchange="window.drawSecondPisteChart('${p.id}', this.value)" style="padding:4px; border-radius:4px; border:1px solid #ccc; outline:none;"><option value="">-- Choisir --</option>${window.saisonsList.filter(x => x !== s).map(x => `<option value="${x}">${x}</option>`).join('')}</select></div><div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart2-${p.id}"></canvas></div></div>`;
+                        <div class="piste-chart-container" style="background:#fafbfc;"><div style="font-size:11px; font-weight:bold; color:#555; text-align:center;">➕ Comparer avec une autre saison : <select onchange="window.drawSecondPisteChart('${p.id}', this.value)" style="padding:4px; border-radius:4px; border:1px solid #ccc; outline:none;"><option value="">-- Choisir --</option>${window.saisonsList.filter(x => x !== s).map(x => `<option value="${x}">${x}</option>`).join('')}</select></div><div style="height: 160px; position:relative; margin-top:10px;"><canvas id="chart2-${p.id}"></canvas></div></div>
+                        ${histHtml}
+                        ${prodHtml}`;
                 } 
                 else if (window.mainTheme === 'defauts') {
                     if (active.length === 0) { mainContent = `<div style="background:#eafaf1; color:#27ae60; padding:15px; border-radius:6px; text-align:center; font-weight:bold; border:1px solid #d5f5e3; margin-bottom:15px;">✅ Aucun défaut en cours</div>${histHtml}`; } 
@@ -425,12 +440,17 @@
                         }).join('') + histHtml;
                     }
                 } 
-                else {
+                else { // Vues Type de canon, Répéteurs, Transformateurs
                     let badges = `<span class="badge"><b>Modèle:</b> ${window.getV(p, window.keyType)}</span> <span class="badge"><b>Rép:</b> ${window.getV(p, window.keyRep)}</span> <span class="badge"><b>Trans:</b> ${window.getV(p, window.keyTransfo)}</span>`;
                     let fullDataHTML = `<details style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">➕ Caractéristiques Complètes</summary><div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:8px;">`;
                     p.fullData.forEach(item => { if(!item.k.toLowerCase().includes('xy') && !item.k.toLowerCase().includes('gps')) { fullDataHTML += `<div style="border-bottom:1px solid #f0f0f0; padding-bottom:4px;"><span style="color:#7f8c8d;">${item.k} :</span> <b style="color:#2c3e50; float:right;">${item.v}</b></div>`; } });
-                    fullDataHTML += `</div></details>`; mainContent = `<div style="margin-bottom:10px;">${badges}</div>${fullDataHTML}`;
+                    fullDataHTML += `</div></details>`; 
+                    
+                    mainContent = `<div style="margin-bottom:10px;">${badges}</div>${fullDataHTML}`;
                     if (active.length > 0) mainContent += `<div style="margin-top:15px; padding:10px; background:#fdf0ed; border-radius:6px; font-size:12px; color:#e74c3c; font-weight:bold; border:1px solid #fadbd8;">⚠️ Ce canon a ${active.length} défaut(s) en cours.</div>`;
+                    
+                    // Ajout de l'historique et des graphiques
+                    mainContent += histHtml + prodHtml;
                 }
 
                 let editBtn = (window.mainTheme === 'type' && !window.isMultiSelect) ? `<button class="btn-action-primary" onclick="window.startEdit('${p.id}')">✏️ Éditer ce canon</button>` : '';
@@ -441,7 +461,37 @@
                         <div class="sel-details-body">${mainContent}${editBtn}</div>
                     </div>`;
                     
-                if(window.mainTheme === 'historique' && !window.isMultiSelect) setTimeout(() => window.drawPisteCompareChart(p), 50);
+                setTimeout(() => {
+                    if(window.mainTheme === 'historique' && !window.isMultiSelect) window.drawPisteCompareChart(p);
+
+                    // INITIALISATION DES 3 GRAPHIQUES HISTORIQUES
+                    if((window.mainTheme === 'type' || window.mainTheme === 'historique' || window.mainTheme === 'repeteur' || window.mainTheme === 'transfo') && window.saisonsList.length > 0) {
+                        let labels = window.saisonsList.map(s => s.substring(0,5)); // Ex: "22/23"
+                        let dEau = window.saisonsList.map(s => p.historique[s] ? p.historique[s].eau : 0);
+                        let dAir = window.saisonsList.map(s => p.historique[s] ? p.historique[s].air : 0);
+                        let dTemps = window.saisonsList.map(s => p.historique[s] ? p.historique[s].temps : 0);
+
+                        const drawMiniChart = (id, data, color) => {
+                            let canvas = document.getElementById(id); if(!canvas) return;
+                            if(window.chartInstances[id]) window.chartInstances[id].destroy();
+                            window.chartInstances[id] = new Chart(canvas.getContext('2d'), {
+                                type: 'bar',
+                                data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 2 }] },
+                                options: { 
+                                    responsive: true, maintainAspectRatio: false, 
+                                    plugins: { legend: { display: false }, tooltip: {titleFont: {size: 10}, bodyFont: {size: 10}} }, 
+                                    scales: { 
+                                        x: { ticks: {font:{size:8}, maxRotation:45, minRotation:45}, grid: {display:false} }, 
+                                        y: { ticks: {font:{size:8}, maxTicksLimit: 4} } 
+                                    } 
+                                }
+                            });
+                        };
+                        drawMiniChart(`hist-eau-${p.id}`, dEau, '#3498db');
+                        drawMiniChart(`hist-air-${p.id}`, dAir, '#e67e22');
+                        drawMiniChart(`hist-temps-${p.id}`, dTemps, '#27ae60');
+                    }
+                }, 100);
             });
         };
 
