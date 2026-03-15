@@ -1195,6 +1195,55 @@
             let vmin = document.getElementById('val-min'); if(vmin) vmin.innerText = 0; 
             let vmax = document.getElementById('val-max'); if(vmax) vmax.innerText = window.absoluteMaxes[window.histMetric] || 1;
         };
+        // === EDITEUR TICKETS (RESTAURÉ) ===
+        window.editFullTicket = function(canonId, defaut) {
+            let safeDef = defaut.replace(/[^a-zA-Z0-9]/g, ""); let idDiv = `ticket-edit-${canonId}-${safeDef}`; let el = document.getElementById(idDiv); if(!el) return;
+            let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut); if(!ticket) return;
+            let html = '<div style="background:#fdfdfe; padding:12px; border-radius:6px; border:2px solid #3498db; margin-top:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">';
+            ticket.fullData.forEach(d => {
+                let kLow = d.k.toLowerCase(); let valStr = d.v.toString();
+                if (kLow.includes('regard') || kLow === 'id' || kLow.includes('n°')) { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" readonly style="background:#e1e8ed; color:#7f8c8d; margin-bottom:0; cursor:not-allowed;"></div>`; } 
+                else if (kLow.includes('etat') || kLow.includes('état') || kLow === 'statut') { let statuts = ['à faire', 'en cours', 'fait']; let options = statuts.map(s => `<option value="${s}" ${valStr.toLowerCase().includes(s) ? 'selected' : ''}>${s.toUpperCase()}</option>`).join(''); html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><select class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;">${options}</select></div>`; } 
+                else if (valStr.length > 40 || kLow.includes('cause') || kLow.includes('intervention') || kLow.includes('commentaire') || kLow.includes('action')) { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><textarea class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" style="margin-bottom:0;" rows="2">${valStr}</textarea></div>`; } 
+                else { html += `<div style="margin-bottom:8px;"><div class="edit-label">${d.k}</div><input type="text" class="edit-input tick-dyn-field-${idDiv}" data-key="${d.k}" value="${valStr}" style="margin-bottom:0;"></div>`; }
+            });
+            html += `<div style="display:flex; gap:10px; margin-top:15px;"><button onclick="window.renderSelectionPanel()" style="flex:1; padding:10px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button><button onclick="window.prepareTicketSave('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:10px; background:#2ecc71; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Suivant ➔</button></div></div>`; el.innerHTML = html;
+        };
+
+        window.prepareTicketSave = function(canonId, defaut, idDiv) {
+            let fieldsObj = {}; let newStatutForLocal = "";
+            document.querySelectorAll(`.tick-dyn-field-${idDiv}`).forEach(inp => { let k = inp.getAttribute('data-key'); let v = inp.value; if(!k.toLowerCase().includes('regard') && k.toLowerCase() !== 'id') { fieldsObj[k] = v; } if(k.toLowerCase().includes('etat') || k.toLowerCase().includes('état') || k.toLowerCase() === 'statut') { newStatutForLocal = v; } });
+            let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut); if(!ticket) return;
+            let diffHtml = ""; let hasChanges = false;
+            ticket.fullData.forEach(d => {
+                let oldValRaw = d.v.toString().trim(); let newValRaw = (fieldsObj[d.k] !== undefined) ? fieldsObj[d.k].trim() : oldValRaw;
+                if (fieldsObj[d.k] !== undefined && newValRaw !== oldValRaw) {
+                    hasChanges = true; let oldDisplay = oldValRaw === "" ? "<i>(vide)</i>" : oldValRaw; let newDisplay = newValRaw === "" ? "<i>(vide)</i>" : newValRaw;
+                    diffHtml += `<div style="margin-bottom:5px; font-size:12px; border-bottom:1px dotted #ccc; padding-bottom:3px; display:flex; justify-content:space-between; align-items:center;"><span style="color:#555; font-weight:bold;">${d.k} :</span> <span style="text-align:right; flex-grow:1; margin-left:10px;"><span style="color:#e74c3c; text-decoration:line-through; font-size:11px;">${oldDisplay}</span><br>➔ <span style="color:#27ae60; font-weight:bold;">${newDisplay}</span></span></div>`;
+                }
+            });
+            if (!hasChanges) { alert("Aucune modification n'a été détectée."); window.renderSelectionPanel(); return; }
+            window.tempTicketPayloads[idDiv] = { payload: { action: "update_ticket", idCanon: canonId, defaut: defaut, fields: fieldsObj }, newStatut: newStatutForLocal };
+            let el = document.getElementById(idDiv);
+            if(el) { el.innerHTML = `<div style="background:#fff3cd; padding:15px; border-radius:6px; border:2px solid #f39c12; margin-top:10px;"><div style="font-size:14px; font-weight:bold; color:#d35400; margin-bottom:15px; text-transform:uppercase;">⚠️ Vérification :</div>${diffHtml}<div style="display:flex; gap:10px; margin-top:20px;"><button onclick="window.renderSelectionPanel()" style="flex:1; padding:10px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button><button onclick="window.confirmSaveTicket('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Envoyer 🚀</button></div></div>`; }
+        };
+
+        window.confirmSaveTicket = async function(canonId, defaut, idDiv) {
+            let temp = window.tempTicketPayloads[idDiv]; if(!temp) return; let el = document.getElementById(idDiv); if(el) el.innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#3498db; font-size:14px;">Enregistrement Google... ⏳</div>`;
+            try {
+                const response = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(temp.payload) }); const result = await response.json();
+                if(result.status === "success") {
+                    let ticket = window.rawTickets.find(t => t.idCanon === canonId && t.defaut === defaut);
+                    if(ticket) {
+                        ticket.fullData.forEach(d => { if(temp.payload.fields[d.k] !== undefined) d.v = temp.payload.fields[d.k]; });
+                        if(temp.newStatut) ticket.statut = temp.newStatut.toLowerCase();
+                        let defField = ticket.fullData.find(x => x.k.toLowerCase().includes('defaut') || x.k.toLowerCase().includes('défaut') || x.k.toLowerCase().includes('panne'));
+                        if (defField && temp.payload.fields[defField.k]) ticket.defaut = temp.payload.fields[defField.k].toString().trim();
+                    }
+                    window.renderSelectionPanel(); window.updateMap(); window.triggerGlobalFilterChart(); delete window.tempTicketPayloads[idDiv];
+                } else { alert("Erreur Google : " + result.msg); window.renderSelectionPanel(); }
+            } catch(e) { alert("Échec réseau."); window.renderSelectionPanel(); }
+        };
 
         // BOOT FORCE
         window.addEventListener('DOMContentLoaded', async () => {
