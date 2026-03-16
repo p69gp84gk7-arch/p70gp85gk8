@@ -789,36 +789,228 @@
                     layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = '1'; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
                 }
             });
-        };// === FONCTIONS DE CHARGEMENT (RESTAURÉES) ===
+        };
+       // === LECTURE DONNÉES GOOGLE ===
         window.setStep = function(step, desc) { let elStep = document.getElementById('loading-step'); let elDesc = document.getElementById('loading-desc'); if (elStep) elStep.innerText = "Étape " + step + "/5"; if (elDesc) elDesc.innerText = desc; };
         window.fetchWithTimeout = async function(resource, options = {}) { let finalUrl = resource; if(!resource.includes('raw.githubusercontent')) { finalUrl += (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime(); } const controller = window.AbortController ? new AbortController() : null; if (controller) options.signal = controller.signal; const timeoutPromise = new Promise((_, reject) => { setTimeout(() => { if (controller) controller.abort(); reject(new Error("Délai d'attente dépassé (15s).")); }, 15000); }); return Promise.race([fetch(finalUrl, options), timeoutPromise]); };
-        // === DB LOCALE KML/KMZ (RESTAURÉ) ===
-        window.initLocalDB = function() { try { if (!window.indexedDB) return; const request = window.indexedDB.open("GMAONeigeDB", 2); request.onupgradeneeded = function(event) { window.localDB = event.target.result; if (!window.localDB.objectStoreNames.contains("kmz_layers")) window.localDB.createObjectStore("kmz_layers", { keyPath: "id" }); }; request.onsuccess = function(event) { window.localDB = event.target.result; window.loadSavedLayersFromDB(); }; } catch(e) {} };
-        window.saveLayerToDB = function(id, name, geojson, color, weight) { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readwrite"); tx.objectStore("kmz_layers").put({ id: id, name: name, geojson: geojson, isVisible: true, color: color, weight: weight }); };
-        window.deleteLayerFromDB = function(id) { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readwrite"); tx.objectStore("kmz_layers").delete(id); };
-        window.updateLayerDataInDB = function(id, updates) { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readwrite"); const store = tx.objectStore("kmz_layers"); const req = store.get(id); req.onsuccess = function() { let data = req.result; if(data) { Object.assign(data, updates); store.put(data); } }; };
-        window.loadSavedLayersFromDB = function() { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readonly"); const req = tx.objectStore("kmz_layers").getAll(); req.onsuccess = function() { req.result.forEach(item => { window.addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); }); }; };
-        
-        window.buildGeoJsonStyle = function(hexColor, weight) { let finalWeight = weight ? parseInt(weight) : 4; return { style: function (feature) { return { color: hexColor, weight: finalWeight, opacity: 0.8, fillColor: hexColor }; }, pointToLayer: function(feature, latlng) { return L.circleMarker(latlng, {radius: 6, color: hexColor, fillColor: hexColor, fillOpacity: 0.8, weight: 1}); }, onEachFeature: function (feature, layer) { if (feature.properties && feature.properties.name) { layer.bindPopup(`<b style='color:${hexColor}'>` + feature.properties.name + "</b><br>" + (feature.properties.description || "")); } } }; };
-        window.fetchGitHubKMZ = async function(url) { const response = await window.fetchWithTimeout(url); if (!response.ok) throw new Error("GitHub refuse l'accès."); let kmlString = ""; if (url.toLowerCase().endsWith('.kmz')) { const blob = await response.blob(); const arrayBuffer = await blob.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer); const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string"); } else { kmlString = await response.text(); } const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); return toGeoJSON.kml(xmlDoc); };
-        
-        window.renderCloudLayersList = function() { const container = document.getElementById('cloud-layers-container'); if(!container) return; container.innerHTML = ""; if (window.cloudKmzLayers.length === 0) { container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré.</p>`; return; } window.cloudKmzLayers.forEach((layer, idx) => { container.innerHTML += `<div class="kml-layer-item" style="border-color:#e1e8ed; background:#fafbfc; display:flex; flex-wrap:wrap; gap:5px; align-items:center;"><input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="window.toggleCloudLayer(${idx})" style="margin:0 5px 0 0;"><input type="color" class="layer-color-picker" value="${layer.color}" onchange="window.changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur"><input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="window.changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur"><label style="cursor:pointer; display:flex; flex-direction:column; flex-grow:1; margin-left:8px; min-width:120px;" for="cloud-cbx-${idx}"><span style="color:#2c3e50; font-size:12px;">${layer.nom}</span><span style="font-size:10px; color:#7f8c8d; font-weight:normal;">${layer.commentaire}</span></label><span id="cloud-status-${idx}" style="min-width:20px; text-align:right;"></span></div>`; }); };
-        window.toggleCloudLayer = async function(idx) { let layerObj = window.cloudKmzLayers[idx]; let cbx = document.getElementById('cloud-cbx-' + idx); let statusSpan = document.getElementById('cloud-status-' + idx); if (!cbx || !statusSpan) return; if (!cbx.checked) { if(layerObj.leafletLayer) window.map.removeLayer(layerObj.leafletLayer); layerObj.isVisible = false; statusSpan.innerText = ""; return; } if (layerObj.leafletLayer) { window.map.addLayer(layerObj.leafletLayer); layerObj.isVisible = true; return; } statusSpan.innerText = " ⏳"; cbx.disabled = true; try { const geojson = await window.fetchGitHubKMZ(layerObj.url); layerObj.leafletLayer = L.geoJSON(geojson, window.buildGeoJsonStyle(layerObj.color, layerObj.weight)).addTo(window.map); layerObj.isVisible = true; if(layerObj.leafletLayer.getBounds().isValid()) { window.map.fitBounds(layerObj.leafletLayer.getBounds()); } statusSpan.innerText = " ✅"; } catch(err) { statusSpan.innerText = " ❌"; alert("Erreur calque : " + err.message); cbx.checked = false; } cbx.disabled = false; };
-        window.changeCloudLayerStyle = function(idx, newColor, newWeight) { let layerObj = window.cloudKmzLayers[idx]; if (newColor !== null) layerObj.color = newColor; if (newWeight !== null) layerObj.weight = parseInt(newWeight); fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: 'update_kmz', nom: layerObj.nom, color: layerObj.color, weight: layerObj.weight }) }); if(layerObj.leafletLayer) { layerObj.leafletLayer.setStyle({ color: layerObj.color, fillColor: layerObj.color, weight: layerObj.weight }); layerObj.leafletLayer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: layerObj.color, fillColor: layerObj.color }); } }); } };
-        
-        window.handleKMLUpload = async function(event) { const file = event.target.files[0]; if(!file) return; let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'flex'; let sp = document.getElementById('loading-spinner'); if(sp) sp.style.display = 'block'; let ti = document.getElementById('loading-title'); if(ti) ti.innerText = "Importation locale..."; let de = document.getElementById('loading-desc'); if(de) de.innerText = "Analyse de " + file.name; setTimeout(async () => { try { const fileName = file.name; const layerId = 'layer_' + Date.now(); let kmlString = ""; let defaultColor = '#e67e22'; let defaultWeight = 4; if (fileName.toLowerCase().endsWith('.kmz')) { const arrayBuffer = await file.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer); const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string"); } else if (fileName.toLowerCase().endsWith('.kml')) { kmlString = await file.text(); } else { throw new Error("Format non supporté."); } const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); const geojson = toGeoJSON.kml(xmlDoc); window.saveLayerToDB(layerId, fileName, geojson, defaultColor, defaultWeight); window.addGeoJsonToMap(layerId, fileName, geojson, true, defaultColor, defaultWeight); if(ov) ov.style.display = 'none'; } catch (err) { if(ov) ov.style.display = 'none'; alert("Erreur d'import : " + err.message); } event.target.value = ""; }, 100); };
-        window.addGeoJsonToMap = function(id, name, geojson, isVisible, hexColor, weight) { let finalWeight = weight || 4; const layer = L.geoJSON(geojson, window.buildGeoJsonStyle(hexColor, finalWeight)); if(isVisible) layer.addTo(window.map); window.externalLayers[id] = { name: name, layer: layer, isVisible: isVisible, color: hexColor, weight: finalWeight }; window.renderCustomLayersList(); if(isVisible && layer.getBounds && typeof layer.getBounds === 'function') { let b = layer.getBounds(); if(b.isValid()) window.map.fitBounds(b); } };
-        
-        window.renderCustomLayersList = function() { const container = document.getElementById('custom-layers-list'); if(!container) return; container.innerHTML = ""; for (let id in window.externalLayers) { const ext = window.externalLayers[id]; container.innerHTML += `<div class="kml-layer-item"><input type="checkbox" id="loc-cbx-${id}" ${ext.isVisible ? 'checked' : ''} onchange="window.toggleExtLayer('${id}')" style="margin:0 5px 0 0;"><input type="color" class="layer-color-picker" value="${ext.color}" onchange="window.changeExtLayerStyle('${id}', this.value, null)" title="Couleur"><input type="number" class="layer-weight-picker" value="${ext.weight || 4}" min="1" max="15" onchange="window.changeExtLayerStyle('${id}', null, this.value)" title="Épaisseur"><label for="loc-cbx-${id}" style="cursor:pointer; flex-grow:1; margin-left:8px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#34495e;">${ext.name}</label><button onclick="window.deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button></div>`; } };
-        window.toggleExtLayer = function(id) { const ext = window.externalLayers[id]; ext.isVisible = !ext.isVisible; if(ext.isVisible) { window.map.addLayer(ext.layer); } else { window.map.removeLayer(ext.layer); } window.updateLayerDataInDB(id, { isVisible: ext.isVisible }); window.renderCustomLayersList(); };
-        window.changeExtLayerStyle = function(id, newColor, newWeight) { if(window.externalLayers[id]) { if (newColor !== null) window.externalLayers[id].color = newColor; if (newWeight !== null) window.externalLayers[id].weight = parseInt(newWeight); let col = window.externalLayers[id].color; let w = window.externalLayers[id].weight; if(window.externalLayers[id].layer) { window.externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w}); window.externalLayers[id].layer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: col, fillColor: col }); } }); } window.updateLayerDataInDB(id, { color: col, weight: w }); } };
-        window.deleteExtLayer = function(id) { window.map.removeLayer(window.externalLayers[id].layer); delete window.externalLayers[id]; window.deleteLayerFromDB(id); window.renderCustomLayersList(); };
 
-        window.addEventListener('DOMContentLoaded',async()=>{
-            if(window.bootAttempt>0)return;window.bootAttempt=1;
-            try{window.setStep(0,"Init...");let r=0;while((typeof L==='undefined'||typeof JSZip==='undefined'||typeof Chart==='undefined')&&r<50){await new Promise(x=>setTimeout(x,100));r++;}if(typeof L==='undefined')throw new Error("Leaflet manquant.");window.satLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18});window.map=L.map('map',{zoomControl:false,layers:[window.satLayer]}).setView([42.766,0.564],14);L.control.zoom({position:'bottomright'}).addTo(window.map);window.initLocalDB();await window.fetchGoogleSheetsData();}catch(e){window.showCrash(e.message,"Boot");}
+        window.fetchGoogleSheetsData = async function() {
+            window.setStep(1, "Connexion au serveur Google...");
+            const response = await window.fetchWithTimeout(GOOGLE_API_URL);
+            if (!response.ok) throw new Error("Accès refusé. Vérifiez l'URL.");
+            let textData = await response.text(); let data;
+            try { data = JSON.parse(textData); } catch(e) { throw new Error("Format invalide."); }
+            
+            window.rawGeneral = data.general || []; window.rawHistorique = data.historique || []; window.rawTicketsSheet = data.tickets || [];
+            window.meteoHistData = data.meteo_hist || []; window.meteoFroidData = data.meteo_froid || [];
+
+            window.setStep(2, "Analyse du Tableau Général...");
+            if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
+            const genHeaders = data.general[0].map(h => (h||"").toString().toLowerCase().trim());
+            const originalHeaders = data.general[0].map(h => (h||"").toString().trim()); 
+            const findCol = (keywords) => { let idx = genHeaders.findIndex(h => keywords.some(k => h.includes(k))); return idx !== -1 ? originalHeaders[idx] : null; };
+
+            const idxId = 2; const idxXY = genHeaders.findIndex(h => h.includes('xy') || h.includes('gps'));
+            if (idxXY === -1) throw new Error("La colonne 'xy' est introuvable.");
+
+            window.keyPiste = findCol(['pistes', 'piste']); window.keyType = findCol(['type canon', 'type']);
+            window.keyRep = findCol(['répéteur', 'repeteur', 'épéteur', 'epeteur', 'peteur']); window.keyTransfo = findCol(['transfo']);
+
+            originalHeaders.forEach(h => { let hl = h.toLowerCase(); if(!hl.includes('xy') && !hl.includes('gps') && !hl.includes('photo')) { window.availableColumns.push(h); window.columnValuesSets[h] = new Set(); } });
+
+            let dictGeneral = {}; let validPointsCount = 0;
+            data.general.slice(1).forEach(row => {
+                let idRaw = row[idxId]; if (idRaw == null || idRaw === "") return;
+                let id = idRaw.toString().replace(/^YA\s*/i, '').trim(); if (!id) return;
+                let lat = 0, lng = 0;
+                if (row[idxXY]) {
+                    let txt = String(row[idxXY]).replace(/,/g, '.'); let matches = txt.match(/-?\d+(?:\.\d+)?/g);
+                    if (matches && matches.length >= 2) { lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; } }
+                }
+                let fullData = [];
+                originalHeaders.forEach((head, i) => { if(head.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullData.push({k: head, v: val}); if(val !== "" && window.columnValuesSets[head]) window.columnValuesSets[head].add(val.trim()); } });
+                if (!isNaN(lat) && !isNaN(lng) && lat !== 0) validPointsCount++;
+                dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
+            });
+            if (validPointsCount === 0) throw new Error("Aucun point GPS valide détecté.");
+
+            window.setStep(3, "Analyse de l'Historique...");
+            if (data.historique && data.historique.length > 1) {
+                const histHeaders = data.historique[0].map(h => (h||"").toString().toLowerCase().trim()); const idxCanons = 1; let colsEau = {}, colsAir = {}, colsTemps = {}; let saisonsSet = new Set();
+                histHeaders.forEach((h, i) => { let match = h.match(/(eau|air|marche).*?(\d{2}\/\d{2})/i); if (match) { let t = match[1].toLowerCase(); let s = match[2]; saisonsSet.add(s); if (t.includes('eau')) colsEau[s] = i; if (t.includes('air')) colsAir[s] = i; if (t.includes('marche')) colsTemps[s] = i; } });
+                window.saisonsList = Array.from(saisonsSet).sort((a,b) => parseInt(a.split('/')[0]) - parseInt(b.split('/')[0])); window.histSeasonIdx = window.saisonsList.length > 0 ? window.saisonsList.length - 1 : 0;
+                data.historique.slice(1).forEach(row => {
+                    let rawId = row[idxCanons];
+                    if (rawId != null && rawId !== "") { let id = rawId.toString().replace(/^YA\s*/i, '').trim(); if (id && dictGeneral[id]) { window.saisonsList.forEach(s => { dictGeneral[id].historique[s] = { eau: colsEau[s]?parseFloat(row[colsEau[s]])||0:0, air: colsAir[s]?parseFloat(row[colsAir[s]])||0:0, temps: colsTemps[s]?parseFloat(row[colsTemps[s]])||0:0 }; }); } }
+                });
+            }
+
+            window.setStep(4, "Préparation des Pannes...");
+            if (data.tickets && data.tickets.length > 1) {
+                const tHeaders = data.tickets[0].map(h => (h||"").toString().toLowerCase().trim()); const originalTHeaders = data.tickets[0].map(h => (h||"").toString().trim());
+                const idxTEtat = tHeaders.findIndex(h => h.includes('état') || h.includes('etat')); const idxTDate = tHeaders.findIndex(h => h.includes('date')); const idxTRegard = tHeaders.findIndex(h => h.includes('n°regard') || h.includes('regard') || h.includes('canon')); const idxTDefaut = tHeaders.findIndex(h => h.includes('defaut') || h.includes('défaut') || h.includes('panne'));
+                if(idxTRegard > -1) {
+                    window.rawTickets = data.tickets.slice(1).map(row => {
+                        let fullTData = []; originalTHeaders.forEach((h, i) => { if(h.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullTData.push({k: h, v: val}); } });
+                        return { statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""), date: (idxTDate>-1 && row[idxTDate] != null ? row[idxTDate] : ""), idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/^YA\s*/i, '').trim() : ""), defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Défaut non spécifié"), fullData: fullTData };
+                    });
+                }
+            }
+
+            if (data.kmz && data.kmz.length > 0) { window.cloudKmzLayers = data.kmz.map((k, index) => { let col = k.color ? k.color : window.defaultColors[index % window.defaultColors.length]; let wei = k.weight ? parseInt(k.weight) : 4; return { ...k, isVisible: false, leafletLayer: null, color: col, weight: wei }; }); }
+
+            window.setStep(5, "Analyse des Webcams...");
+            if (data.webcams && data.webcams.length > 1) {
+                const wHead = data.webcams[0].map(h => (h||"").toString().toLowerCase().trim());
+                const iNom = wHead.findIndex(h => h.includes("nom")); const iLL = wHead.findIndex(h => h.match(/(gps|xy|lat)/)); const iUrl = wHead.findIndex(h => h.match(/(url|lien)/)); const iIcon = wHead.findIndex(h => h.match(/(icone|logo)/));
+                if(iNom > -1 && iLL > -1 && iUrl > -1) {
+                    data.webcams.slice(1).forEach(row => {
+                        let nom = row[iNom]; let llStr = row[iLL] ? row[iLL].toString() : ""; let url = row[iUrl]; let icon = (iIcon > -1 && row[iIcon]) ? row[iIcon].toString().trim() : "📷"; if(!icon) icon = "📷";
+                        if(nom && llStr && url) {
+                            let matches = llStr.replace(/,/g, '.').match(/-?\d+(?:\.\d+)?/g);
+                            if(matches && matches.length >= 2) { let lat = parseFloat(matches[0]); let lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let t = lat; lat = lng; lng = t; } window.webcamsData.push({ nom: nom, lat: lat, lng: lng, url: url, icon: icon }); }
+                        }
+                    });
+                }
+            }
+
+            Object.values(dictGeneral).forEach(canon => { if (canon.lat !== 0 && !isNaN(canon.lat)) { window.snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon }); } });
+
+            let ls = document.getElementById('loading-spinner'); if(ls) ls.style.display = 'none';
+            let lt = document.getElementById('loading-title'); if(lt) { lt.innerText = "✅ Chargement Réussi !"; lt.style.color = "#27ae60"; }
+            let lst = document.getElementById('loading-step'); if(lst) lst.style.display = 'none';
+            let ld = document.getElementById('loading-desc'); if(ld) ld.innerHTML = `${window.snowCannons.features.length} canons placés.`;
+            setTimeout(() => { window.initAppUI(); let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'none'; }, 800);
+        };
+
+        window.initAppUI = function() {
+            let ts=new Set(),rs=new Set(),trs=new Set(),ps=new Set();
+            window.snowCannons.features.forEach(f=>{let p=f.properties;let t=window.getV(p,window.keyType);if(t!=="N/A")ts.add(t.toLowerCase());let r=window.getV(p,window.keyRep);if(r!=="N/A")rs.add(r);let tr=window.getV(p,window.keyTransfo);if(tr!=="N/A")trs.add(tr);let pi=window.getV(p,window.keyPiste);if(pi!=="N/A")ps.add(pi);});
+            
+            let tc=['#3498db','#e74c3c','#2ecc71','#f1c40f','#9b59b6']; Array.from(ts).sort().forEach((t,i)=>window.technoColors[t]=tc[i%tc.length]);
+            let rc=['#1abc9c','#16a085','#f39c12','#d35400','#8e44ad']; Array.from(rs).sort().forEach((r,i)=>window.repColors[r]=rc[i%rc.length]);
+            
+            // COULEURS NEON POUR LES TRANSFOS
+            let neonColors = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF', '#00FFFF', '#FF8C00', '#FF1493', '#39FF14'];
+            Array.from(trs).sort().forEach((t,i)=>window.transfoColors[t]=neonColors[i%neonColors.length]);
+            
+            window.snowCannons.features.forEach(f=>{let t=window.getV(f.properties,window.keyType).toLowerCase();f.properties.couleur_defaut=(["demak lenko","demac lenko"].includes(t))?"#0000FF":(["sufag","street","taurus","taurax","peak"].includes(t))?"#008000":window.technoColors[t]||"#FFD700";});
+            
+            let dlContainer = document.getElementById('datalists-container');
+            if (dlContainer) { let dlHtml = ""; for(let header in window.columnValuesSets) { let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-'); dlHtml += `<datalist id="${safeId}">${Array.from(window.columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`; } dlContainer.innerHTML = dlHtml; }
+
+            let sld = document.getElementById('season-slider');
+            if (window.saisonsList.length > 0 && sld) { sld.max = window.saisonsList.length - 1; sld.value = window.histSeasonIdx; let sdisp = document.getElementById('season-display'); if(sdisp) sdisp.innerText = window.saisonsList[window.histSeasonIdx]; }
+
+            function buildCbs(id, set, cls) { const c = document.getElementById(id); if(!c) return; c.innerHTML = ''; [...set].sort().forEach(v => { let l=document.createElement('label'); let cb=document.createElement('input'); cb.type='checkbox'; cb.className=cls; cb.value=v; l.appendChild(cb); l.appendChild(document.createTextNode(' '+v)); c.appendChild(l); }); }
+            buildCbs('individual-pistes', ps, 'piste-cb'); buildCbs('individual-types', ts, 'type-cb');
+
+            function setupCbs(allId, cls, cbk) { 
+                const aBtn = document.getElementById(allId); if(!aBtn) return;
+                const cbs = document.querySelectorAll('.'+cls); const getVals = () => aBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); 
+                aBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); cbk(getVals()); }); 
+                cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) { if(aBtn) aBtn.checked=false; } else if(Array.from(cbs).every(x=>!x.checked)) { if(aBtn) aBtn.checked=true; } cbk(getVals()); })); 
+            }
+            setupCbs('check-all-pistes', 'piste-cb', vals => { window.currentPistes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
+            setupCbs('check-all-types', 'type-cb', vals => { window.currentTypes = vals; window.updateMap(); window.triggerGlobalFilterChart(); });
+
+            window.generateDynamicFiltersUI(); window.renderCloudLayersList(); window.calculateMaxes();
+
+            window.geojsonLayer = L.geoJSON(window.snowCannons, {
+                pointToLayer: function (feature, latlng) { return L.marker(latlng, { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div></div>` }) }); },
+                onEachFeature: function (feature, layer) {
+                    layer.on('click', function(e) {
+                        L.DomEvent.stopPropagation(e);
+                        if (window.currentlyEditingId) return; 
+                        const id = feature.properties.id;
+                        if (!window.isMultiSelect) window.selectedCannonsMap.clear(); 
+                        if (window.selectedCannonsMap.has(id)) window.selectedCannonsMap.delete(id); else window.selectedCannonsMap.set(id, layer);
+                        if(window.map) window.map.setView(layer.getLatLng(), 17, {animate: true});
+                        window.updateMap(); window.renderSelectionPanel();
+                        let sb = document.getElementById('right-sidebar'); if (window.selectedCannonsMap.size > 0 && sb) sb.classList.add('open');
+                    });
+                }
+            }).addTo(window.map);
+
+            if (window.snowCannons.features.length > 0) { let bounds = window.geojsonLayer.getBounds(); if(bounds.isValid() && window.map) window.map.fitBounds(bounds, { padding: [30, 30] }); }
+
+            window.webcamLayerGroup = L.layerGroup();
+            window.webcamsData.forEach(wc => {
+                let marker = L.marker([wc.lat, wc.lng], { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">${wc.icon}</div>`, iconSize: [24,24], iconAnchor: [12,12] }), draggable: false });
+                marker.on('click', function(e) { 
+                    L.DomEvent.stopPropagation(e); 
+                    if(marker.dragging && marker.dragging.enabled()) return; 
+                    if(window.map) window.map.setView([wc.lat, wc.lng], 17, {animate: true});
+                    window.openSingleWebcam(wc.nom); 
+                });
+                marker.wcData = wc; window.webcamLayerGroup.addLayer(marker);
+            });
+            window.webcamLayerGroup.addTo(window.map);
+            
+            window.attachEvents(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
+        };
+
+        window.calculateMaxes = function() {
+            if(!window.saisonsList[window.histSeasonIdx]) return;
+            let s = window.saisonsList[window.histSeasonIdx]; window.absoluteMaxes = { eau: 0, air: 0, temps: 0 };
+            window.snowCannons.features.forEach(f => {
+                if (f.properties.historique[s]) {
+                    window.absoluteMaxes.eau = Math.max(window.absoluteMaxes.eau, f.properties.historique[s].eau);
+                    window.absoluteMaxes.air = Math.max(window.absoluteMaxes.air, f.properties.historique[s].air);
+                    window.absoluteMaxes.temps = Math.max(window.absoluteMaxes.temps, f.properties.historique[s].temps);
+                }
+            });
+            window.currentMaxThreshold = { ...window.absoluteMaxes }; window.currentMinThreshold = { eau:0, air:0, temps:0 };
+            
+            let slmin = document.getElementById('slider-min'); 
+            let slmax = document.getElementById('slider-max');
+            
+            if(slmin) { 
+                slmin.max = window.absoluteMaxes[window.histMetric] || 1; 
+                slmin.value = 0; 
+                slmin.step = "any";
+                slmin.oninput = function(e) {
+                    let val = parseFloat(e.target.value) || 0;
+                    if (val > window.currentMaxThreshold[window.histMetric]) { val = window.currentMaxThreshold[window.histMetric]; e.target.value = val; }
+                    window.currentMinThreshold[window.histMetric] = val;
+                    let vm = document.getElementById('val-min'); if(vm) vm.innerText = Math.round(val);
+                    window.updateMap(); window.triggerGlobalFilterChart();
+                };
+            }
+            if(slmax) { 
+                slmax.max = window.absoluteMaxes[window.histMetric] || 1; 
+                slmax.value = window.absoluteMaxes[window.histMetric] || 1; 
+                slmax.step = "any";
+                slmax.oninput = function(e) {
+                    let val = parseFloat(e.target.value) || 0;
+                    if (val < window.currentMinThreshold[window.histMetric]) { val = window.currentMinThreshold[window.histMetric]; e.target.value = val; }
+                    window.currentMaxThreshold[window.histMetric] = val;
+                    let vmx = document.getElementById('val-max'); if(vmx) vmx.innerText = Math.round(val);
+                    window.updateMap(); window.triggerGlobalFilterChart();
+                };
+            }
+            let vmin = document.getElementById('val-min'); if(vmin) vmin.innerText = 0; 
+            let vmax = document.getElementById('val-max'); if(vmax) vmax.innerText = Math.round(window.absoluteMaxes[window.histMetric]) || 1;
+        };
+
+        // BOOT FORCE
+        window.addEventListener('DOMContentLoaded', async () => {
+            if(window.bootAttempt > 0) return;
+            window.bootAttempt = 1;
+            try {
+                window.setStep(0, "Initialisation de la carte...");
+                let retries = 0;
+                while ((typeof L === 'undefined' || typeof JSZip === 'undefined' || typeof Chart === 'undefined') && retries < 50) { await new Promise(r => setTimeout(r, 100)); retries++; }
+                if (typeof L === 'undefined') throw new Error("Impossible de charger la carte (Leaflet). Vérifiez votre pare-feu.");
+                window.satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 18 });
+                window.map = L.map('map', {zoomControl: false, layers: [window.satLayer]}).setView([42.766, 0.564], 14);
+                L.control.zoom({ position: 'bottomright' }).addTo(window.map);
+                window.initLocalDB();
+                await window.fetchGoogleSheetsData();
+            } catch (err) { window.showCrash(err.message, "Boot Principal"); }
         });
-        setTimeout(()=>{if(window.bootAttempt===0)window.document.dispatchEvent(new Event("DOMContentLoaded"));},2000);
+        
+        setTimeout(() => { if(window.bootAttempt === 0) { window.document.dispatchEvent(new Event("DOMContentLoaded")); } }, 2000);
     </script>
 </body>
 </html>
