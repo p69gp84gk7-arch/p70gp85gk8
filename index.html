@@ -287,7 +287,7 @@
 
         /* === COULEURS ET LÉGENDES === */
         window.getColorByFilter=function(ratio,p){const inter=(c1,c2,f)=>{let r=c1.slice();for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i]));return `rgb(${r[0]},${r[1]},${r[2]})`;};if(window.mainTheme==='defauts'){let act=window.getActiveTickets(p.id);if(act.length===0)return '#bdc3c7';if(act.some(t=>t.statut.includes('faire')))return '#e74c3c';return '#f39c12';}if(window.mainTheme==='historique'){if(window.histMetric==='eau')return inter([173,216,230],[41,128,185],ratio);if(window.histMetric==='air')return inter([250,219,94],[211,84,0],ratio);if(window.histMetric==='temps')return inter([171,235,198],[39,174,96],ratio);}if(window.mainTheme==='repeteur')return window.repColors[window.getV(p,window.keyRep)]||'#7f8c8d';if(window.mainTheme==='transfo')return window.transfoColors[window.getV(p,window.keyTransfo)]||'#7f8c8d';let tv=window.getV(p,window.keyType).toLowerCase();if(["demak lenko","demac lenko"].includes(tv))return "#0000FF";if(["sufag","street","taurus","taurax","peak"].includes(tv))return "#008000";return window.technoColors[tv]||"#FFD700";};
-        window.updateLegend = function() {
+       window.updateLegend = function() {
             let elDef = document.getElementById('legend-defauts');
             if (window.mainTheme === 'defauts' && elDef) {
                 elDef.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'urgent')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'encours')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'ras')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;
@@ -315,6 +315,31 @@
                 else if (window.histMetric === 'air') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`;
                 else if (window.histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
             }
+        };
+
+        window.highlightLegend = function(theme, val) {
+            if (theme === 'historique') return;
+            if(!window.geojsonLayer) return;
+            window.geojsonLayer.eachLayer(function(layer) {
+                if(!layer.feature.properties._isVisible) return;
+                let p = layer.feature.properties; let match = false;
+                if (theme === 'defauts') { let act = window.getActiveTickets(p.id); if (val === 'urgent' && act.some(t => t.statut.includes('faire'))) match = true; else if (val === 'encours' && act.some(t => t.statut.includes('cours'))) match = true; else if (val === 'ras' && act.length === 0) match = true; } 
+                else if (theme === 'type') { let tLower = window.getV(p, window.keyType).toLowerCase(); if (val === 'demac' && ["demak lenko", "demac lenko"].includes(tLower)) match = true; else if (val === 'sufag' && ["sufag", "street", "taurus", "taurax", "peak"].includes(tLower)) match = true; else if (val === 'techno' && !["demak lenko", "demac lenko", "sufag", "street", "taurus", "taurax", "peak"].includes(tLower) && tLower !== "n/a") match = true; } 
+                else if (theme === 'repeteur') { if (window.getV(p, window.keyRep) === val) match = true; } 
+                else if (theme === 'transfo') { if (window.getV(p, window.keyTransfo) === val) match = true; }
+                
+                if (match) { layer.setOpacity(1); layer.setZIndexOffset(2000); if(layer._icon) { layer._icon.style.opacity = "1"; if(!layer._icon.style.transform.includes('scale(1.3)')) layer._icon.style.transform += ' scale(1.3)'; } } 
+                else { layer.setOpacity(0.2); layer.setZIndexOffset(0); if(layer._icon) { layer._icon.style.opacity = "0.2"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }
+            });
+        };
+
+        window.resetHighlight = function() {
+            if(!window.geojsonLayer) return;
+            window.geojsonLayer.eachLayer(function(layer) {
+                layer.setOpacity(1);
+                if(layer._icon) { layer._icon.style.opacity = "1"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
+            });
+            window.updateMap();
         };
         window.updateMap=function(){if(!window.geojsonLayer)return;let s=window.saisonsList[window.histSeasonIdx];window.geojsonLayer.eachLayer(l=>{let p=l.feature.properties;let vis=true;if(window.currentPistes&&!window.currentPistes.includes('all')){if(!window.currentPistes.includes(window.getV(p,window.keyPiste)))vis=false;}if(window.currentTypes&&!window.currentTypes.includes('all')){if(!window.currentTypes.includes(window.getV(p,window.keyType).toLowerCase()))vis=false;}window.activeFilters.forEach(f=>{if(f.key&&f.vals.length>0&&!f.vals.includes('all')){let val=window.getV(p,f.key);if(!f.vals.includes(val))vis=false;}});let val=0;if(window.mainTheme==='historique'){val=p.historique[s]?p.historique[s][window.histMetric]:0;if(val<window.currentMinThreshold[window.histMetric]||val>window.currentMaxThreshold[window.histMetric])vis=false;}if(!vis){p._isVisible=false;if(window.map.hasLayer(l))window.map.removeLayer(l);}else{p._isVisible=true;if(!window.map.hasLayer(l))window.map.addLayer(l);let rad=12;let ratio=0;if(window.mainTheme==='historique'){let mv=window.absoluteMaxes[window.histMetric]||1;ratio=val/mv;rad=10+(15*ratio);}let bg=window.getColorByFilter(ratio,p);let bw="1.5px";let bord="white";let fsz=Math.max(9,rad-4)+"px";if(window.currentlyEditingId===p.id){bord="#e74c3c";bw="4px";l.setZIndexOffset(2000);}else if(window.selectedCannonsMap.has(p.id)){bord="#2c3e50";bw="3px";l.setZIndexOffset(1000);}else{l.setZIndexOffset(0);}l.setIcon(L.divIcon({className:'custom-cannon-icon',html:`<div class="cannon-circle" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`,iconSize:[rad*2,rad*2],iconAnchor:[rad,rad]}));}});};
 
