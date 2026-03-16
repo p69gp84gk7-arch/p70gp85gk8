@@ -96,69 +96,7 @@
         .bi-content {flex:1;padding:20px;display:flex;flex-direction:column;}
         .bi-canvas-box {background:#fff;border-radius:8px;border:1px solid #ddd;padding:20px;flex:1;position:relative;box-shadow:0 4px 15px rgba(0,0,0,0.05);}
         
-        /* ========================================================
-           MODE MOBILE (BOTTOM SHEETS ET ERGONOMIE SMARTPHONE)
-           ======================================================== */
-        @media(max-width: 768px) {
-            /* 1. La barre du haut devient "scrollable" horizontalement si besoin */
-            #topbar {
-                overflow-x: auto;
-                white-space: nowrap;
-                -webkit-overflow-scrolling: touch;
-                padding-bottom: 5px; /* Pour la scrollbar invisible */
-            }
-            .topbar-btn { font-size: 11px; padding: 6px 10px; }
-
-            /* 2. Le menu de GAUCHE (Filtres) devient un tiroir du bas */
-            #sidebar {
-                top: auto;
-                bottom: 0;
-                width: 100%;
-                height: auto;
-                max-height: 75vh;
-                border-radius: 20px 20px 0 0;
-                transform: translateY(0); /* Ouvert par défaut */
-                box-shadow: 0 -10px 30px rgba(0,0,0,0.2);
-                transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Animation plus fluide */
-            }
-            #sidebar.collapsed {
-                transform: translateY(120%);
-            }
-
-            /* 3. Le menu de DROITE (Détails) devient un grand tiroir du bas */
-            #right-sidebar {
-                top: auto;
-                bottom: 0;
-                width: 100%;
-                height: auto;
-                max-height: 85vh; /* Monte un peu plus haut pour bien voir les graphes */
-                border-radius: 20px 20px 0 0;
-                transform: translateY(120%);
-                box-shadow: 0 -10px 30px rgba(0,0,0,0.2);
-                transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            }
-            #right-sidebar.open {
-                transform: translateY(0);
-            }
-
-            /* 4. Ajout de la petite "poignée" grise (indicateur de glissement) en haut des panneaux */
-            .sidebar-header-bg::before,
-            .right-header::before {
-                content: '';
-                display: block;
-                width: 40px;
-                height: 5px;
-                background: #bdc3c7;
-                border-radius: 3px;
-                margin: -5px auto 15px auto;
-            }
-
-            /* 5. Ajustements pour les autres fenêtres modales */
-            .bi-container { flex-direction: column; }
-            .bi-sidebar { width: 100%; border-right: none; border-bottom: 1px solid #ddd; height: 40%; }
-            .bi-content { height: 60%; }
-            #compare-modal { width: 95%; max-height: 90vh; }
-        }
+        @media(max-width:768px){#sidebar,#right-sidebar{width:100%;}#compare-modal{width:95%;} .bi-container{flex-direction:column;} .bi-sidebar{width:100%;border-right:none;border-bottom:1px solid #ddd;height:40%;} .bi-content{height:60%;}}
     </style>
 </head>
 <body>
