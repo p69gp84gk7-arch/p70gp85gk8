@@ -341,14 +341,221 @@
             });
             window.updateMap();
         };
-        window.updateMap=function(){if(!window.geojsonLayer)return;let s=window.saisonsList[window.histSeasonIdx];window.geojsonLayer.eachLayer(l=>{let p=l.feature.properties;let vis=true;if(window.currentPistes&&!window.currentPistes.includes('all')){if(!window.currentPistes.includes(window.getV(p,window.keyPiste)))vis=false;}if(window.currentTypes&&!window.currentTypes.includes('all')){if(!window.currentTypes.includes(window.getV(p,window.keyType).toLowerCase()))vis=false;}window.activeFilters.forEach(f=>{if(f.key&&f.vals.length>0&&!f.vals.includes('all')){let val=window.getV(p,f.key);if(!f.vals.includes(val))vis=false;}});let val=0;if(window.mainTheme==='historique'){val=p.historique[s]?p.historique[s][window.histMetric]:0;if(val<window.currentMinThreshold[window.histMetric]||val>window.currentMaxThreshold[window.histMetric])vis=false;}if(!vis){p._isVisible=false;if(window.map.hasLayer(l))window.map.removeLayer(l);}else{p._isVisible=true;if(!window.map.hasLayer(l))window.map.addLayer(l);let rad=12;let ratio=0;if(window.mainTheme==='historique'){let mv=window.absoluteMaxes[window.histMetric]||1;ratio=val/mv;rad=10+(15*ratio);}let bg=window.getColorByFilter(ratio,p);let bw="1.5px";let bord="white";let fsz=Math.max(9,rad-4)+"px";if(window.currentlyEditingId===p.id){bord="#e74c3c";bw="4px";l.setZIndexOffset(2000);}else if(window.selectedCannonsMap.has(p.id)){bord="#2c3e50";bw="3px";l.setZIndexOffset(1000);}else{l.setZIndexOffset(0);}l.setIcon(L.divIcon({className:'custom-cannon-icon',html:`<div class="cannon-circle" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`,iconSize:[rad*2,rad*2],iconAnchor:[rad,rad]}));}});};
+        window.updateMap = function() {
+            if(!window.geojsonLayer) return;
+            let s = window.saisonsList[window.histSeasonIdx];
 
-        /* === AFFICHAGE FICHE CANON === */
-        window.renderSelectionPanel=function(){if(window.selectedCannonsMap.size===0){window.triggerGlobalFilterChart();return;}document.getElementById('multi-tools').style.display='flex';document.getElementById('view-selection').style.display='block';document.getElementById('sel-count').innerText=window.selectedCannonsMap.size;let ld=document.getElementById('selected-list');ld.innerHTML="";document.getElementById('right-title').innerText="📌 Fiche Canon";window.selectedCannonsMap.forEach((layer,id)=>{let p=layer.feature.properties;let act=window.getActiveTickets(p.id);let hist=window.getHistoryTickets(p.id);let hHtml="";let pHtml="";if(hist.length>0){hHtml=`<details style="margin-top:15px;font-size:12px;background:#f8f9fa;padding:12px;border-radius:6px;border:1px solid #e1e8ed;"><summary style="cursor:pointer;font-weight:bold;">📁 Historique (${hist.length})</summary><ul style="padding-left:15px;margin-top:10px;">`;hist.forEach(t=>{let d=new Date(t.date).toLocaleDateString();hHtml+=`<li style="margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:5px;"><b>${d}</b> - <span style="color:#e74c3c">${t.defaut}</span></li>`;});hHtml+=`</ul></details>`;}if(window.saisonsList.length>0){pHtml=`<div style="margin-top:15px;font-size:12px;font-weight:bold;">📊 Production</div><div style="display:flex;gap:10px;margin-top:10px;"><div style="flex:1;background:#fff;border:1px solid #eee;border-radius:4px;padding:5px;"><div style="font-size:10px;text-align:center;">Eau</div><canvas id="he-${p.id}" height="90"></canvas></div><div style="flex:1;background:#fff;border:1px solid #eee;border-radius:4px;padding:5px;"><div style="font-size:10px;text-align:center;">Air</div><canvas id="ha-${p.id}" height="90"></canvas></div><div style="flex:1;background:#fff;border:1px solid #eee;border-radius:4px;padding:5px;"><div style="font-size:10px;text-align:center;">Heures</div><canvas id="ht-${p.id}" height="90"></canvas></div></div>`;}let mCont="";if(window.mainTheme==='historique'){let s=window.saisonsList[window.histSeasonIdx];let hd=p.historique[s]||{eau:0,air:0,temps:0};mCont=`<div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:15px;"><div><b style="font-size:20px;color:#3498db">${hd.eau}</b><br><span style="font-size:10px">EAU</span></div><div><b style="font-size:20px;color:#e67e22">${hd.air}</b><br><span style="font-size:10px">AIR</span></div><div><b style="font-size:20px;color:#27ae60">${hd.temps}</b><br><span style="font-size:10px">HEURES</span></div></div><div class="piste-chart-container"><canvas id="c1-${p.id}" height="150"></canvas></div>${hHtml}${pHtml}`;}else if(window.mainTheme==='defauts'){if(act.length===0)mCont=`<div style="color:#27ae60;padding:15px;background:#eafaf1;text-align:center;font-weight:bold;border-radius:6px;">✅ RAS</div>${hHtml}`;else mCont=act.map(t=>{let c=t.statut.includes('faire')?'#e74c3c':'#f39c12';let sD=t.defaut.replace(/'/g,"\\'");let idD=`t-${p.id}-${t.defaut.replace(/[^a-zA-Z0-9]/g,"")}`;return `<div style="border-left:4px solid ${c};padding:10px;background:#fff;border:1px solid #eee;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;"><b>${t.defaut}</b><button onclick="window.editFullTicket('${p.id}','${sD}')" style="cursor:pointer;border:1px solid #ddd;background:none;font-size:10px;">✏️ Éditer</button></div><div id="${idD}" style="margin-top:8px;font-size:10px;color:${c};">STATUT: ${t.statut.toUpperCase()}</div></div>`;}).join('')+hHtml;}else{let bdg=`<span class="badge">${window.getV(p,window.keyType)}</span><span class="badge">${window.getV(p,window.keyRep)}</span>`;let fd=`<details style="margin-top:15px;font-size:12px;background:#f8f9fa;padding:12px;border-radius:6px;"><summary style="cursor:pointer;font-weight:bold;">➕ Caractéristiques</summary><div style="margin-top:10px;">`;p.fullData.forEach(i=>{if(!i.k.toLowerCase().match(/(xy|gps)/))fd+=`<div style="border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;">${i.k}: <b style="float:right">${i.v}</b></div>`;});fd+=`</div></details>`;mCont=`${bdg}${fd}${act.length>0?`<div style="color:#e74c3c;font-weight:bold;margin-top:10px;">⚠️ ${act.length} défauts en cours</div>`:''}${hHtml}${pHtml}`;}let eb=(window.mainTheme==='type'&&!window.isMultiSelect)?`<button class="btn-action-primary" onclick="window.startEdit('${p.id}')">✏️ Éditer Canon</button>`:'';ld.innerHTML+=`<div class="sel-details"><div class="sel-details-header"><span>📍 <b>${p.id}</b></span><span class="badge">${window.getV(p,window.keyPiste)}</span></div><div class="sel-details-body">${mCont}${eb}</div></div>`;setTimeout(()=>{if(window.mainTheme==='historique'&&!window.isMultiSelect)window.drawPisteCompareChart(p);if(window.saisonsList.length>0){let lbls=window.saisonsList.map(s=>s.substring(0,5));let dE=window.saisonsList.map(s=>p.historique[s]?p.historique[s].eau:0);let dA=window.saisonsList.map(s=>p.historique[s]?p.historique[s].air:0);let dT=window.saisonsList.map(s=>p.historique[s]?p.historique[s].temps:0);const dC=(id,d,c)=>{if(document.getElementById(id)){if(window.chartInstances[id])window.chartInstances[id].destroy();window.chartInstances[id]=new Chart(document.getElementById(id).getContext('2d'),{type:'bar',data:{labels:lbls,datasets:[{data:d,backgroundColor:c}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}});}};dC(`he-${p.id}`,dE,'#3498db');dC(`ha-${p.id}`,dA,'#e67e22');dC(`ht-${p.id}`,dT,'#27ae60');}},50);});};
+            window.geojsonLayer.eachLayer(function(layer) {
+                const p = layer.feature.properties; let vis = true;
+                if (window.currentPistes && !window.currentPistes.includes('all')) { if (!window.currentPistes.includes(window.getV(p, window.keyPiste))) vis = false; }
+                if (window.currentTypes && !window.currentTypes.includes('all')) { if (!window.currentTypes.includes(window.getV(p, window.keyType).toLowerCase())) vis = false; }
+                window.activeFilters.forEach(filt => { if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; } });
+                
+                let val = 0;
+                if (window.mainTheme === 'historique') {
+                    // CORRECTION CURSEURS : Forcer la lecture en nombre
+                    val = p.historique[s] ? parseFloat(p.historique[s][window.histMetric]) : 0;
+                    if (isNaN(val)) val = 0;
+                    if (val < window.currentMinThreshold[window.histMetric] || val > window.currentMaxThreshold[window.histMetric]) vis = false;
+                }
 
-        /* === GLOBALS CHARTS & FILTRES === */
-        window.triggerGlobalFilterChart=function(){if(window.selectedCannonsMap.size>0||window.currentlyEditingId)return;let vc=window.snowCannons.features.filter(f=>f.properties._isVisible);let h=`<div style="background:#eafaf1;padding:15px;border-radius:6px;text-align:center;font-weight:bold;font-size:24px;color:#27ae60;margin-bottom:15px;">${vc.length} <span style="font-size:12px;color:#555;display:block;">Canons</span></div>`;let cL=[],cD=[],cC=[],cT='bar',cO={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};if(window.mainTheme==='defauts'){let cU=0,cE=0,cR=0,aL=[];vc.forEach(f=>{let a=window.getActiveTickets(f.properties.id);if(a.length===0)cR++;else a.forEach(t=>{if(t.statut.includes('faire'))cU++;else cE++;aL.push({id:f.properties.id,piste:window.getV(f.properties,window.keyPiste),ticket:t});});});cL=['À faire','En cours','RAS'];cD=[cU,cE,cR];cC=['#e74c3c','#f39c12','#bdc3c7'];cT='doughnut';cO.plugins.legend={display:true,position:'right'};h+=`<div class="piste-chart-container"><canvas id="gfc" height="180"></canvas></div>`;if(aL.length>0){aL.sort((a,b)=>(b.ticket.statut.includes('faire')?1:0)-(a.ticket.statut.includes('faire')?1:0));let lh=aL.map(i=>`<div style="border-left:3px solid ${i.ticket.statut.includes('faire')?'#e74c3c':'#f39c12'};background:#fff;padding:8px;margin-top:8px;font-size:12px;display:flex;justify-content:space-between;"><div><b>Canon ${i.id}</b> (${i.piste})<br>${i.ticket.defaut}</div><button onclick="window.focusCannon('${i.id}')" style="cursor:pointer;border:1px solid #ddd;background:none;">📍</button></div>`).join('');h+=`<div style="max-height:40vh;overflow-y:auto;margin-top:15px;">${lh}</div>`;}}else if(window.mainTheme==='historique'){let s=window.saisonsList[window.histSeasonIdx];let pT={};vc.forEach(f=>{let p=window.getV(f.properties,window.keyPiste);let v=f.properties.historique[s]?f.properties.historique[s][window.histMetric]:0;pT[p]=(pT[p]||0)+v;});cL=Object.keys(pT).sort();cD=cL.map(k=>pT[k]);cC='#3498db';h+=`<div class="piste-chart-container"><div style="text-align:center;font-weight:bold;font-size:12px;">Total Piste (Saison ${s})</div><canvas id="gfc" height="250"></canvas></div>`;}else{let k=window.mainTheme==='type'?window.keyType:(window.mainTheme==='repeteur'?window.keyRep:window.keyTransfo);let cts={};vc.forEach(f=>{let v=window.getV(f.properties,k);cts[v]=(cts[v]||0)+1;});cL=Object.keys(cts).sort();cD=cL.map(x=>cts[x]);cC=cL.map(x=>(window.mainTheme==='type'?window.technoColors[x.toLowerCase()]||'#FFD700':(window.mainTheme==='repeteur'?window.repColors[x]||'#3498db':window.transfoColors[x]||'#3498db')));h+=`<div class="piste-chart-container"><canvas id="gfc" height="200"></canvas></div>`;}document.getElementById('multi-tools').style.display='flex';document.getElementById('view-selection').style.display='block';document.getElementById('view-edit').style.display='none';document.getElementById('selected-list').innerHTML=h;setTimeout(()=>{let c=document.getElementById('gfc');if(c){if(window.chartInstances['gfc'])window.chartInstances['gfc'].destroy();window.chartInstances['gfc']=new Chart(c.getContext('2d'),{type:cT,data:{labels:cL,datasets:[{data:cD,backgroundColor:cC}]},options:cO});}},50);};
+                if (!vis) {
+                    p._isVisible = false; if (window.map.hasLayer(layer)) window.map.removeLayer(layer);
+                } else {
+                    p._isVisible = true; if (!window.map.hasLayer(layer)) window.map.addLayer(layer);
+                    let rad = 12; let ratio = 0;
+                    if (window.mainTheme === 'historique') { let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
+                    let bg = window.getColorByFilter(ratio, p); let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
+                    let isSel = window.selectedCannonsMap.has(p.id); let isEdit = (window.currentlyEditingId === p.id);
+                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); } else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); } else { layer.setZIndexOffset(0); }
+                    let actClass = (window.mainTheme === 'defauts' && window.getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
+                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
+                    layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = '1'; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
+                }
+            });
+        };
 
+        window.renderSelectionPanel = function() {
+            if(window.selectedCannonsMap.size === 0) { window.triggerGlobalFilterChart(); return; }
+            document.getElementById('multi-tools').style.display = 'flex'; document.getElementById('view-selection').style.display = 'block'; 
+            document.getElementById('sel-count').innerText = window.selectedCannonsMap.size; let listDiv = document.getElementById('selected-list'); if(!listDiv) return; listDiv.innerHTML = ""; document.getElementById('right-title').innerText = "📌 Fiche Canon";
+            
+            window.selectedCannonsMap.forEach((layer, id) => {
+                const p = layer.feature.properties; let active = window.getActiveTickets(p.id); let history = window.getHistoryTickets(p.id); let mainContent = ""; let histHtml = ""; let prodHtml = "";
+
+                if (history.length > 0) {
+                    histHtml = `<details class="ticket-history" style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">📁 Historique d'interventions (${history.length})</summary><ul style="padding-left:15px; margin-top:10px;">`;
+                    history.forEach(t => { let dateStr = isNaN(new Date(t.date).getTime()) ? (t.date || "Inconnue") : new Date(t.date).toLocaleDateString('fr-FR'); let cause = t.fullData.find(x => x.k.toLowerCase().includes('cause') || x.k.toLowerCase().includes('intervention') || x.k.toLowerCase().includes('commentaire')); histHtml += `<li style="margin-bottom:8px; font-size:11.5px; border-bottom:1px solid #eee; padding-bottom:5px;"><b>${dateStr}</b> - <span style="color:#e74c3c;">${t.defaut}</span> <br><span style="color:#666;">Intervention : ${cause ? cause.v : "Non précisée"}</span></li>`; });
+                    histHtml += `</ul></details>`;
+                }
+
+                if (window.saisonsList && window.saisonsList.length > 0) {
+                    // CORRECTION HAUTEUR FIXE : Les balises de graphiques sont bloquées
+                    prodHtml = `<div style="margin-top:15px; font-size:12px; font-weight:bold; color:#2c3e50; border-bottom:2px solid #eee; padding-bottom:5px;">📊 Évolution de la production</div>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <div style="flex:1; background:#fff; border:1px solid #eee; border-radius:4px; padding:5px; display:flex; flex-direction:column;"><div style="font-size:10px; font-weight:bold; color:#3498db; text-align:center; margin-bottom:5px;">Eau (m³)</div><div style="position:relative; height:90px; width:100%;"><canvas id="he-${p.id}"></canvas></div></div>
+                        <div style="flex:1; background:#fff; border:1px solid #eee; border-radius:4px; padding:5px; display:flex; flex-direction:column;"><div style="font-size:10px; font-weight:bold; color:#e67e22; text-align:center; margin-bottom:5px;">Air</div><div style="position:relative; height:90px; width:100%;"><canvas id="ha-${p.id}"></canvas></div></div>
+                        <div style="flex:1; background:#fff; border:1px solid #eee; border-radius:4px; padding:5px; display:flex; flex-direction:column;"><div style="font-size:10px; font-weight:bold; color:#27ae60; text-align:center; margin-bottom:5px;">Heures</div><div style="position:relative; height:90px; width:100%;"><canvas id="ht-${p.id}"></canvas></div></div>
+                    </div>`;
+                }
+
+                if (window.mainTheme === 'historique') {
+                    let s = window.saisonsList[window.histSeasonIdx]; let hd = p.historique[s] || {eau:0, air:0, temps:0};
+                    mainContent = `<div class="hist-card"><div style="font-size:14px; color:#555; margin-bottom:10px; text-transform:uppercase;">Saison <b>${s}</b></div><div style="display:flex; justify-content: space-around;"><div><div style="font-size:24px; font-weight:bold; color:#2980b9;">${hd.eau}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">m³ Eau</div></div><div><div style="font-size:24px; font-weight:bold; color:#e67e22;">${hd.air}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Air</div></div><div><div style="font-size:24px; font-weight:bold; color:#27ae60;">${hd.temps}</div><div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">Heures</div></div></div></div>
+                    <div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; color:#34495e; text-align:center; margin-bottom:10px;">Comparatif sur la piste (${window.getV(p, window.keyPiste)})</div><div style="position:relative; height:160px; width:100%;"><canvas id="chart-${p.id}"></canvas></div></div>
+                    <div class="piste-chart-container" style="background:#fafbfc;"><div style="font-size:11px; font-weight:bold; color:#555; text-align:center; margin-bottom:10px;">➕ Comparer avec une autre saison : <select onchange="window.drawSecondPisteChart('${p.id}', this.value)" style="padding:4px; border-radius:4px; border:1px solid #ccc; outline:none;"><option value="">-- Choisir --</option>${window.saisonsList.filter(x => x !== s).map(x => `<option value="${x}">${x}</option>`).join('')}</select></div><div style="position:relative; height:160px; width:100%;"><canvas id="chart2-${p.id}"></canvas></div></div>
+                    ${histHtml}${prodHtml}`;
+                } else if (window.mainTheme === 'defauts') {
+                    if (active.length === 0) { mainContent = `<div style="background:#eafaf1; color:#27ae60; padding:15px; border-radius:6px; text-align:center; font-weight:bold; border:1px solid #d5f5e3; margin-bottom:15px;">✅ Aucun défaut en cours</div>${histHtml}`; } 
+                    else {
+                        mainContent = active.map(t => {
+                            let borderCol = t.statut.includes('faire') ? '#e74c3c' : '#f39c12'; let safeDef = t.defaut.replace(/'/g, "\\'"); let safeId = p.id.replace(/'/g, "\\'"); let idDiv = `ticket-edit-${safeId}-${t.defaut.replace(/[^a-zA-Z0-9]/g, "")}`;
+                            return `<div class="ticket-card" style="border-left-color:${borderCol};"><div style="font-weight:bold; font-size:14px; color:#333; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start;"><span style="flex-grow:1; margin-right:10px;">${t.defaut}</span><button onclick="window.editFullTicket('${safeId}', '${safeDef}')" style="background:none; border:1px solid #ddd; padding:4px 8px; border-radius:4px; font-size:10px; cursor:pointer; flex-shrink:0;">Éditer ✏️</button></div><div id="${idDiv}"><span style="font-size:10px; padding:3px 8px; border-radius:12px; background:${borderCol}20; color:${borderCol}; font-weight:bold; display:inline-block; margin-bottom:8px;">STATUT : ${t.statut.toUpperCase()}</span></div></div>`;
+                        }).join('') + histHtml;
+                    }
+                } else {
+                    let badges = `<span class="badge"><b>Modèle:</b> ${window.getV(p, window.keyType)}</span> <span class="badge"><b>Rép:</b> ${window.getV(p, window.keyRep)}</span> <span class="badge"><b>Trans:</b> ${window.getV(p, window.keyTransfo)}</span>`;
+                    let fullDataHTML = `<details style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;">➕ Caractéristiques Complètes</summary><div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:8px;">`;
+                    p.fullData.forEach(item => { if(!item.k.toLowerCase().includes('xy') && !item.k.toLowerCase().includes('gps')) { fullDataHTML += `<div style="border-bottom:1px solid #f0f0f0; padding-bottom:4px;"><span style="color:#7f8c8d;">${item.k} :</span> <b style="color:#2c3e50; float:right;">${item.v}</b></div>`; } }); fullDataHTML += `</div></details>`; 
+                    mainContent = `<div style="margin-bottom:10px;">${badges}</div>${fullDataHTML}`;
+                    if (active.length > 0) mainContent += `<div style="margin-top:15px; padding:10px; background:#fdf0ed; border-radius:6px; font-size:12px; color:#e74c3c; font-weight:bold; border:1px solid #fadbd8;">⚠️ Ce canon a ${active.length} défaut(s) en cours.</div>`; mainContent += histHtml + prodHtml;
+                }
+
+                let editBtn = (window.mainTheme === 'type' && !window.isMultiSelect) ? `<button class="btn-action-primary" onclick="window.startEdit('${p.id}')">✏️ Éditer ce canon</button>` : '';
+                listDiv.innerHTML += `<div class="sel-details"><div class="sel-details-header"><span>📍 Canon <b>${p.id}</b></span><span style="font-weight:normal; font-size:12px; background:#e0e6ed; padding:4px 10px; border-radius:12px; color:#34495e;">${window.getV(p, window.keyPiste)}</span></div><div class="sel-details-body">${mainContent}${editBtn}</div></div>`;
+                    
+                setTimeout(() => {
+                    if(window.mainTheme === 'historique' && !window.isMultiSelect) window.drawPisteCompareChart(p);
+                    if((window.mainTheme === 'type' || window.mainTheme === 'historique' || window.mainTheme === 'repeteur' || window.mainTheme === 'transfo') && window.saisonsList.length > 0) {
+                        let labels = window.saisonsList.map(s => s.substring(0,5)); let dEau = window.saisonsList.map(s => p.historique[s] ? p.historique[s].eau : 0); let dAir = window.saisonsList.map(s => p.historique[s] ? p.historique[s].air : 0); let dTemps = window.saisonsList.map(s => p.historique[s] ? p.historique[s].temps : 0);
+                        const drawMiniChart = (id, data, color) => {
+                            let canvas = document.getElementById(id); if(!canvas) return;
+                            if(window.chartInstances[id]) window.chartInstances[id].destroy();
+                            window.chartInstances[id] = new Chart(canvas.getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: {titleFont: {size: 10}, bodyFont: {size: 10}} }, scales: { x: { ticks: {font:{size:8}, maxRotation:45, minRotation:45}, grid: {display:false} }, y: { ticks: {font:{size:8}, maxTicksLimit: 4} } } } });
+                        };
+                        drawMiniChart(`he-${p.id}`, dEau, '#3498db'); drawMiniChart(`ha-${p.id}`, dAir, '#e67e22'); drawMiniChart(`ht-${p.id}`, dTemps, '#27ae60');
+                    }
+                }, 100);
+            });
+        };
+
+        window.triggerGlobalFilterChart = function() {
+            if (window.selectedCannonsMap.size > 0 || window.currentlyEditingId) return;
+            let visibleCannons = window.snowCannons.features.filter(f => f.properties._isVisible);
+            let html = `<div style="background:#eafaf1; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px; border:1px solid #d5f5e3;"><span style="font-size:24px; font-weight:bold; color:#27ae60;">${visibleCannons.length}</span><br><span style="font-size:12px; color:#555; text-transform:uppercase;">Canons affichés</span></div>`;
+
+            let chartLabels = []; let chartData = []; let chartColors = []; let chartType = 'bar';
+            let chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+            // PLUGIN % AU CENTRE DU DOUGHNUT
+            const centerTextPlugin = {
+                id: 'centerText',
+                beforeDraw: function(chart) {
+                    if (chart.config.type !== 'doughnut') return;
+                    let width = chart.width, height = chart.height, ctx = chart.ctx;
+                    ctx.restore();
+                    let fontSize = (height / 100).toFixed(2); ctx.font = "bold " + fontSize + "em sans-serif"; ctx.textBaseline = "middle"; ctx.fillStyle = "#e74c3c";
+                    let text = chart.config.options.plugins.centerText ? chart.config.options.plugins.centerText.text : "";
+                    let textX = Math.round((width - ctx.measureText(text).width) / 2), textY = height / 2;
+                    ctx.fillText(text, textX, textY); ctx.save();
+                }
+            };
+            let chartPlugins = [centerTextPlugin];
+
+            if (window.mainTheme === 'defauts') {
+                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : Défauts";
+                let activeList = []; let cUrgent = 0, cEnCours = 0, cRas = 0;
+                visibleCannons.forEach(f => {
+                    let p = f.properties; let acts = window.getActiveTickets(p.id);
+                    if(acts.length === 0) { cRas++; }
+                    else { acts.forEach(t => { if(t.statut.includes('faire')) cUrgent++; else cEnCours++; activeList.push({id: p.id, piste: window.getV(p, window.keyPiste), ticket: t}); }); }
+                });
+
+                chartLabels = ['À faire', 'En cours', 'RAS']; chartData = [cUrgent, cEnCours, cRas]; chartColors = ['#e74c3c', '#f39c12', '#bdc3c7']; chartType = 'doughnut';
+                let total = cUrgent + cEnCours + cRas; let faultPerc = total > 0 ? (((cUrgent + cEnCours) / total) * 100).toFixed(1) : 0;
+
+                chartOptions.plugins.legend = { position: 'right', labels: { boxWidth: 12, font: {size: 11} } };
+                chartOptions.plugins.centerText = { text: faultPerc + "%" };
+
+                // CREATION DES GRAPHES (CAMEMBERT + BARRES PISTES)
+                html += `<div class="piste-chart-container"><div style="text-align:center; font-size:14px; font-weight:bold; color:#34495e; margin-bottom:5px;">Taux de pannes global</div><div style="height:180px;position:relative;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                
+                // GRAPHIQUE EN BARRES PAR PISTE
+                let pCounts = {};
+                activeList.forEach(item => { pCounts[item.piste] = (pCounts[item.piste] || 0) + 1; });
+                let pLabels = Object.keys(pCounts).sort((a,b)=>pCounts[b]-pCounts[a]);
+                let pData = pLabels.map(k=>pCounts[k]);
+                
+                if(pLabels.length > 0) {
+                    html += `<div class="piste-chart-container" style="margin-top:15px;"><div style="text-align:center;font-weight:bold;font-size:12px;color:#34495e;margin-bottom:5px;">Pannes par Piste</div><div style="position:relative;height:160px;width:100%;"><canvas id="gfc-piste"></canvas></div></div>`;
+                }
+
+                html += `<div style="font-size:13px; font-weight:bold; margin-top:15px; border-bottom:2px solid #eee; padding-bottom:5px;">Liste détaillée des défauts :</div>`;
+                if (activeList.length === 0) { html += `<div style="font-size:12px; color:#7f8c8d; text-align:center; padding:10px;">Aucun défaut sur les canons affichés.</div>`; } 
+                else {
+                    activeList.sort((a,b) => { let wA = a.ticket.statut.includes('faire') ? 1 : 0; let wB = b.ticket.statut.includes('faire') ? 1 : 0; return wB - wA; });
+                    let listHtml = activeList.map(item => {
+                        let color = item.ticket.statut.includes('faire') ? '#e74c3c' : '#f39c12';
+                        return `<div style="border-left:3px solid ${color}; background:#fff; padding:8px; margin-top:8px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); font-size:12px; display:flex; justify-content:space-between; align-items:center;"><div><b style="color:#2c3e50;">Canon ${item.id}</b> <span style="color:#7f8c8d; font-size:10px;">(${item.piste})</span><br><span style="color:${color}; font-weight:bold;">${item.ticket.defaut}</span></div><button onclick="window.focusCannon('${item.id}');" style="background:none; border:1px solid #ddd; border-radius:4px; cursor:pointer; font-size:10px; padding:4px 8px;">Cibler 📍</button></div>`; 
+                    }).join('');
+                    html += `<div style="max-height: 40vh; overflow-y: auto; padding-right:5px;">${listHtml}</div>`;
+                }
+
+                // INITIALISATION DU NOUVEAU GRAPHIQUE PAR PISTE
+                setTimeout(() => {
+                    let cPiste = document.getElementById('gfc-piste');
+                    if(cPiste){
+                        if(window.chartInstances['gfc-piste']) window.chartInstances['gfc-piste'].destroy();
+                        window.chartInstances['gfc-piste'] = new Chart(cPiste.getContext('2d'), {
+                            type: 'bar',
+                            data: { labels: pLabels, datasets: [{ data: pData, backgroundColor: '#e74c3c', borderRadius: 4 }] },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: {font:{size:9}} } } }
+                        });
+                    }
+                }, 100);
+
+            } 
+            else if (window.mainTheme === 'type' || window.mainTheme === 'repeteur' || window.mainTheme === 'transfo') {
+                let key = window.mainTheme === 'type' ? window.keyType : (window.mainTheme === 'repeteur' ? window.keyRep : window.keyTransfo);
+                let title = window.mainTheme === 'type' ? 'Types de canon' : (window.mainTheme === 'repeteur' ? 'Répéteurs' : 'Transformateurs');
+                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : " + title;
+                
+                let counts = {};
+                visibleCannons.forEach(f => { let v = window.getV(f.properties, key); counts[v] = (counts[v] || 0) + 1; });
+                chartLabels = Object.keys(counts).sort(); chartData = chartLabels.map(k => counts[k]);
+                
+                if (window.mainTheme === 'type') {
+                    chartColors = chartLabels.map(k => { let kL = k.toLowerCase(); if(["demak lenko", "demac lenko"].includes(kL)) return '#0000FF'; if(["sufag", "street", "taurus", "taurax", "peak"].includes(kL)) return '#008000'; return window.technoColors[kL] || '#FFD700'; });
+                } else if (window.mainTheme === 'repeteur') { chartColors = chartLabels.map(k => window.repColors[k] || '#3498db'); } 
+                else { chartColors = chartLabels.map(k => window.transfoColors[k] || '#3498db'); }
+
+                html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e; margin-bottom:10px;">Répartition par ${title}</div><div style="position:relative;height:200px;width:100%;"><canvas id="global-filter-chart"></canvas></div></div>`;
+            } 
+            else if (window.mainTheme === 'historique') {
+                let rt = document.getElementById('right-title'); if(rt) rt.innerText = "📊 Analyse : Historique";
+                let s = window.saisonsList[window.histSeasonIdx]; let metricName = window.histMetric === 'eau' ? 'Eau (m³)' : (window.histMetric === 'air' ? 'Air' : 'Temps (h)');
+                let isSinglePiste = (window.currentPistes.length === 1 && window.currentPistes[0] !== 'all');
+                
+                if (isSinglePiste || visibleCannons.length <= 40) {
+                    let sorted = [...visibleCannons].sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id));
+                    chartLabels = sorted.map(c => c.properties.id); chartData = sorted.map(c => c.properties.historique[s] ? c.properties.historique[s][window.histMetric] : 0); chartColors = '#3498db'; let pisteName = isSinglePiste ? window.currentPistes[0] : "Canons";
+                    html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e; margin-bottom:10px;">Détail par canon (${metricName}) - ${pisteName}</div><div style="position:relative;height:250px;width:100%;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                } else {
+                    let pisteTotals = {};
+                    visibleCannons.forEach(f => { let p = window.getV(f.properties, window.keyPiste); let val = f.properties.historique[s] ? f.properties.historique[s][window.histMetric] : 0; pisteTotals[p] = (pisteTotals[p] || 0) + val; });
+                    chartLabels = Object.keys(pisteTotals).sort(); chartData = chartLabels.map(k => pisteTotals[k]); chartColors = '#2980b9';
+                    html += `<div class="piste-chart-container"><div style="font-size:12px; font-weight:bold; text-align:center; color:#34495e; margin-bottom:10px;">Total ${metricName} par Piste (Saison ${s})</div><div style="position:relative;height:250px;width:100%;"><canvas id="global-filter-chart"></canvas></div></div>`;
+                }
+            }
+
+            document.getElementById('multi-tools').style.display = 'flex'; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none'; document.getElementById('selected-list').innerHTML = html; 
+
+            setTimeout(() => {
+                let ctx = document.getElementById('global-filter-chart'); if(!ctx) return;
+                if(window.chartInstances['global-filter-chart']) window.chartInstances['global-filter-chart'].destroy();
+                window.chartInstances['global-filter-chart'] = new Chart(ctx.getContext('2d'), { type: chartType, data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors, borderRadius: chartType==='bar'?4:0 }] }, options: chartOptions, plugins: chartPlugins });
+            }, 50);
+        };
         /* === EDITION TICKETS === */
         window.editFullTicket = function(cId,def){let sD=def.replace(/[^a-zA-Z0-9]/g,"");let idD=`t-${cId}-${sD}`;let el=document.getElementById(idD);if(!el)return;let tic=window.rawTickets.find(t=>t.idCanon===cId&&t.defaut===def);if(!tic)return;let h=`<div style="background:#fdfdfe;padding:12px;border:2px solid #3498db;border-radius:6px;margin-top:10px;">`;tic.fullData.forEach(d=>{let k=d.k.toLowerCase();let v=d.v.toString();if(k.match(/(regard|id|n°)/))h+=`<div style="margin-bottom:8px;"><b>${d.k}</b><input type="text" class="edit-input tick-${idD}" data-key="${d.k}" value="${v}" readonly style="background:#eee;"></div>`;else if(k.match(/(etat|état|statut)/)){let opts=['à faire','en cours','fait'].map(s=>`<option value="${s}" ${v.toLowerCase().includes(s)?'selected':''}>${s.toUpperCase()}</option>`).join('');h+=`<div style="margin-bottom:8px;"><b>${d.k}</b><select class="edit-input tick-${idD}" data-key="${d.k}">${opts}</select></div>`;}else if(v.length>40||k.match(/(cause|intervention|commentaire|action)/))h+=`<div style="margin-bottom:8px;"><b>${d.k}</b><textarea class="edit-input tick-${idD}" data-key="${d.k}" rows="2">${v}</textarea></div>`;else h+=`<div style="margin-bottom:8px;"><b>${d.k}</b><input type="text" class="edit-input tick-${idD}" data-key="${d.k}" value="${v}"></div>`;});h+=`<div style="display:flex;gap:10px;"><button onclick="window.renderSelectionPanel()" style="flex:1;padding:8px;">Annuler</button><button onclick="window.prepareTicketSave('${cId}','${def.replace(/'/g,"\\'")}','${idD}')" style="flex:2;background:#2ecc71;color:white;border:none;font-weight:bold;">Suivant ➔</button></div></div>`;el.innerHTML=h;};
         window.prepareTicketSave = function(cId,def,idD){let fObj={};let nStat="";document.querySelectorAll(`.tick-${idD}`).forEach(i=>{let k=i.getAttribute('data-key');let v=i.value;if(!k.toLowerCase().match(/(regard|id)/))fObj[k]=v;if(k.toLowerCase().match(/(etat|état|statut)/))nStat=v;});let tic=window.rawTickets.find(t=>t.idCanon===cId&&t.defaut===def);let dHtml="";let hasC=false;tic.fullData.forEach(d=>{let oV=d.v.toString().trim();let nV=fObj[d.k]!==undefined?fObj[d.k].trim():oV;if(fObj[d.k]!==undefined&&nV!==oV){hasC=true;dHtml+=`<div style="font-size:12px;border-bottom:1px dotted #ccc;padding-bottom:4px;margin-bottom:4px;"><b>${d.k}:</b> <span style="text-decoration:line-through;color:#e74c3c;">${oV||"vide"}</span> ➔ <span style="color:#27ae60;font-weight:bold;">${nV||"vide"}</span></div>`;}});if(!hasC){alert("Aucune modif");window.renderSelectionPanel();return;}window.tempTicketPayloads[idD]={payload:{action:"update_ticket",idCanon:cId,defaut:def,fields:fObj},newStatut:nStat};document.getElementById(idD).innerHTML=`<div style="background:#fff3cd;padding:15px;border:2px solid #f39c12;border-radius:6px;"><b>⚠️ Vérification:</b><br><br>${dHtml}<br><div style="display:flex;gap:10px;"><button onclick="window.renderSelectionPanel()" style="flex:1;padding:8px;">Annuler</button><button onclick="window.confirmSaveTicket('${cId}','${def.replace(/'/g,"\\'")}','${idD}')" style="flex:2;background:#27ae60;color:white;border:none;font-weight:bold;">🚀 Envoyer</button></div></div>`;};
