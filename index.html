@@ -671,6 +671,101 @@
             pisteCannons.sort((a,b) => parseInt(a.properties.id) - parseInt(b.properties.id)); let bgColors = pisteCannons.map(f => f.properties.id === targetId ? '#e74c3c' : '#9b59b6');
             window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: pisteCannons.map(f => f.properties.id), datasets: [{ data: pisteCannons.map(f => f.properties.historique[seasonStr][window.histMetric]), backgroundColor: bgColors, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: {font:{size:10}} } } } });
         };
+        // === PATCH CORRECTIF : COULEURS NEON ET CURSEURS ===
+        
+        let originalInitAppUI = window.initAppUI;
+        window.initAppUI = function() {
+            originalInitAppUI(); // On laisse l'appli démarrer normalement...
+
+            // 1. FORCER LES COULEURS VIVES (NÉON) SUR LES TRANSFORMATEURS
+            let neonColors = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF', '#00FFFF', '#FF8C00', '#FF1493', '#39FF14'];
+            let trKeys = Object.keys(window.transfoColors || {});
+            trKeys.forEach((k, i) => {
+                window.transfoColors[k] = neonColors[i % neonColors.length];
+            });
+
+            // 2. RÉPARER LA MATHÉMATIQUE DES CURSEURS MIN / MAX
+            let slmin = document.getElementById('slider-min');
+            let slmax = document.getElementById('slider-max');
+            
+            if (slmin) {
+                slmin.step = "any"; // Accepte les nombres précis
+                slmin.oninput = function(e) {
+                    let val = parseFloat(e.target.value) || 0;
+                    if (val > window.currentMaxThreshold[window.histMetric]) { 
+                        val = window.currentMaxThreshold[window.histMetric]; 
+                        e.target.value = val; 
+                    }
+                    window.currentMinThreshold[window.histMetric] = val;
+                    let vm = document.getElementById('val-min'); if(vm) vm.innerText = Math.round(val);
+                    window.updateMap();
+                    window.triggerGlobalFilterChart();
+                };
+            }
+            if (slmax) {
+                slmax.step = "any";
+                slmax.oninput = function(e) {
+                    let val = parseFloat(e.target.value) || 0;
+                    if (val < window.currentMinThreshold[window.histMetric]) { 
+                        val = window.currentMinThreshold[window.histMetric]; 
+                        e.target.value = val; 
+                    }
+                    window.currentMaxThreshold[window.histMetric] = val;
+                    let vmx = document.getElementById('val-max'); if(vmx) vmx.innerText = Math.round(val);
+                    window.updateMap();
+                    window.triggerGlobalFilterChart();
+                };
+            }
+
+            // On rafraîchit l'écran pour appliquer le patch !
+            window.updateLegend();
+            window.updateMap();
+        };
+
+        // 3. RE-SÉCURISER LE FILTRAGE DE LA CARTE PAR LES CURSEURS
+        window.updateMap = function() {
+            if(!window.geojsonLayer) return;
+            let s = window.saisonsList[window.histSeasonIdx];
+
+            window.geojsonLayer.eachLayer(function(layer) {
+                const p = layer.feature.properties; let vis = true;
+                
+                // Filtres Rapides (Pistes / Types)
+                if (window.currentPistes && !window.currentPistes.includes('all')) { if (!window.currentPistes.includes(window.getV(p, window.keyPiste))) vis = false; }
+                if (window.currentTypes && !window.currentTypes.includes('all')) { if (!window.currentTypes.includes(window.getV(p, window.keyType).toLowerCase())) vis = false; }
+                window.activeFilters.forEach(filt => { if(filt.key && filt.vals.length > 0 && !filt.vals.includes('all')) { let val = window.getV(p, filt.key); if(!filt.vals.includes(val)) vis = false; } });
+                
+                // Filtre Strict des Curseurs
+                let val = 0;
+                if (window.mainTheme === 'historique') {
+                    val = p.historique[s] ? parseFloat(p.historique[s][window.histMetric]) : 0;
+                    if (isNaN(val)) val = 0;
+                    
+                    let minT = parseFloat(window.currentMinThreshold[window.histMetric]) || 0;
+                    let maxT = parseFloat(window.currentMaxThreshold[window.histMetric]) || Infinity;
+                    
+                    if (val < minT || val > maxT) vis = false;
+                }
+
+                if (!vis) {
+                    p._isVisible = false; if (window.map.hasLayer(layer)) window.map.removeLayer(layer);
+                } else {
+                    p._isVisible = true; if (!window.map.hasLayer(layer)) window.map.addLayer(layer);
+                    
+                    let rad = 12; let ratio = 0;
+                    if (window.mainTheme === 'historique') { let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); }
+                    
+                    let bg = window.getColorByFilter(ratio, p); let bord = "white"; let bw = "1.5px"; let fsz = Math.max(9, rad - 4) + "px"; 
+                    
+                    let isSel = window.selectedCannonsMap.has(p.id); let isEdit = (window.currentlyEditingId === p.id);
+                    if (isEdit) { bord = "#e74c3c"; bw = "4px"; layer.setZIndexOffset(2000); } else if (isSel) { bord = "#2c3e50"; bw = "3px"; layer.setZIndexOffset(1000); } else { layer.setZIndexOffset(0); }
+                    
+                    let actClass = (window.mainTheme === 'defauts' && window.getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
+                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background-color:${bg};width:${rad*2}px;height:${rad*2}px;line-height:${rad*2}px;border:${bw} solid ${bord};font-size:${fsz};">${p.id}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
+                    layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = '1'; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
+                }
+            });
+        };
 
         window.addEventListener('DOMContentLoaded',async()=>{
             if(window.bootAttempt>0)return;window.bootAttempt=1;
