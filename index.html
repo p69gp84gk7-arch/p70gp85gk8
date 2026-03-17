@@ -256,6 +256,9 @@
     <script>
         // ⚠️ LIEN GOOGLE APPS SCRIPT ⚠️
         const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxXWPGusI2o66WGBut-urJXxeB00ltFti2KltPXb-mafmmfleavph8wRGNWPydHw0YY1g/exec";
+<script>
+        // ⚠️ VOTRE LIEN GOOGLE APPS SCRIPT ⚠️
+        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxXWPGusI2o66WGBut-urJXxeB00ltFti2KltPXb-mafmmfleavph8wRGNWPydHw0YY1g/exec";
 
         window.map=null; window.satLayer=null; window.geojsonLayer=null; window.webcamLayerGroup=null;
         window.snowCannons={"type":"FeatureCollection","features":[]}; window.rawGeneral=[]; window.rawHistorique=[]; window.rawTicketsSheet=[]; window.meteoHistData=[]; window.meteoFroidData=[]; window.rawTickets=[]; window.saisonsList=[]; window.cloudKmzLayers=[]; window.webcamsData=[]; window.isMultiSelect=false; window.columnValuesSets={}; window.availableColumns=[]; window.mainTheme='defauts'; window.histMetric='eau'; window.histSeasonIdx=0; window.absoluteMaxes={eau:0,air:0,temps:0}; window.currentMaxThreshold={eau:100,air:100,temps:100}; window.currentMinThreshold={eau:0,air:0,temps:0}; window.activeFilters=[{key:"",vals:[]}]; window.currentPistes=['all']; window.currentTypes=['all']; window.chartInstances={}; window.selectedCannonsMap=new Map(); window.currentlyEditingId=null; window.technoColors={}; window.repColors={}; window.transfoColors={}; window.externalLayers={}; window.defaultColors=['#e74c3c','#3498db','#f1c40f','#2ecc71','#9b59b6','#e67e22','#1abc9c','#34495e']; window.keyPiste=""; window.keyType=""; window.keyRep=""; window.keyTransfo=""; window.localDB=null; window.bootAttempt=0; window.tempTicketPayloads={}; window.suiviEntretienData = [];
@@ -278,7 +281,7 @@
             document.getElementById('view-edit').style.display = 'none';
             document.getElementById('view-selection').style.display = 'block';
 
-            // RECHERCHE FORCÉE DE TOUTES LES PISTES (Ultra sécurisé)
+            // RECHERCHE FORCÉE DE TOUTES LES PISTES
             let pistesSet = new Set();
             window.snowCannons.features.forEach(f => {
                 let pName = window.getV(f.properties, window.keyPiste);
@@ -316,8 +319,7 @@
                 let prev = suiviInfo[3].toString().toLowerCase().trim() === "oui";
                 let rem = suiviInfo[5] || "";
 
-                // Incrémentation pour le graphique de la piste
-                if (hasFault) cDef++; else if (prev) cPrev++; else if (dec) cDec++; else cOk++;
+                if (hasFault) cDef++; else if (dec) cDec++; else if (prev) cPrev++; else cOk++;
 
                 html += `
                     <div style="background:#fff; border-left:4px solid ${hasFault ? '#e74c3c' : '#3498db'}; padding:12px; margin-bottom:10px; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
@@ -354,7 +356,7 @@
                 if(ctxPie) {
                     window.chartInstances['pie-piste-local'] = new Chart(ctxPie.getContext('2d'), {
                         type: 'doughnut',
-                        data: { labels: ['En Défaut', 'Préventif Usine', 'Déconnecté', 'Connecté (⚡)'], datasets: [{ data: [cDef, cPrev, cDec, cOk], backgroundColor: ['#e74c3c', '#9b59b6', '#27ae60', '#f1c40f'] }] },
+                        data: { labels: ['En Défaut', 'Déconnecté', 'Préventif', 'OK / Connecté'], datasets: [{ data: [cDef, cDec, cPrev, cOk], backgroundColor: ['#e74c3c', '#27ae60', '#9b59b6', '#f1c40f'] }] },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: {size: 10} } } } }
                     });
                 }
@@ -376,7 +378,6 @@
             } catch(e) { alert("Échec réseau."); btn.innerText = oldText; btn.disabled = false; }
         };
 
-        // Fonction de sauvegarde individuelle quand on clique sur un seul canon
         window.saveSuiviCanonSingle = async function(id, piste, btn) {
             let chkDec = document.getElementById('chk-dec-single-' + id); let chkPrev = document.getElementById('chk-prev-single-' + id); let txtRem = document.getElementById('rem-single-' + id);
             let payload = { action: "update_suivi", idCanon: id, piste: piste, deconnexion: chkDec ? chkDec.checked : false, preventif: chkPrev ? chkPrev.checked : false, vanneCorrectif: window.getActiveTickets(id).map(t => t.defaut).join(" | "), remarque: txtRem ? txtRem.value : "" };
@@ -543,7 +544,7 @@
                     let vAdY = window.getV(p, "année vanne ad") || window.getV(p, "annee vanne ad") || "Inconnue";
                     let vY = window.getV(p, "année vanne") || window.getV(p, "annee vanne") || "Inconnue";
                     
-                    // CORRECTION : Le menu d'édition est INCLUS dans la fiche quand on clique sur le canon !
+                    // MENU D'EDITION INDIVIDUEL COMPLET
                     mainContent = `
                         <div style="background:#eafaf1; padding:10px; border-radius:6px; border:1px solid #2ecc71; margin-bottom:10px; font-size:12px;">
                             <h4 style="margin:0 0 8px 0; color:#27ae60;">🛠️ Édition Rapide Suivi</h4>
@@ -835,13 +836,9 @@
         window.loadSavedLayersFromDB = function() { if(!window.localDB) return; const tx = window.localDB.transaction("kmz_layers", "readonly"); const req = tx.objectStore("kmz_layers").getAll(); req.onsuccess = function() { req.result.forEach(item => { window.addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible, item.color || '#e67e22', item.weight || 4); }); }; };
         window.buildGeoJsonStyle = function(hexColor, weight) { let finalWeight = weight ? parseInt(weight) : 4; return { style: function (feature) { return { color: hexColor, weight: finalWeight, opacity: 0.8, fillColor: hexColor }; }, pointToLayer: function(feature, latlng) { return L.circleMarker(latlng, {radius: 6, color: hexColor, fillColor: hexColor, fillOpacity: 0.8, weight: 1}); }, onEachFeature: function (feature, layer) { if (feature.properties && feature.properties.name) { layer.bindPopup(`<b style='color:${hexColor}'>` + feature.properties.name + "</b><br>" + (feature.properties.description || "")); } } }; };
         window.fetchGitHubKMZ = async function(url) { const response = await window.fetchWithTimeout(url); if (!response.ok) throw new Error("GitHub refuse l'accès."); let kmlString = ""; if (url.toLowerCase().endsWith('.kmz')) { const blob = await response.blob(); const arrayBuffer = await blob.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer); const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string"); } else { kmlString = await response.text(); } const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); return toGeoJSON.kml(xmlDoc); };
-        
         window.renderCloudLayersList = function() { const container = document.getElementById('cloud-layers-container'); if(!container) return; container.innerHTML = ""; if (window.cloudKmzLayers.length === 0) { container.innerHTML = `<p style="font-size:11px; color:#888; font-style:italic;">Aucun calque configuré.</p>`; return; } window.cloudKmzLayers.forEach((layer, idx) => { container.innerHTML += `<div class="kml-layer-item" style="border-color:#e1e8ed; background:#fafbfc; display:flex; flex-wrap:wrap; gap:5px; align-items:center;"><input type="checkbox" id="cloud-cbx-${idx}" ${layer.isVisible ? 'checked' : ''} onchange="window.toggleCloudLayer(${idx})" style="margin:0 5px 0 0;"><input type="color" class="layer-color-picker" value="${layer.color}" onchange="window.changeCloudLayerStyle(${idx}, this.value, null)" title="Couleur"><input type="number" class="layer-weight-picker" value="${layer.weight || 4}" min="1" max="15" onchange="window.changeCloudLayerStyle(${idx}, null, this.value)" title="Épaisseur"><label style="cursor:pointer; display:flex; flex-direction:column; flex-grow:1; margin-left:8px; min-width:120px;" for="cloud-cbx-${idx}"><span style="color:#2c3e50; font-size:12px;">${layer.nom}</span><span style="font-size:10px; color:#7f8c8d; font-weight:normal;">${layer.commentaire}</span></label><span id="cloud-status-${idx}" style="min-width:20px; text-align:right;"></span></div>`; }); };
-        
         window.toggleCloudLayer = async function(idx) { let layerObj = window.cloudKmzLayers[idx]; let cbx = document.getElementById('cloud-cbx-' + idx); let statusSpan = document.getElementById('cloud-status-' + idx); if (!cbx || !statusSpan) return; if (!cbx.checked) { if(layerObj.leafletLayer) window.map.removeLayer(layerObj.leafletLayer); layerObj.isVisible = false; statusSpan.innerText = ""; return; } if (layerObj.leafletLayer) { window.map.addLayer(layerObj.leafletLayer); layerObj.isVisible = true; return; } statusSpan.innerText = " ⏳"; cbx.disabled = true; try { const geojson = await window.fetchGitHubKMZ(layerObj.url); layerObj.leafletLayer = L.geoJSON(geojson, window.buildGeoJsonStyle(layerObj.color, layerObj.weight)).addTo(window.map); layerObj.isVisible = true; if(layerObj.leafletLayer.getBounds().isValid()) { window.map.fitBounds(layerObj.leafletLayer.getBounds()); } statusSpan.innerText = " ✅"; } catch(err) { statusSpan.innerText = " ❌"; alert("Erreur calque : " + err.message); cbx.checked = false; } cbx.disabled = false; };
-        
         window.changeCloudLayerStyle = function(idx, newColor, newWeight) { let layerObj = window.cloudKmzLayers[idx]; if (newColor !== null) layerObj.color = newColor; if (newWeight !== null) layerObj.weight = parseInt(newWeight); fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: 'update_kmz', nom: layerObj.nom, color: layerObj.color, weight: layerObj.weight }) }); if(layerObj.leafletLayer) { layerObj.leafletLayer.setStyle({ color: layerObj.color, fillColor: layerObj.color, weight: layerObj.weight }); layerObj.leafletLayer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: layerObj.color, fillColor: layerObj.color }); } }); } };
-        
         window.handleKMLUpload = async function(event) { const file = event.target.files[0]; if(!file) return; let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'flex'; let sp = document.getElementById('loading-spinner'); if(sp) sp.style.display = 'block'; let ti = document.getElementById('loading-title'); if(ti) ti.innerText = "Importation locale..."; let de = document.getElementById('loading-desc'); if(de) de.innerText = "Analyse de " + file.name; setTimeout(async () => { try { const fileName = file.name; const layerId = 'layer_' + Date.now(); let kmlString = ""; let defaultColor = '#e67e22'; let defaultWeight = 4; if (fileName.toLowerCase().endsWith('.kmz')) { const arrayBuffer = await file.arrayBuffer(); const zip = await JSZip.loadAsync(arrayBuffer); const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml')); if (!kmlFile) throw new Error("Aucun fichier KML trouvé."); kmlString = await kmlFile.async("string"); } else if (fileName.toLowerCase().endsWith('.kml')) { kmlString = await file.text(); } else { throw new Error("Format non supporté."); } const parser = new DOMParser(); const xmlDoc = parser.parseFromString(kmlString, "text/xml"); const geojson = toGeoJSON.kml(xmlDoc); window.saveLayerToDB(layerId, fileName, geojson, defaultColor, defaultWeight); window.addGeoJsonToMap(layerId, fileName, geojson, true, defaultColor, defaultWeight); if(ov) ov.style.display = 'none'; } catch (err) { if(ov) ov.style.display = 'none'; alert("Erreur d'import : " + err.message); } event.target.value = ""; }, 100); };
         window.addGeoJsonToMap = function(id, name, geojson, isVisible, hexColor, weight) { let finalWeight = weight || 4; const layer = L.geoJSON(geojson, window.buildGeoJsonStyle(hexColor, finalWeight)); if(isVisible) layer.addTo(window.map); window.externalLayers[id] = { name: name, layer: layer, isVisible: isVisible, color: hexColor, weight: finalWeight }; window.renderCustomLayersList(); if(isVisible && layer.getBounds && typeof layer.getBounds === 'function') { let b = layer.getBounds(); if(b.isValid()) window.map.fitBounds(b); } };
         window.renderCustomLayersList = function() { const container = document.getElementById('custom-layers-list'); if(!container) return; container.innerHTML = ""; for (let id in window.externalLayers) { const ext = window.externalLayers[id]; container.innerHTML += `<div class="kml-layer-item"><input type="checkbox" id="loc-cbx-${id}" ${ext.isVisible ? 'checked' : ''} onchange="window.toggleExtLayer('${id}')" style="margin:0 5px 0 0;"><input type="color" class="layer-color-picker" value="${ext.color}" onchange="window.changeExtLayerStyle('${id}', this.value, null)" title="Couleur"><input type="number" class="layer-weight-picker" value="${ext.weight || 4}" min="1" max="15" onchange="window.changeExtLayerStyle('${id}', null, this.value)" title="Épaisseur"><label for="loc-cbx-${id}" style="cursor:pointer; flex-grow:1; margin-left:8px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#34495e;">${ext.name}</label><button onclick="window.deleteExtLayer('${id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px;">🗑️</button></div>`; } };
@@ -916,7 +913,6 @@
                 }
             }
 
-            // LECTURE SÉCURISÉE DES KMZ (CALQUES)
             if (data.kmz && data.kmz.length > 1) {
                 const kHead = data.kmz[0].map(h => (h||"").toString().toLowerCase().trim());
                 const iNom = kHead.findIndex(h => h.includes("nom") || h.includes("calque"));
@@ -959,6 +955,100 @@
             let lst = document.getElementById('loading-step'); if(lst) lst.style.display = 'none';
             let ld = document.getElementById('loading-desc'); if(ld) ld.innerHTML = `${window.snowCannons.features.length} canons placés.`;
             setTimeout(() => { window.initAppUI(); let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'none'; }, 800);
+        };
+
+        window.initAppUI = function() {
+            let ts=new Set(),rs=new Set(),trs=new Set(),ps=new Set();
+            window.snowCannons.features.forEach(f=>{let p=f.properties;let t=window.getV(p,window.keyType);if(t!=="N/A")ts.add(t.toLowerCase());let r=window.getV(p,window.keyRep);if(r!=="N/A")rs.add(r);let tr=window.getV(p,window.keyTransfo);if(tr!=="N/A")trs.add(tr);let pi=window.getV(p,window.keyPiste);if(pi!=="N/A")ps.add(pi);});
+            
+            let tc=['#3498db','#e74c3c','#2ecc71','#f1c40f','#9b59b6']; Array.from(ts).sort().forEach((t,i)=>window.technoColors[t]=tc[i%tc.length]);
+            let rc=['#1abc9c','#16a085','#f39c12','#d35400','#8e44ad']; Array.from(rs).sort().forEach((r,i)=>window.repColors[r]=rc[i%rc.length]);
+            let neonColors = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF', '#00FFFF', '#FF8C00', '#FF1493', '#39FF14']; Array.from(trs).sort().forEach((t,i)=>window.transfoColors[t]=neonColors[i%neonColors.length]);
+            
+            window.snowCannons.features.forEach(f=>{let t=window.getV(f.properties,window.keyType).toLowerCase();f.properties.couleur_defaut=(["demak lenko","demac lenko"].includes(t))?"#0000FF":(["sufag","street","taurus","taurax","peak"].includes(t))?"#008000":window.technoColors[t]||"#FFD700";});
+            
+            let dlContainer = document.getElementById('datalists-container');
+            if (dlContainer) { let dlHtml = ""; for(let header in window.columnValuesSets) { let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-'); dlHtml += `<datalist id="${safeId}">${Array.from(window.columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`; } dlContainer.innerHTML = dlHtml; }
+
+            let sld = document.getElementById('season-slider');
+            if (window.saisonsList.length > 0 && sld) { sld.max = window.saisonsList.length - 1; sld.value = window.histSeasonIdx; let sdisp = document.getElementById('season-display'); if(sdisp) sdisp.innerText = window.saisonsList[window.histSeasonIdx]; }
+
+            function buildCbs(id, set, cls) { const c = document.getElementById(id); if(!c) return; c.innerHTML = ''; [...set].sort().forEach(v => { let l=document.createElement('label'); let cb=document.createElement('input'); cb.type='checkbox'; cb.className=cls; cb.value=v; l.appendChild(cb); l.appendChild(document.createTextNode(' '+v)); c.appendChild(l); }); }
+            buildCbs('individual-pistes', ps, 'piste-cb'); buildCbs('individual-types', ts, 'type-cb');
+
+            function setupCbs(allId, cls, cbk) { 
+                const aBtn = document.getElementById(allId); if(!aBtn) return;
+                const cbs = document.querySelectorAll('.'+cls); const getVals = () => aBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); 
+                aBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); cbk(getVals()); }); 
+                cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) { if(aBtn) aBtn.checked=false; } else if(Array.from(cbs).every(x=>!x.checked)) { if(aBtn) aBtn.checked=true; } cbk(getVals()); })); 
+            }
+            setupCbs('check-all-pistes', 'piste-cb', vals => { window.currentPistes = vals; window.updateMap(); window.triggerGlobalFilterChart(); }); 
+            setupCbs('check-all-types', 'type-cb', vals => { window.currentTypes = vals; window.updateMap(); window.triggerGlobalFilterChart(); });
+
+            window.generateDynamicFiltersUI = function() { let container = document.getElementById('dynamic-filters-container'); if(!container) return; container.innerHTML = ""; let optionsHTML = `<option value="">-- Choisir un critère --</option>` + window.availableColumns.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join(''); container.innerHTML = `<div class="dynamic-filter-slot" style="margin-bottom:0; border:none; padding:0;"><select class="filter-select" id="filter-sel-0" data-idx="0">${optionsHTML}</select><div class="checkbox-list" id="filter-cbx-0" style="display:none;"></div></div>`; };
+            window.renderCheckboxesForFilter = function(idx, colName) { let cbxContainer = document.getElementById(`filter-cbx-${idx}`); if(!cbxContainer) return; if(!colName) { cbxContainer.style.display = 'none'; window.activeFilters[idx] = {key:"", vals:[]}; window.updateMap(); window.triggerGlobalFilterChart(); return; } cbxContainer.style.display = 'block'; let vals = Array.from(window.columnValuesSets[colName] || []).sort(); let html = `<label><input type="checkbox" class="cb-all-${idx}" checked> <b>Tout sélectionner</b></label><hr style="margin:4px 0; border-top:1px solid #eee;">`; vals.forEach(v => html += `<label><input type="checkbox" class="cb-val-${idx}" value="${v}"> ${v}</label>`); cbxContainer.innerHTML = html; window.activeFilters[idx] = {key: colName, vals: ['all']}; let allBtn = cbxContainer.querySelector(`.cb-all-${idx}`); let cbs = cbxContainer.querySelectorAll(`.cb-val-${idx}`); const updateLogic = () => { window.activeFilters[idx].vals = allBtn.checked ? ['all'] : Array.from(cbs).filter(c=>c.checked).map(c=>c.value); window.updateMap(); window.triggerGlobalFilterChart(); }; if(allBtn) allBtn.addEventListener('change', e => { if(e.target.checked) cbs.forEach(c=>c.checked=false); updateLogic(); }); cbs.forEach(c => c.addEventListener('change', () => { if(c.checked) { if(allBtn) allBtn.checked=false; } else if(Array.from(cbs).every(x=>!x.checked)) { if(allBtn) allBtn.checked=true; } updateLogic(); })); };
+
+            window.generateDynamicFiltersUI(); window.renderCloudLayersList(); window.calculateMaxes();
+
+            window.geojsonLayer = L.geoJSON(window.snowCannons, {
+                pointToLayer: function (feature, latlng) { return L.marker(latlng, { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div></div>` }) }); },
+                onEachFeature: function (feature, layer) {
+                    layer.on('click', function(e) {
+                        L.DomEvent.stopPropagation(e);
+                        if (window.currentlyEditingId) return; 
+                        const id = feature.properties.id;
+                        if (!window.isMultiSelect) window.selectedCannonsMap.clear(); 
+                        if (window.selectedCannonsMap.has(id)) window.selectedCannonsMap.delete(id); else window.selectedCannonsMap.set(id, layer);
+                        if(window.map) window.map.setView(layer.getLatLng(), 17, {animate: true});
+                        window.updateMap(); window.renderSelectionPanel();
+                        let sb = document.getElementById('right-sidebar'); if (window.selectedCannonsMap.size > 0 && sb) sb.classList.add('open');
+                    });
+                }
+            }).addTo(window.map);
+
+            if (window.snowCannons.features.length > 0) { let bounds = window.geojsonLayer.getBounds(); if(bounds.isValid() && window.map) window.map.fitBounds(bounds, { padding: [30, 30] }); }
+
+            window.webcamLayerGroup = L.layerGroup();
+            window.webcamsData.forEach(wc => {
+                let marker = L.marker([wc.lat, wc.lng], { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">${wc.icon}</div>`, iconSize: [24,24], iconAnchor: [12,12] }), draggable: false });
+                marker.on('click', function(e) { 
+                    L.DomEvent.stopPropagation(e); 
+                    if(marker.dragging && marker.dragging.enabled()) return; 
+                    if(window.map) window.map.setView([wc.lat, wc.lng], 17, {animate: true});
+                    window.openSingleWebcam(wc.nom); 
+                });
+                marker.wcData = wc; window.webcamLayerGroup.addLayer(marker);
+            });
+            window.webcamLayerGroup.addTo(window.map);
+            
+            document.querySelectorAll('input[name="main_theme"]').forEach(r => {
+                r.addEventListener('change', e => {
+                    window.mainTheme = e.target.value;
+                    document.querySelectorAll('.theme-details, .theme-details-hist').forEach(el => el.style.display = 'none');
+                    document.querySelectorAll('.radio-card').forEach(el => { el.style.borderBottomLeftRadius = '6px'; el.style.borderBottomRightRadius = '6px'; el.style.marginBottom = '8px'; el.style.borderColor = '#e1e8ed'; if(el.id === 'lbl-historique') el.style.borderColor = '#2ecc71'; });
+                    let activeDetails = document.getElementById('details-' + window.mainTheme); let activeLabel = document.getElementById('lbl-' + window.mainTheme);
+                    if (activeDetails && activeLabel) { activeDetails.style.display = 'block'; activeLabel.style.borderBottomLeftRadius = '0'; activeLabel.style.borderBottomRightRadius = '0'; activeLabel.style.marginBottom = '0'; if(window.mainTheme === 'historique') { activeLabel.style.borderColor = '#2ecc71'; } else { activeLabel.style.borderColor = '#3498db'; } }
+                    if(window.mainTheme === 'historique') window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
+                });
+            });
+
+            document.querySelectorAll('input[name="hist_metric"]').forEach(r => { r.addEventListener('change', e => { window.histMetric = e.target.value; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart(); }); });
+            let ssl = document.getElementById('season-slider'); if(ssl) ssl.addEventListener('input', e => { window.histSeasonIdx = parseInt(e.target.value); let sd = document.getElementById('season-display'); if(sd) sd.innerText = window.saisonsList[window.histSeasonIdx]; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart(); });
+            let dfc = document.getElementById('dynamic-filters-container'); if(dfc) dfc.addEventListener('change', e => { if(e.target.classList.contains('filter-select')) window.renderCheckboxesForFilter(e.target.getAttribute('data-idx'), e.target.value); });
+            
+            if(window.map) {
+                window.map.on('click', function(e) {
+                    let amc = document.getElementById('allow-move-chk');
+                    if (window.currentlyEditingId && amc && amc.checked) { 
+                        let elat = document.getElementById('edit-lat'); if(elat) elat.value = e.latlng.lat.toFixed(7); 
+                        let elng = document.getElementById('edit-lng'); if(elng) elng.value = e.latlng.lng.toFixed(7); 
+                        let layer = window.selectedCannonsMap.get(window.currentlyEditingId);
+                        if(layer) { layer.setLatLng(e.latlng); layer.feature.geometry.coordinates = [e.latlng.lng, e.latlng.lat]; }
+                    } else { window.closeRightSidebar(); }
+                });
+            }
+
+            window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
         };
 
         window.calculateMaxes = function() {
