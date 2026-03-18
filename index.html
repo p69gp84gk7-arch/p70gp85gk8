@@ -411,10 +411,10 @@
 
         /* ================== COULEURS ET LÉGENDES ================== */
         window.getColorByFilter=function(ratio,p){const inter=(c1,c2,f)=>{let r=c1.slice();for(let i=0;i<3;i++)r[i]=Math.round(r[i]+f*(c2[i]-c1[i]));return `rgb(${r[0]},${r[1]},${r[2]})`;};if(window.mainTheme==='defauts'){let act=window.getActiveTickets(p.id);if(act.length===0)return '#bdc3c7';if(act.some(t=>t.statut.includes('faire')))return '#e74c3c';return '#f39c12';}if(window.mainTheme==='historique'){if(window.histMetric==='eau')return inter([173,216,230],[41,128,185],ratio);if(window.histMetric==='air')return inter([250,219,94],[211,84,0],ratio);if(window.histMetric==='temps')return inter([171,235,198],[39,174,96],ratio);}if(window.mainTheme==='repeteur')return window.repColors[window.getV(p,window.keyRep)]||'#7f8c8d';if(window.mainTheme==='transfo')return window.transfoColors[window.getV(p,window.keyTransfo)]||'#7f8c8d';let tv=window.getV(p,window.keyType).toLowerCase();if(["demak lenko","demac lenko"].includes(tv))return "#0000FF";if(["sufag","street","taurus","taurax","peak"].includes(tv))return "#008000";return window.technoColors[tv]||"#FFD700";};
-        window.updateLegend = function() {
+       window.updateLegend = function() {
             let elDef = document.getElementById('legend-defauts');
             if (window.mainTheme === 'suivi_entretien') {
-                if(elDef) elDef.innerHTML = `<div class="legend-item"><div class="color-box" style="background:#e74c3c;"></div> Défaut en cours</div><div class="legend-item"><div class="color-box" style="background:#9b59b6;"></div> Préventif Usine</div><div class="legend-item"><div class="color-box" style="background:#27ae60;"></div> Déconnecté</div><div class="legend-item"><div class="color-box" style="background:#f1c40f;"></div> Connecté (⚡)</div><div class="legend-item" style="font-size:10px; color:#7f8c8d; margin-top:5px;"><i>Mélange de couleurs si multi-statuts.</i></div>`;
+                if(elDef) elDef.innerHTML = `<div class="legend-item"><div class="color-box" style="background:#e74c3c;"></div> Défaut en cours</div><div class="legend-item"><div class="color-box" style="background:#9b59b6;"></div> Préventif Usine</div><div class="legend-item"><div class="color-box" style="background:#27ae60;"></div> Déconnecté</div><div class="legend-item"><div class="color-box" style="background:#f1c40f;"></div> Connecté (⚡)</div><div class="legend-item"><div style="background:#e67e22; color:white; width:14px; height:14px; border-radius:50%; font-size:10px; font-weight:bold; text-align:center; line-height:14px; border:1px solid #ccc;">!</div> Remarque présente</div><div class="legend-item" style="font-size:10px; color:#7f8c8d; margin-top:5px;"><i>Mélange de couleurs si multi-statuts.</i></div>`;
             } else if (window.mainTheme === 'defauts' && elDef) {
                 elDef.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'urgent')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'encours')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'ras')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`;
             } else if (window.mainTheme === 'type') {
@@ -431,6 +431,7 @@
                 else if (window.histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`;
             }
         };
+
         window.highlightLegend = function(theme, val) {
             if (theme === 'historique' || theme === 'suivi_entretien') return; if(!window.geojsonLayer) return;
             window.geojsonLayer.eachLayer(function(layer) {
@@ -443,6 +444,7 @@
                 if (match) { layer.setOpacity(1); layer.setZIndexOffset(2000); if(layer._icon) { layer._icon.style.opacity = "1"; if(!layer._icon.style.transform.includes('scale(1.3)')) layer._icon.style.transform += ' scale(1.3)'; } } else { layer.setOpacity(0.2); layer.setZIndexOffset(0); if(layer._icon) { layer._icon.style.opacity = "0.2"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }
             });
         };
+
         window.resetHighlight = function() { if(!window.geojsonLayer) return; window.geojsonLayer.eachLayer(function(layer) { layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = "1"; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); } }); window.updateMap(); };
         
         window.updateMap = function() {
@@ -468,15 +470,17 @@
                 } else {
                     p._isVisible = true; if (!window.map.hasLayer(layer)) window.map.addLayer(layer);
                     let rad = 12; let ratio = 0; let bgStr = ""; let iconChar = p.id; let lh = '24px';
+                    let remarkBadge = ""; // NOUVEAU : La bulle de remarque
                     
                     if (window.mainTheme === 'historique') { 
                         let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); 
                         bgStr = window.getColorByFilter(ratio, p);
                     } else if (window.mainTheme === 'suivi_entretien') {
                         let acts = window.getActiveTickets(p.id); let hasFault = acts.length > 0;
-                        let suivi = window.suiviEntretienData.find(row => row[0] == p.id) || ["", "", "non", "non"];
+                        let suivi = window.suiviEntretienData.find(row => row[0] == p.id) || ["", "", "non", "non", "", "", ""];
                         let dec = suivi[2] && suivi[2].toString().toLowerCase().trim() === "oui";
                         let prev = suivi[3] && suivi[3].toString().toLowerCase().trim() === "oui";
+                        let rem = suivi[5] || ""; // On lit la remarque
 
                         let colors = [];
                         if(hasFault) colors.push('#e74c3c'); 
@@ -488,11 +492,17 @@
                         else if(colors.length === 2) bgStr = `linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%)`;
                         else if(colors.length === 1) bgStr = colors[0];
 
-                        // CORRECTION : L'éclair reste actif tant que le canon n'est pas "Déconnecté"
+                        // Gestion de l'éclair
                         if (!dec) {
                             iconChar = `⚡<br><span style="font-size:8px;">${p.id}</span>`;
                             lh = '12px';
                         }
+
+                        // NOUVEAU : Génération de la bulle si la remarque n'est pas vide
+                        if (rem.toString().trim() !== "") {
+                            remarkBadge = `<div style="position:absolute; top:-6px; right:-6px; background:#e67e22; color:white; width:16px; height:16px; border-radius:50%; font-size:12px; font-weight:bold; text-align:center; line-height:16px; border:1px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.5); z-index:10;">!</div>`;
+                        }
+
                     } else {
                         bgStr = window.getColorByFilter(0, p);
                     }
@@ -505,7 +515,8 @@
 
                     let actClass = (window.mainTheme !== 'suivi_entretien' && window.mainTheme === 'defauts' && window.getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
                     
-                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background:${bgStr}; width:${rad*2}px; height:${rad*2}px; line-height:${lh}; border:${bw} solid ${bord}; font-size:${fsz};">${iconChar}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
+                    // NOUVEAU : Injection du badge dans le HTML du marqueur
+                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background:${bgStr}; width:${rad*2}px; height:${rad*2}px; line-height:${lh}; border:${bw} solid ${bord}; font-size:${fsz}; position:relative;">${iconChar}${remarkBadge}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
                     layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = '1'; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
                 }
             });
