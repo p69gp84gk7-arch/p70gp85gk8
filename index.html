@@ -1194,7 +1194,18 @@ window.filterAtelierCanons = function(val) {
         }
     });
 };
-
+/* ========================================================================= */
+/* RÉPARATION : FONCTION POUR AFFICHER/MASQUER LES BLOCS DE VANNES AD        */
+/* ========================================================================= */
+window.handleSelectVanne = function(safeId, val) {
+    let bVar = document.getElementById(`bloc-var-${safeId}`); 
+    let bVarDbl = document.getElementById(`bloc-var-double-${safeId}`); 
+    let bV2000 = document.getElementById(`bloc-v2000-${safeId}`);
+    
+    if (bVar) bVar.style.display = (val === 'var') ? 'block' : 'none';
+    if (bVarDbl) bVarDbl.style.display = (val === 'var_double') ? 'block' : 'none';
+    if (bV2000) bV2000.style.display = (val === 'v2000') ? 'block' : 'none';
+};
         /* ========================================================================= */
 /* MISE À JOUR : SAUVEGARDE ET ARCHIVAGE D'UNE VANNE (BANC D'ESSAI)          */
 /* ========================================================================= */
