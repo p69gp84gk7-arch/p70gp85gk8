@@ -1161,31 +1161,120 @@
             } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
         };
 
-        window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
-            let fieldsObj = {}; let canonData = window.snowCannons.features.find(f => f.properties.id == idCanon); let p = canonData ? canonData.properties : null;
-            fieldsObj["id"] = idCanon; fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; fieldsObj["abris double"] = p ? window.getV(p, "abris double") : ""; fieldsObj["type"] = p ? window.getV(p, "type") : ""; fieldsObj["vanne additionnelle"] = p ? window.getV(p, "vanne additionnelle") : ""; fieldsObj["type vanne AD 1"] = p ? window.getV(p, "type vanne ad 1") : "";
-            
-            document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
-                if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
-                fieldsObj[inp.getAttribute('data-col')] = inp.value;
-            });
+        /* ========================================================================= */
+/* MISE À JOUR : SAUVEGARDE ET ARCHIVAGE D'UNE VANNE (BANC D'ESSAI)          */
+/* ========================================================================= */
+window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
+    let fieldsObj = {}; 
+    let canonData = window.snowCannons.features.find(f => f.properties.id == idCanon); 
+    let p = canonData ? canonData.properties : null;
+    
+    // Récupération correcte des types depuis le tableau général
+    fieldsObj["id"] = idCanon; 
+    fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; 
+    fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; 
+    fieldsObj["abris double"] = p ? window.getV(p, "abris double") : ""; 
+    
+    // CORRECTION ICI : Utilisation de la clé dynamique pour le Type et flexibilité pour la Vanne AD
+    fieldsObj["type"] = p ? window.getV(p, window.keyType) : ""; 
+    fieldsObj["vanne additionnelle"] = p ? window.getV(p, "vanne additionnelle") : ""; 
+    fieldsObj["type vanne AD 1"] = p ? (window.getV(p, "type vanne ad 1") || window.getV(p, "type vanne ad")) : "";
+    
+    document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
+        if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
+        fieldsObj[inp.getAttribute('data-col')] = inp.value;
+    });
 
-            let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement & Synchro..."; btn.disabled = true;
-            try {
-                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); let r = await res.json();
-                if(r.status === "success") {
-                    btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
-                    if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
-                    let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); let rowData = new Array(headersAtelier.length).fill(""); rowData[headersAtelier.indexOf("id")] = idCanon; window.rawAtelier.push(rowData);
-                    setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
-                } else { alert("Erreur Apps Script"); btn.disabled = false; btn.innerText = oldText; }
-            } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
-        };
-
+    let oldText = btn.innerText; 
+    btn.innerText = "⏳ Enregistrement & Synchro..."; 
+    btn.disabled = true;
+    
+    try {
+        let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); 
+        let r = await res.json();
+        if(r.status === "success") {
+            btn.innerText = "✅ Rapport Enregistré !"; 
+            btn.style.background = "#27ae60";
+            if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
+            let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); 
+            let rowData = new Array(headersAtelier.length).fill(""); 
+            rowData[headersAtelier.indexOf("id")] = idCanon; 
+            window.rawAtelier.push(rowData);
+            setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
+        } else { 
+            alert("Erreur Apps Script"); 
+            btn.disabled = false; btn.innerText = oldText; 
+        }
+    } catch(e) { 
+        alert("Erreur réseau"); 
+        btn.disabled = false; btn.innerText = oldText; 
+    }
+};
         /* ========================================================================= */
         /* CHAPITRE 11 : MAINTENANCE AVANCÉE ET MODULE "BUSES"                       */
         /* ========================================================================= */
-        window.saveEntretienTete = async function(idCanon, btn) {
+        /* ========================================================================= */
+/* AJOUT : SAUVEGARDE MULTIPLE POUR LE SUIVI ENTRETIEN                       */
+/* ========================================================================= */
+window.saveMultiSuivi = async function(btn) {
+    let payloads = [];
+    
+    // On boucle sur tous les canons actuellement ciblés dans la barre latérale
+    window.selectedCannonsMap.forEach((layer, idCanon) => {
+        let p = layer.feature.properties;
+        let piste = window.getV(p, window.keyPiste);
+        let chkDec = document.getElementById('chk-dec-single-' + idCanon);
+        let chkPrev = document.getElementById('chk-prev-single-' + idCanon);
+        let rem = document.getElementById('rem-single-' + idCanon);
+        
+        payloads.push({
+            idCanon: idCanon,
+            piste: piste,
+            deconnexion: chkDec ? chkDec.checked : false,
+            preventif: chkPrev ? chkPrev.checked : false,
+            vanneCorrectif: "", 
+            remarque: rem ? rem.value : ""
+        });
+    });
+
+    if (payloads.length === 0) return;
+    
+    let oldText = btn.innerText;
+    btn.innerText = "⏳ Sauvegarde en cours...";
+    btn.disabled = true;
+
+    try {
+        let res = await fetch(GOOGLE_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "update_suivi_multi", payloads: payloads })
+        });
+        let r = await res.json();
+        
+        if (r.status === "success") {
+            btn.innerText = "✅ Succès !";
+            // Mise à jour de la mémoire locale pour éviter de devoir recharger la page
+            payloads.forEach(item => {
+                let sRow = window.suiviEntretienData.find(row => row[0] == item.idCanon);
+                if (sRow) {
+                    sRow[2] = item.deconnexion ? "oui" : "non";
+                    sRow[3] = item.preventif ? "oui" : "non";
+                    sRow[5] = item.remarque;
+                } else {
+                    window.suiviEntretienData.push([item.idCanon, item.piste, item.deconnexion ? "oui" : "non", item.preventif ? "oui" : "non", "", item.remarque, ""]);
+                }
+            });
+            window.updateMap();
+            setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000);
+        } else {
+            alert("Erreur lors de la sauvegarde côté serveur.");
+            btn.innerText = oldText; btn.disabled = false;
+        }
+    } catch (e) {
+        alert("Échec réseau.");
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+            window.saveEntretienTete = async function(idCanon, btn) {
             let chk = document.getElementById(`chk-buses-${idCanon}`); if(!chk) return;
             let isChecked = chk.checked; let valBuses = isChecked ? "OUI" : ""; let currentYear = new Date().getFullYear();
             let fieldsObj = { "Buses": valBuses, "années buses": isChecked ? currentYear.toString() : "" };
