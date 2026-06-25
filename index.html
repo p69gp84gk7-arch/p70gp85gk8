@@ -937,9 +937,7 @@
         /* ========================================================================= */
         /* CHAPITRE 10 : MODULE ATELIER ET BANC D'ESSAIS                             */
         /* ========================================================================= */
-       /* ========================================================================= */
-/* MISE À JOUR : ESPACE DE TRAVAIL ATELIER (Recherche, Tri, Consommables)    */
-/* ========================================================================= */
+
 /* ========================================================================= */
 /* MISE À JOUR : ESPACE DE TRAVAIL ATELIER (Logique Clarinette / 2VAR)       */
 /* ========================================================================= */
@@ -1197,6 +1195,58 @@ window.filterAtelierCanons = function(val) {
         }
     });
 };
+ /* ========================================================================= */
+/* RÉPARATION : SAUVEGARDE DES CARACTÉRISTIQUES TECHNIQUES (GÉNÉRAL)         */
+/* ========================================================================= */
+window.saveAtelierTechRow = async function(idCanon, safeId, btn) {
+    // 1. Initialisation du dictionnaire pour récupérer les champs modifiés
+    let fields = {};
+    
+    // 2. Récupération de chaque champ texte de la section général pour ce canon
+    document.querySelectorAll(`.tech-field-${safeId}`).forEach(inp => { 
+        fields[inp.getAttribute('data-head')] = inp.value; 
+    });
+    
+    // 3. Préparation de la charge utile (payload) pour le Google Script
+    let pl = { 
+        action: "update_general", 
+        idCanon: idCanon, 
+        lat: 0, 
+        lng: 0, 
+        fields: fields 
+    }; 
+    
+    // 4. Verrouillage du bouton pendant l'envoi
+    let oldText = btn.innerText; 
+    btn.innerText = "⏳ Enregistrement..."; 
+    btn.disabled = true;
+    
+    // 5. Envoi des données vers Google Sheets via Fetch
+    try {
+        let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(pl) }); 
+        let r = await res.json();
+        
+        if(r.status === "success") { 
+            // 6. Si succès, confirmation visuelle et mise à jour de la mémoire locale
+            btn.innerText = "✅ Succès !"; 
+            let feat = window.snowCannons.features.find(f => f.properties.id == idCanon);
+            if(feat) { 
+                Object.keys(fields).forEach(k => { 
+                    let obj = feat.properties.fullData.find(x => x.k.toLowerCase().trim() === k.toLowerCase().trim()); 
+                    if(obj) obj.v = fields[k]; 
+                }); 
+            }
+            // 7. Relâchement du bouton après 2 secondes
+            setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000); 
+        } else { 
+            alert("Erreur serveur lors de la mise à jour générale."); 
+            btn.disabled = false; btn.innerText = oldText; 
+        }
+    } catch(e) { 
+        alert("Erreur réseau : impossible de joindre Google Sheets."); 
+        btn.disabled = false; btn.innerText = oldText; 
+    }
+};           
 /* ========================================================================= */
 /* RÉPARATION : FONCTION POUR AFFICHER/MASQUER LES BLOCS DE VANNES AD        */
 /* ========================================================================= */
