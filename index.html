@@ -1720,6 +1720,199 @@ window.saveMultiSuivi = async function(btn) {
         window.changeExtLayerStyle = function(id, newColor, newWeight) { if(window.externalLayers[id]) { if (newColor !== null) window.externalLayers[id].color = newColor; if (newWeight !== null) window.externalLayers[id].weight = parseInt(newWeight); let col = window.externalLayers[id].color; let w = window.externalLayers[id].weight; if(window.externalLayers[id].layer) { window.externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w}); window.externalLayers[id].layer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: col, fillColor: col }); } }); } window.updateLayerDataInDB(id, { color: col, weight: w }); } };
         window.deleteExtLayer = function(id) { window.map.removeLayer(window.externalLayers[id].layer); delete window.externalLayers[id]; window.deleteLayerFromDB(id); window.renderCustomLayersList(); };
 
+            /* ========================================================================= */
+/* TITRE : FONCTIONS D'ACTIONS DU STOCK (AJOUT, ÉDITION, SUPPRESSION, FILTRE)*/
+/* ========================================================================= */
+
+// 1. Afficher/Masquer le formulaire de création de pièce
+window.toggleAddStockForm = function() {
+    let form = document.getElementById('add-stock-form-container');
+    if (form) {
+        form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+    }
+};
+
+// 2. Moteur de recherche en temps réel sur toutes les pièces
+window.filterStockItems = function(val) {
+    let search = val.toLowerCase().trim();
+    let cards = document.querySelectorAll('.stock-item-card');
+    
+    cards.forEach(card => {
+        let textContent = card.innerText.toLowerCase();
+        let inputs = card.querySelectorAll('input');
+        let match = textContent.includes(search);
+        
+        // Si le texte visible ne correspond pas, on fouille aussi dans les valeurs des inputs
+        if (!match) {
+            inputs.forEach(inp => {
+                if (inp.value.toLowerCase().includes(search)) match = true;
+            });
+        }
+        
+        // Flex permet de garder la structure de la carte intacte (image à droite)
+        card.style.display = match ? 'flex' : 'none'; 
+    });
+};
+
+// 3. Envoyer une NOUVELLE pièce vers Google Sheets
+window.addStockItemToServer = async function(btn) {
+    let fieldsObj = {};
+    let inputs = document.querySelectorAll('.new-stock-field');
+    let hasData = false;
+
+    // Collecte des données du formulaire d'ajout
+    inputs.forEach(inp => {
+        let colName = inp.getAttribute('data-col');
+        let val = inp.value;
+        fieldsObj[colName] = val;
+        if(val.trim() !== "") hasData = true; // Vérification que le form n'est pas 100% vide
+    });
+
+    if (!hasData) {
+        alert("⚠️ Impossible d'ajouter un article totalement vide.");
+        return;
+    }
+
+    let oldText = btn.innerText;
+    btn.innerText = "⏳ Création...";
+    btn.disabled = true;
+
+    try {
+        let res = await fetch(GOOGLE_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "add_stock_item", fields: fieldsObj })
+        });
+        let r = await res.json();
+        
+        if (r.status === "success") {
+            btn.innerText = "✅ Article Ajouté !";
+            btn.style.background = "#27ae60";
+            
+            // Mise à jour du tableau mémoire local
+            let newRow = new Array(window.rawStock[0].length).fill("");
+            window.rawStock[0].forEach((header, index) => {
+                let colName = header.toString().trim();
+                if (fieldsObj[colName] !== undefined) {
+                    newRow[index] = fieldsObj[colName];
+                }
+            });
+            window.rawStock.push(newRow);
+            
+            // Rechargement visuel de l'espace stock
+            setTimeout(() => {
+                window.renderStockWorkspace();
+            }, 1200);
+        } else {
+            alert("Erreur Serveur: " + r.msg);
+            btn.innerText = oldText; btn.disabled = false;
+        }
+    } catch(e) {
+        alert("Erreur de connexion internet.");
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+
+// 4. Mettre à jour une pièce EXISTANTE
+window.saveStockItemEdits = async function(numPiece, safeId, btn) {
+    let fieldsObj = {};
+    let inputs = document.querySelectorAll(`.s-field-${safeId}`);
+    
+    // Collecte des valeurs de la fiche modifiée
+    inputs.forEach(inp => {
+        fieldsObj[inp.getAttribute('data-col')] = inp.value;
+    });
+
+    let oldText = btn.innerText;
+    btn.innerText = "⏳ Sauvegarde...";
+    btn.disabled = true;
+
+    try {
+        let res = await fetch(GOOGLE_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "update_stock_item", idPiece: numPiece, fields: fieldsObj })
+        });
+        let r = await res.json();
+        
+        if (r.status === "success") {
+            btn.innerText = "✅ Enregistré";
+            btn.style.background = "#27ae60";
+            
+            // Mise à jour de la mémoire locale (pour que ça reste à jour si on quitte et revient sur l'onglet)
+            let headers = window.rawStock[0].map(h => h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+            let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
+            if (idxNum === -1) idxNum = 0;
+            
+            let rowIndex = window.rawStock.findIndex((row, idx) => idx > 0 && row[idxNum].toString().trim() === numPiece.toString().trim());
+            if (rowIndex !== -1) {
+                window.rawStock[0].forEach((head, colIdx) => {
+                    let cleanHead = head.toString().trim();
+                    let inp = document.querySelector(`.s-field-${safeId}[data-col="${cleanHead}"]`);
+                    if (inp) window.rawStock[rowIndex][colIdx] = inp.value;
+                });
+            }
+
+            // Remise à l'état initial après 1.5 seconde
+            setTimeout(() => {
+                btn.innerText = "💾 Enregistrer les modifications";
+                btn.style.background = "#16a085";
+                btn.disabled = false;
+                window.renderStockWorkspace(); // Force le re-calcul des alertes de seuil
+            }, 1500);
+        } else {
+            alert("Erreur Serveur: " + r.msg);
+            btn.innerText = oldText; btn.disabled = false;
+        }
+    } catch(e) {
+        alert("Erreur de connexion internet.");
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
+
+// 5. Supprimer une pièce DÉFINITIVEMENT
+window.deleteStockItemFromServer = async function(numPiece, btn) {
+    if (!confirm("⚠️ DANGER : Es-tu sûr de vouloir supprimer définitivement cette pièce du stock ? Cette action est irréversible.")) return;
+    
+    let oldText = btn.innerText;
+    btn.innerText = "⏳ Suppression...";
+    btn.disabled = true;
+
+    try {
+        let res = await fetch(GOOGLE_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "delete_stock_item", idPiece: numPiece })
+        });
+        let r = await res.json();
+        
+        if (r.status === "success") {
+            btn.innerText = "🗑️ Pièce Supprimée";
+            
+            // Suppression dans la mémoire locale
+            let headers = window.rawStock[0].map(h => h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+            let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
+            if (idxNum === -1) idxNum = 0;
+            
+            let rowIndex = window.rawStock.findIndex((row, idx) => idx > 0 && row[idxNum].toString().trim() === numPiece.toString().trim());
+            if (rowIndex !== -1) {
+                window.rawStock.splice(rowIndex, 1); // Retire la ligne du tableau
+            }
+            
+            // Suppression de la carte visuelle dans la page
+            let card = btn.closest('.stock-item-card');
+            if (card) card.remove();
+            
+            // Mise à jour du petit compteur en haut de la page
+            let countSpan = document.querySelector('#stock-workspace h2 span');
+            if (countSpan) countSpan.innerText = `(${window.rawStock.length - 1} articles)`;
+            
+        } else {
+            alert("Erreur Serveur: " + r.msg);
+            btn.innerText = oldText; btn.disabled = false;
+        }
+    } catch(e) {
+        alert("Erreur de connexion internet.");
+        btn.innerText = oldText; btn.disabled = false;
+    }
+};
 /* ========================================================================= */
         /* CHAPITRE 13 : INITIALISATION (BOOT) ET DATA FETCHING                      */
         /* ========================================================================= */
