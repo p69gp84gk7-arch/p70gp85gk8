@@ -1293,28 +1293,21 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
 /* CHAPITRE 13 : GESTION DE L'INVENTAIRE ET DU STOCK (COMPLET & SÉCURISÉ)    */
 /* ========================================================================= */
 /* ========================================================================= */
-/* TITRE : MOTEUR DE RENDU DU STOCK (FILTRES, AUTO-ID ET SANS COMMANDE)      */
-/* ========================================================================= */
-/* ========================================================================= */
-/* TITRE : MOTEUR DE RENDU DU STOCK (AUTO-RESTE, ALERTE ROUGE & SANS CMD)    */
+/* TITRE : MOTEUR DE RENDU DU STOCK (COMPTEUR DYNAMIQUE ET PHOTOS DRIVE)     */
 /* ========================================================================= */
 window.renderStockWorkspace = function() {
     let ws = document.getElementById('stock-workspace');
     if (!ws) return;
 
-    // Alignement de l'espace sous la topbar fixe
     ws.style.paddingTop = "75px"; 
 
-    // Sécurité : Si les données du stock ne sont pas chargées
     if (!window.rawStock || window.rawStock.length < 1) {
         ws.innerHTML = `<div style="background:#fff; border:1px solid #ddd; border-radius:6px; text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">⚠️ Aucun onglet de stock détecté ou données vides.</div>`;
         return;
     }
 
-    // Extraction et nettoyage des en-têtes du tableur
     let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
     
-    // Repérage des index de colonnes en ignorant la colonne "commande"
     let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
     let idxRef = headers.findIndex(h => h === "ref");
     let idxProd = headers.findIndex(h => h === "produit");
@@ -1325,7 +1318,6 @@ window.renderStockWorkspace = function() {
     let idxMini = headers.findIndex(h => h.includes("mini") || h.includes("seuil"));
     let idxPris = headers.findIndex(h => h === "pris");
 
-    // Analyse initiale : Détermination du prochain ID et collecte des descriptions pour le filtre
     let maxId = 0;
     let uniqueDescs = new Set();
 
@@ -1347,15 +1339,13 @@ window.renderStockWorkspace = function() {
     }
     let nextId = maxId > 0 ? (maxId + 1) : 1;
 
-    // Génération des options de la liste déroulante de filtrage par description
     let totalArticles = window.rawStock.length - 1;
     let filterOptionsHtml = `<option value="">📁 Toutes les descriptions</option>`;
     Array.from(uniqueDescs).sort().forEach(d => { filterOptionsHtml += `<option value="${d}">${d}</option>`; });
 
-    // Injection du squelette de la page (Barre d'outils et conteneur de fiches)
     ws.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #16a085; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-            <h2 style="color:#2c3e50; margin:0;">📦 Inventaire du Stock <span style="font-size:12px; color:#7f8c8d; font-weight:normal;">(${totalArticles} articles)</span></h2>
+            <h2 style="color:#2c3e50; margin:0;">📦 Inventaire <span id="stock-count-display" style="font-size:12px; color:#7f8c8d; font-weight:normal; background:#e1e8ed; padding:4px 8px; border-radius:12px;">(${totalArticles} articles)</span></h2>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <select id="filter-desc-stock" onchange="window.filterStockItems()" style="padding:8px; border-radius:6px; border:1px solid #ccc; outline:none; font-size:12px; background:#fff; max-width:180px; font-weight:bold; color:#16a085;">
                     ${filterOptionsHtml}
@@ -1376,7 +1366,6 @@ window.renderStockWorkspace = function() {
         
         <div id="stock-cards-list" style="display:flex; flex-direction:column; gap:15px;"></div>`;
 
-    // Génération dynamique des éléments du formulaire d'ajout (Exclut la colonne commande)
     let addGrid = document.getElementById('add-stock-fields-grid');
     let badgesHtml = Array.from(uniqueDescs).sort().map(d => `<span onclick="window.appendDescToForm('${d.replace(/'/g, "\\'")}')" style="background:#e1e8ed; color:#2c3e50; padding:4px 8px; border-radius:12px; font-size:10px; cursor:pointer; margin:2px; display:inline-block; font-weight:bold; border:1px solid #ccc;">+ ${d}</span>`).join('');
 
@@ -1395,14 +1384,16 @@ window.renderStockWorkspace = function() {
                     <div style="display:flex; flex-wrap:wrap; gap:4px; padding-bottom:5px;">${badgesHtml}</div>
                 </div>`;
         } else if (lowerName === "reste") {
-            // Le reste est calculé automatiquement, on bloque sa saisie dans la création
             addGrid.innerHTML += `<div><span class="edit-label" style="font-size:10px;">${cleanName} (Calculé)</span><input type="text" class="edit-input new-stock-field" data-col="${cleanName}" value="0" readonly placeholder="Auto" style="margin-top:2px; margin-bottom:0; padding:6px; height:30px; box-sizing:border-box; background:#f4f6f8; color:#7f8c8d;"></div>`;
+        } else if (lowerName === "photo") {
+            addGrid.innerHTML += `<div><span class="edit-label" style="font-size:10px;">📸 Lien Drive de la photo</span><input type="text" class="edit-input new-stock-field" data-col="${cleanName}" placeholder="Coller le lien ici" style="margin-top:2px; margin-bottom:0; padding:6px; height:30px; box-sizing:border-box;"></div>`;
         } else {
             addGrid.innerHTML += `<div><span class="edit-label" style="font-size:10px;">${cleanName}</span><input type="text" class="edit-input new-stock-field" data-col="${cleanName}" style="margin-top:2px; margin-bottom:0; padding:6px; height:30px; box-sizing:border-box;"></div>`;
         }
     });
 
-    // Boucle de génération des fiches d'inventaire
+    if (window.rawStock.length <= 1) return;
+
     let cardsContainer = document.getElementById('stock-cards-list');
     
     for (let i = 1; i < window.rawStock.length; i++) {
@@ -1415,12 +1406,9 @@ window.renderStockWorkspace = function() {
             let numPiece = (numRaw !== "") ? numRaw : i.toString();
             let safeId = "stock-" + numPiece.replace(/[^a-zA-Z0-9]/g, "-");
             
-            // Extraction des valeurs numériques de base
             let valStock = (idxStock !== -1 && row[idxStock] !== undefined) ? parseFloat(row[idxStock]) || 0 : 0;
             let valMini = (idxMini !== -1 && row[idxMini] !== undefined) ? parseFloat(row[idxMini]) || 0 : 0;
             let valPris = (idxPris !== -1 && row[idxPris] !== undefined) ? parseFloat(row[idxPris]) || 0 : 0;
-
-            // FONTIONNALITÉ AUTOMATIQUE : Calcul du reste en direct
             let valReste = valStock - valPris;
 
             let valRef = (idxRef !== -1 && row[idxRef] !== undefined) ? row[idxRef].toString().trim() : "";
@@ -1429,7 +1417,6 @@ window.renderStockWorkspace = function() {
             let valPhoto = (idxPhoto !== -1 && row[idxPhoto] !== undefined) ? row[idxPhoto].toString().trim() : "";
             let valCout = (idxCout !== -1 && row[idxCout] !== undefined) ? row[idxCout].toString().trim() : "0";
 
-            // FONTIONNALITÉ ALERTE : Si inférieur ou égal au seuil mini -> Passage en rouge complet
             let alerteStockStyle = "background:#fff; border-color:#ddd;";
             let badgeAlerteHtml = "";
             if (valStock <= valMini) {
@@ -1437,8 +1424,11 @@ window.renderStockWorkspace = function() {
                 badgeAlerteHtml = `<span style="background:#e74c3c; color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-weight:bold; vertical-align:middle; margin-left:8px;">⚠️ SEUIL CRITIQUE</span>`;
             }
 
-            // Génération de l'image via le nom de table ajusté (majuscule) pour éliminer l'erreur 400
-            if (valPhoto.startsWith("photos/")) {
+            // Gestion intelligente du format de l'image (Drive vs AppSheet)
+            let parsedImgUrl = "";
+            if (valPhoto.includes("drive.google.com")) {
+                parsedImgUrl = window.parseDriveUrl(valPhoto);
+            } else if (valPhoto.startsWith("photos/")) {
                 let appName = "maintenanceneige-3822734";
                 parsedImgUrl = `https://www.appsheet.com/template/gettablefileurl?appName=${appName}&tableName=Stock&fileName=${encodeURIComponent(valPhoto)}`;
             } else {
@@ -1462,11 +1452,12 @@ window.renderStockWorkspace = function() {
                         <div><span class="edit-label" style="font-size:9px;">Nom Produit</span><input type="text" class="edit-input s-field-${safeId}" data-col="produit" value="${valProd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
                         <div style="grid-column: span 2;"><span class="edit-label" style="font-size:9px;">Description</span><input type="text" class="edit-input s-field-${safeId}" data-col="description" value="${valDesc}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
                         <div><span class="edit-label" style="font-size:9px;">Coût (€)</span><input type="text" class="edit-input s-field-${safeId}" data-col="cout" value="${valCout}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                        <div><span class="edit-label" style="font-size:9px; font-weight:bold;">En Stock</span><input type="number" class="edit-input s-field-${safeId}" data-col="en stock" value="${valStock}" onchange="window.recalculateCardReste('${safeId}')" style="padding:4px; margin:0; font-size:11.5px; height:26px; font-weight:bold;"></div>
+                        <div><span class="edit-label" style="font-size:9px; color:#e74c3c; font-weight:bold;">En Stock</span><input type="number" class="edit-input s-field-${safeId}" data-col="en stock" value="${valStock}" onchange="window.recalculateCardReste('${safeId}')" style="padding:4px; margin:0; font-size:11.5px; height:26px; font-weight:bold;"></div>
                         <div><span class="edit-label" style="font-size:9px;">Seuil Mini</span><input type="number" class="edit-input s-field-${safeId}" data-col="seuil mini" value="${valMini}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
                         <div><span class="edit-label" style="font-size:9px; color:#2980b9; font-weight:bold;">Reste (Auto)</span><input type="number" id="reste-${safeId}" class="edit-input s-field-${safeId}" data-col="reste" value="${valReste}" readonly style="padding:4px; margin:0; font-size:11.5px; height:26px; font-weight:bold; background:#f4f6f8; color:#7f8c8d; cursor:not-allowed;"></div>
                         <div><span class="edit-label" style="font-size:9px;">Pris</span><input type="number" class="edit-input s-field-${safeId}" data-col="pris" value="${valPris}" onchange="window.recalculateCardReste('${safeId}')" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                        <input type="hidden" class="edit-input s-field-${safeId}" data-col="photo" value="${valPhoto}">
+                        
+                        <div style="grid-column: span 2;"><span class="edit-label" style="font-size:9px;">📸 Lien Drive de la Photo</span><input type="text" class="edit-input s-field-${safeId}" data-col="photo" value="${valPhoto}" placeholder="Coller le lien de partage Drive" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
                     </div>
                     
                     <div style="display:flex; gap:8px; margin-top:8px;">
@@ -1483,13 +1474,9 @@ window.renderStockWorkspace = function() {
         } catch (err) { console.error(err); }
     }
 };
-
        
-        /* ========================================================================= */
-/* TITRE : LOGIQUE ET MOTEUR DE FILTRAGE MULTIPLE DU STOCK                   */
 /* ========================================================================= */
-/* ========================================================================= */
-/* TITRE : LOGIQUE DE CALCUL DU RESTE, BADGES DESCRIPTION ET FILTRES        */
+/* TITRE : LOGIQUE DE FILTRES MULTIPLES ET COMPTAGE EN DIRECT                */
 /* ========================================================================= */
 
 window.toggleAddStockForm = function() {
@@ -1497,7 +1484,6 @@ window.toggleAddStockForm = function() {
     if (form) form.style.display = (form.style.display === 'none') ? 'block' : 'none';
 };
 
-// Injection d'une description au clic sur un badge (gère l'ajout cumulé par virgule)
 window.appendDescToForm = function(val) {
     let input = document.getElementById('new-stock-desc');
     if(!input) return;
@@ -1512,7 +1498,6 @@ window.appendDescToForm = function(val) {
     }
 };
 
-// Recalcul instantané du Reste lors de la modification des inputs "En stock" ou "Pris" avant enregistrement
 window.recalculateCardReste = function(safeId) {
     let inputs = document.querySelectorAll(`.s-field-${safeId}`);
     let stockInp = Array.from(inputs).find(i => i.getAttribute('data-col') === "en stock");
@@ -1526,7 +1511,7 @@ window.recalculateCardReste = function(safeId) {
     }
 };
 
-// Filtrage multi-critères combiné (Zone de recherche + Liste déroulante Description)
+// Fonction de filtrage avec mise à jour du compteur
 window.filterStockItems = function() {
     let searchInput = document.getElementById('search-stock');
     let descSelect = document.getElementById('filter-desc-stock');
@@ -1535,32 +1520,39 @@ window.filterStockItems = function() {
     let descVal = descSelect ? descSelect.value.toLowerCase().trim() : "";
     
     let cards = document.querySelectorAll('.stock-item-card');
+    let visibleCount = 0; // Initialisation du compteur
     
     cards.forEach(card => {
         let textContent = card.innerText.toLowerCase();
         let inputs = card.querySelectorAll('input');
         
-        // Match 1 : Barre de recherche textuelle globale
         let matchSearch = (searchVal === "") || textContent.includes(searchVal);
         if (!matchSearch) {
             inputs.forEach(inp => { if (inp.value.toLowerCase().includes(searchVal)) matchSearch = true; });
         }
         
-        // Match 2 : Sélection stricte ou partielle de la description via la liste déroulante
         let descInput = card.querySelector('input[data-col="description"]');
         let cardDesc = descInput ? descInput.value.toLowerCase() : "";
         let matchDesc = (descVal === "") || cardDesc.includes(descVal);
         
-        // Affichage si les deux conditions sont réunies
-        card.style.display = (matchSearch && matchDesc) ? 'flex' : 'none'; 
+        let isMatch = matchSearch && matchDesc;
+        card.style.display = isMatch ? 'flex' : 'none'; 
+        
+        // On incrémente si la carte correspond à la recherche
+        if (isMatch) visibleCount++;
     });
+
+    // Mise à jour de la puce de compteur dans le titre
+    let countDisplay = document.getElementById('stock-count-display');
+    if (countDisplay) {
+        countDisplay.innerText = `(${visibleCount} article${visibleCount > 1 ? 's' : ''})`;
+    }
 };
 
 window.addStockItemToServer = async function(btn) {
     let fieldsObj = {}; let inputs = document.querySelectorAll('.new-stock-field'); let hasData = false;
     inputs.forEach(inp => { let colName = inp.getAttribute('data-col'); let val = inp.value; fieldsObj[colName] = val; if(val.trim() !== "") hasData = true; });
     
-    // Forcer le calcul du reste pour la nouvelle ligne Google Sheets
     let lowerStockKey = Object.keys(fieldsObj).find(k => k.toLowerCase().trim().includes("stock"));
     let lowerPrisKey = Object.keys(fieldsObj).find(k => k.toLowerCase().trim() === "pris");
     let lowerResteKey = Object.keys(fieldsObj).find(k => k.toLowerCase().trim() === "reste");
@@ -1621,10 +1613,15 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
             if (rowIndex !== -1) window.rawStock.splice(rowIndex, 1);
             
             let card = btn.closest('.stock-item-card'); if (card) card.remove();
-            let countSpan = document.querySelector('#stock-workspace h2 span'); if (countSpan) countSpan.innerText = `(${window.rawStock.length - 1} articles)`;
+            
+            // Mise à jour forcée du compteur total après une suppression
+            let currentCount = document.querySelectorAll('.stock-item-card[style*="display: flex"]').length;
+            let countSpan = document.getElementById('stock-count-display'); 
+            if (countSpan) countSpan.innerText = `(${currentCount} article${currentCount > 1 ? 's' : ''})`;
         } else { alert("Erreur: " + r.msg); btn.innerText = oldText; btn.disabled = false; }
     } catch(e) { alert("Erreur réseau."); btn.innerText = oldText; btn.disabled = false; }
 };
+
         /* ========================================================================= */
         /* CHAPITRE 11 : MAINTENANCE AVANCÉE ET MODULE "BUSES"                       */
         /* ========================================================================= */
