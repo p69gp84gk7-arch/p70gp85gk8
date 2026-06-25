@@ -1427,43 +1427,53 @@ window.renderStockWorkspace = function() {
             /* ========================================================================= */
 /* TITRE : RECHERCHE DYNAMIQUE DE LA PHOTO CORRESPONDANTE DANS DRIVE         */
 /* ========================================================================= */
-                      // =========================================================
+            // =========================================================
             // LIAISON INTELLIGENTE : GOOGLE SHEETS <-> DOSSIER DRIVE
             // =========================================================
             let parsedImgUrl = "https://placehold.co/150x150?text=Pas+de+photo";
             
             if (valPhoto && valPhoto.trim() !== "") {
-                // 1. On nettoie pour isoler le nom brut. Ex: "/appsheet/.../68220006.photo.123.jpg" -> "68220006.photo.123.jpg"
-                let rawFileName = valPhoto.toString().split('/').pop().toLowerCase().trim();
+                let valPhotoStr = valPhoto.toString();
                 
-                // 2. On extrait uniquement l'ID principal (avant le premier point) -> "68220006"
+                // 1. Isoler le nom brut du fichier. Ex: "SKEG0084.photo.120720.jpg"
+                let rawFileName = valPhotoStr.split('/').pop().toLowerCase().trim();
                 let coreId = rawFileName.split('.')[0]; 
 
+                // 2. CORRECTION ERREUR 400 APPSHEET : Extraire uniquement "photos/fichier.jpg"
+                let appSheetRelativePath = valPhotoStr;
+                let photoIndex = valPhotoStr.indexOf("photos/");
+                if (photoIndex !== -1) {
+                    appSheetRelativePath = valPhotoStr.substring(photoIndex);
+                }
+
+                let foundInDrive = false;
+
+                // 3. Tentative de recherche sur le Google Drive partagé
                 if (window.drivePhotos) {
                     let driveKeys = Object.keys(window.drivePhotos);
-                    
-                    // Match Exact
                     if (window.drivePhotos[rawFileName]) {
                         parsedImgUrl = window.drivePhotos[rawFileName];
+                        foundInDrive = true;
                     } else {
-                        // Match Intelligent : on cherche si une photo sur ton Drive contient l'ID "68220006"
                         let fuzzyMatch = driveKeys.find(k => k.includes(coreId) && coreId !== "");
-                        
                         if (fuzzyMatch) {
                             parsedImgUrl = window.drivePhotos[fuzzyMatch];
-                        } 
-                        // Secours 1 : Lien écrit à la main
-                        else if (valPhoto.includes("drive.google.com")) {
-                            parsedImgUrl = window.parseDriveUrl(valPhoto);
-                        } 
-                        // Secours 2 : CDN AppSheet classique
-                        else {
-                            parsedImgUrl = `https://www.appsheet.com/template/gettablefileurl?appName=maintenanceneige-3822734&tableName=Stock&fileName=${encodeURIComponent(valPhoto)}`;
+                            foundInDrive = true;
                         }
                     }
                 }
+
+                // 4. Si introuvable sur le Drive, on passe sur les méthodes de secours
+                if (!foundInDrive) {
+                    if (valPhotoStr.includes("drive.google.com")) {
+                        parsedImgUrl = window.parseDriveUrl(valPhotoStr);
+                    } 
+                    else {
+                        // Utilisation du lien AppSheet avec le chemin relatif corrigé !
+                        parsedImgUrl = `https://www.appsheet.com/template/gettablefileurl?appName=maintenanceneige-3822734&tableName=Stock&fileName=${encodeURIComponent(appSheetRelativePath)}`;
+                    }
+                }
             }
-            // =========================================================
             // =========================================================
             // =========================================================
             let cardBlock = document.createElement('div');
