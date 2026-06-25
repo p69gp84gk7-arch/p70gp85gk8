@@ -1254,7 +1254,10 @@ window.renderStockWorkspace = function() {
     let ws = document.getElementById('stock-workspace');
     if (!ws) return;
 
-    // 1. Sécurité : Si l'onglet est vide ou non chargé
+    // Ajustement CSS pour empêcher la topbar fixe de masquer les boutons du haut
+    ws.style.paddingTop = "30px"; 
+
+    // 1. Sécurité : Si l'onglet est vide, introuvable ou non chargé
     if (!window.rawStock || window.rawStock.length < 1) {
         ws.innerHTML = `
             <h2 style="color:#2c3e50; border-bottom:2px solid #16a085; padding-bottom:10px;">📦 Gestion du Stock</h2>
@@ -1314,11 +1317,11 @@ window.renderStockWorkspace = function() {
             </div>`;
     });
 
-    // Sécurité visuelle si le tableau ne contient aucune ligne sous les titres
+    // Sécurité visuelle si le tableau ne contient que les titres
     if (window.rawStock.length <= 1) {
         document.getElementById('stock-cards-list').innerHTML = `
-            <div style="text-align:center; padding:25px; color:#7f8c8d; font-style:italic; background:#fff; border:1px solid #ddd; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                Classeur connecté avec succès ! Cependant, aucune ligne de matériel n'est enregistrée sous la ligne des en-têtes dans ton Google Sheet. Tu peux utiliser le bouton "Nouvelle Pièce" pour créer ton premier article.
+            <div style="text-align:center; padding:25px; color:#7f8c8d; font-style:italic; background:#fff; border:1px solid #ddd; border-radius:6px;">
+                Aucune ligne de matériel enregistrée sous la ligne des titres dans le Google Sheet.
             </div>`;
         return;
     }
@@ -1327,264 +1330,81 @@ window.renderStockWorkspace = function() {
     let cardsContainer = document.getElementById('stock-cards-list');
     
     for (let i = 1; i < window.rawStock.length; i++) {
-        let row = window.rawStock[i];
-        if (!row || row.length === 0) continue; // Ignore les lignes totalement corrompues ou blanches
+        // AJOUT SÉCURITÉ : try...catch pour empêcher qu'une seule ligne corrompue ne bloque tout l'affichage
+        try {
+            let row = window.rawStock[i];
+            if (!row || row.length === 0) continue; 
 
-        // Sécurité Numéro : Si la cellule numéro est vide, on prend l'index de la ligne pour ne pas bloquer l'affichage
-        let numRaw = (idxNum !== -1 && row[idxNum] !== undefined && row[idxNum] !== null) ? row[idxNum].toString().trim() : "";
-        let numPiece = (numRaw !== "") ? numRaw : i.toString();
+            // Sécurité : On ignore les lignes totalement vides créées automatiquement par Google Sheets en bas de tableau
+            let isRowEmpty = row.every(cell => cell === null || cell === undefined || cell.toString().trim() === "");
+            if (isRowEmpty) continue;
 
-        let safeId = "stock-" + numPiece.replace(/[^a-zA-Z0-9]/g, "-");
-        
-        // Extraction sécurisée des cellules pour parer aux cellules vides ou indéfinies (undefined)
-        let valRef = (idxRef !== -1 && row[idxRef]) ? row[idxRef].toString().trim() : "";
-        let valProd = (idxProd !== -1 && row[idxProd]) ? row[idxProd].toString().trim() : "Matériel sans nom";
-        let valDesc = (idxDesc !== -1 && row[idxDesc]) ? row[idxDesc].toString().trim() : "";
-        let valPhoto = (idxPhoto !== -1 && row[idxPhoto]) ? row[idxPhoto].toString().trim() : "";
-        let valCout = (idxCout !== -1 && row[idxCout]) ? row[idxCout].toString().trim() : "0";
-        let valStock = (idxStock !== -1 && row[idxStock]) ? parseFloat(row[idxStock]) || 0 : 0;
-        let valMini = (idxMini !== -1 && row[idxMini]) ? parseFloat(row[idxMini]) || 0 : 0;
-        let valReste = (idxReste !== -1 && row[idxReste]) ? row[idxReste].toString().trim() : "";
-        let valPris = (idxPris !== -1 && row[idxPris]) ? row[idxPris].toString().trim() : "";
-        let valCmd = (idxCmd !== -1 && row[idxCmd]) ? row[idxCmd].toString().trim() : "";
+            // Détermination du numéro unique de la pièce
+            let numRaw = (idxNum !== -1 && row[idxNum] !== undefined && row[idxNum] !== null) ? row[idxNum].toString().trim() : "";
+            let numPiece = (numRaw !== "") ? numRaw : i.toString();
 
-        // Gestion de l'alerte visuelle de stock bas
-        let alerteStockStyle = (valStock <= valMini) ? "background:#fdf2f2; border-color:#ec7063;" : "background:#fff;";
-        let badgeAlerteHtml = (valStock <= valMini) ? `<span style="background:#e74c3c; color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-weight:bold; vertical-align:middle; margin-left:8px;">⚠️ ALERTE SEUIL</span>` : "";
+            let safeId = "stock-" + numPiece.replace(/[^a-zA-Z0-9]/g, "-");
+            
+            // Extraction nettoyée des valeurs de cellules
+            let valRef = (idxRef !== -1 && row[idxRef]) ? row[idxRef].toString().trim() : "";
+            let valProd = (idxProd !== -1 && row[idxProd]) ? row[idxProd].toString().trim() : "Matériel sans nom";
+            let valDesc = (idxDesc !== -1 && row[idxDesc]) ? row[idxDesc].toString().trim() : "";
+            let valPhoto = (idxPhoto !== -1 && row[idxPhoto]) ? row[idxPhoto].toString().trim() : "";
+            let valCout = (idxCout !== -1 && row[idxCout]) ? row[idxCout].toString().trim() : "0";
+            let valStock = (idxStock !== -1 && row[idxStock]) ? parseFloat(row[idxStock]) || 0 : 0;
+            let valMini = (idxMini !== -1 && row[idxMini]) ? parseFloat(row[idxMini]) || 0 : 0;
+            let valReste = (idxReste !== -1 && row[idxReste]) ? row[idxReste].toString().trim() : "";
+            let valPris = (idxPris !== -1 && row[idxPris]) ? row[idxPris].toString().trim() : "";
+            let valCmd = (idxCmd !== -1 && row[idxCmd]) ? row[idxCmd].toString().trim() : "";
 
-        // Conversion sécurisée de l'URL d'image AppSheet
-        let parsedImgUrl = window.parseAppSheetPhotoUrl(valPhoto);
+            // Style d'alerte pour le stock bas
+            let alerteStockStyle = (valStock <= valMini) ? "background:#fdf2f2; border-color:#ec7063;" : "background:#fff;";
+            let badgeAlerteHtml = (valStock <= valMini) ? `<span style="background:#e74c3c; color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-weight:bold; vertical-align:middle; margin-left:8px;">⚠️ ALERTE SEUIL</span>` : "";
 
-        // Injection de la fiche
-        let cardBlock = document.createElement('div');
-        cardBlock.className = "stock-item-card";
-        cardBlock.setAttribute("data-num", numPiece);
-        cardBlock.style = `border:1px solid #ddd; border-left:5px solid #16a085; border-radius:8px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.03); display:flex; gap:15px; align-items:stretch; flex-wrap:wrap-reverse; ${alerteStockStyle}`;
+            // Conversion de l'URL d'image AppSheet
+            let parsedImgUrl = window.parseAppSheetPhotoUrl(valPhoto);
 
-        cardBlock.innerHTML = `
-            <div style="flex:3; min-width:280px; display:flex; flex-direction:column; gap:8px;">
-                <h3 style="margin:0; color:#2c3e50; font-size:15px;">
-                    📦 Réf: <span style="color:#16a085;">${valRef || "Aucune"}</span> - ${valProd} ${badgeAlerteHtml}
-                    <span style="font-size:11px; font-weight:normal; color:#888; float:right;">N°: ${numPiece}</span>
-                </h3>
-                
-                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:8px; margin-top:5px;">
-                    <div><span class="edit-label" style="font-size:9px;">Référence</span><input type="text" class="edit-input s-field-${safeId}" data-col="ref" value="${valRef}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                    <div><span class="edit-label" style="font-size:9px;">Nom Produit</span><input type="text" class="edit-input s-field-${safeId}" data-col="produit" value="${valProd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                    <div style="grid-column: span 2;"><span class="edit-label" style="font-size:9px;">Description</span><input type="text" class="edit-input s-field-${safeId}" data-col="description" value="${valDesc}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                    <div><span class="edit-label" style="font-size:9px;">Coût (€)</span><input type="text" class="edit-input s-field-${safeId}" data-col="cout" value="${valCout}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                    <div><span class="edit-label" style="font-size:9px; color:#e74c3c; font-weight:bold;">En Stock</span><input type="number" class="edit-input s-field-${safeId}" data-col="en stock" value="${valStock}" style="padding:4px; margin:0; font-size:11.5px; height:26px; font-weight:bold;"></div>
-                    <div><span class="edit-label" style="font-size:9px;">Seuil Mini</span><input type="number" class="edit-input s-field-${safeId}" data-col="seuil mini" value="${valMini}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                    <div><span class="edit-label" style="font-size:9px;">Reste</span><input type="text" class="edit-input s-field-${safeId}" data-col="reste" value="${valReste}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                    <div><span class="edit-label" style="font-size:9px;">Pris</span><input type="text" class="edit-input s-field-${safeId}" data-col="pris" value="${valPris}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                    <div><span class="edit-label" style="font-size:9px;">Commande</span><input type="text" class="edit-input s-field-${safeId}" data-col="commande" value="${valCmd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                    <input type="hidden" class="edit-input s-field-${safeId}" data-col="photo" value="${valPhoto}">
+            // Injection HTML de la carte
+            let cardBlock = document.createElement('div');
+            cardBlock.className = "stock-item-card";
+            cardBlock.setAttribute("data-num", numPiece);
+            cardBlock.style = `border:1px solid #ddd; border-left:5px solid #16a085; border-radius:8px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.03); display:flex; gap:15px; align-items:stretch; flex-wrap:wrap-reverse; ${alerteStockStyle}`;
+
+            cardBlock.innerHTML = `
+                <div style="flex:3; min-width:280px; display:flex; flex-direction:column; gap:8px;">
+                    <h3 style="margin:0; color:#2c3e50; font-size:15px;">
+                        📦 Réf: <span style="color:#16a085;">${valRef || "Aucune"}</span> - ${valProd} ${badgeAlerteHtml}
+                        <span style="font-size:11px; font-weight:normal; color:#888; float:right;">N°: ${numPiece}</span>
+                    </h3>
+                    
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:8px; margin-top:5px;">
+                        <div><span class="edit-label" style="font-size:9px;">Référence</span><input type="text" class="edit-input s-field-${safeId}" data-col="ref" value="${valRef}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Nom Produit</span><input type="text" class="edit-input s-field-${safeId}" data-col="produit" value="${valProd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div style="grid-column: span 2;"><span class="edit-label" style="font-size:9px;">Description</span><input type="text" class="edit-input s-field-${safeId}" data-col="description" value="${valDesc}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Coût (€)</span><input type="text" class="edit-input s-field-${safeId}" data-col="cout" value="${valCout}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px; color:#e74c3c; font-weight:bold;">En Stock</span><input type="number" class="edit-input s-field-${safeId}" data-col="en stock" value="${valStock}" style="padding:4px; margin:0; font-size:11.5px; height:26px; font-weight:bold;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Seuil Mini</span><input type="number" class="edit-input s-field-${safeId}" data-col="seuil mini" value="${valMini}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Reste</span><input type="text" class="edit-input s-field-${safeId}" data-col="reste" value="${valReste}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Pris</span><input type="text" class="edit-input s-field-${safeId}" data-col="pris" value="${valPris}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Commande</span><input type="text" class="edit-input s-field-${safeId}" data-col="commande" value="${valCmd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <input type="hidden" class="edit-input s-field-${safeId}" data-col="photo" value="${valPhoto}">
+                    </div>
+                    
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button onclick="window.deleteStockItemFromServer('${numPiece}', this)" style="background:none; border:1px solid #ccc; color:#e74c3c; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🗑️ Supprimer</button>
+                        <button onclick="window.saveStockItemEdits('${numPiece}', '${safeId}', this)" style="flex-grow:1; background:#16a085; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">💾 Enregistrer les modifications</button>
+                    </div>
                 </div>
                 
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button onclick="window.deleteStockItemFromServer('${numPiece}', this)" style="background:none; border:1px solid #ccc; color:#e74c3c; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🗑️ Supprimer</button>
-                    <button onclick="window.saveStockItemEdits('${numPiece}', '${safeId}', this)" style="flex-grow:1; background:#16a085; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">💾 Enregistrer les modifications</button>
-                </div>
-            </div>
-            
-            <div style="flex:1; min-width:130px; max-width:180px; display:flex; align-items:center; justify-content:center; background:#fafbfc; border:1px solid #e1e8ed; border-radius:6px; overflow:hidden; padding:5px; box-sizing:border-box;">
-                <img src="${parsedImgUrl}" style="max-width:100%; max-height:120px; object-fit:contain; border-radius:4px;" onerror="this.src='https://placehold.co/150x150?text=Image+Introuvable'"/>
-            </div>`;
+                <div style="flex:1; min-width:130px; max-width:180px; display:flex; align-items:center; justify-content:center; background:#fafbfc; border:1px solid #e1e8ed; border-radius:6px; overflow:hidden; padding:5px; box-sizing:border-box;">
+                    <img src="${parsedImgUrl}" style="max-width:100%; max-height:120px; object-fit:contain; border-radius:4px;" onerror="this.src='https://placehold.co/150x150?text=Image+Introuvable'"/>
+                </div>`;
 
-        cardsContainer.appendChild(cardBlock);
-    }
-};
-               /* ========================================================================= */
-/* TITRE : FONCTIONS D'ACTIONS DU STOCK (AJOUT, ÉDITION, SUPPRESSION, FILTRE)*/
-/* ========================================================================= */
-
-// 1. Afficher/Masquer le formulaire de création de pièce
-window.toggleAddStockForm = function() {
-    let form = document.getElementById('add-stock-form-container');
-    if (form) {
-        form.style.display = (form.style.display === 'none') ? 'block' : 'none';
-    }
-};
-
-// 2. Moteur de recherche en temps réel sur toutes les pièces
-window.filterStockItems = function(val) {
-    let search = val.toLowerCase().trim();
-    let cards = document.querySelectorAll('.stock-item-card');
-    
-    cards.forEach(card => {
-        let textContent = card.innerText.toLowerCase();
-        let inputs = card.querySelectorAll('input');
-        let match = textContent.includes(search);
-        
-        // Si le texte visible ne correspond pas, on fouille aussi dans les valeurs des inputs
-        if (!match) {
-            inputs.forEach(inp => {
-                if (inp.value.toLowerCase().includes(search)) match = true;
-            });
+            cardsContainer.appendChild(cardBlock);
+        } catch (err) {
+            // En cas de problème sur un article (ex: cellule corrompue), on l'affiche dans la console et on passe à la ligne d'après
+            console.error("Erreur de traitement sur l'article à l'index " + i, err);
         }
-        
-        // Flex permet de garder la structure de la carte intacte (image à droite)
-        card.style.display = match ? 'flex' : 'none'; 
-    });
-};
-
-// 3. Envoyer une NOUVELLE pièce vers Google Sheets
-window.addStockItemToServer = async function(btn) {
-    let fieldsObj = {};
-    let inputs = document.querySelectorAll('.new-stock-field');
-    let hasData = false;
-
-    // Collecte des données du formulaire d'ajout
-    inputs.forEach(inp => {
-        let colName = inp.getAttribute('data-col');
-        let val = inp.value;
-        fieldsObj[colName] = val;
-        if(val.trim() !== "") hasData = true; // Vérification que le form n'est pas 100% vide
-    });
-
-    if (!hasData) {
-        alert("⚠️ Impossible d'ajouter un article totalement vide.");
-        return;
-    }
-
-    let oldText = btn.innerText;
-    btn.innerText = "⏳ Création...";
-    btn.disabled = true;
-
-    try {
-        let res = await fetch(GOOGLE_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: "add_stock_item", fields: fieldsObj })
-        });
-        let r = await res.json();
-        
-        if (r.status === "success") {
-            btn.innerText = "✅ Article Ajouté !";
-            btn.style.background = "#27ae60";
-            
-            // Mise à jour du tableau mémoire local
-            let newRow = new Array(window.rawStock[0].length).fill("");
-            window.rawStock[0].forEach((header, index) => {
-                let colName = header.toString().trim();
-                if (fieldsObj[colName] !== undefined) {
-                    newRow[index] = fieldsObj[colName];
-                }
-            });
-            window.rawStock.push(newRow);
-            
-            // Rechargement visuel de l'espace stock
-            setTimeout(() => {
-                window.renderStockWorkspace();
-            }, 1200);
-        } else {
-            alert("Erreur Serveur: " + r.msg);
-            btn.innerText = oldText; btn.disabled = false;
-        }
-    } catch(e) {
-        alert("Erreur de connexion internet.");
-        btn.innerText = oldText; btn.disabled = false;
-    }
-};
-
-// 4. Mettre à jour une pièce EXISTANTE
-window.saveStockItemEdits = async function(numPiece, safeId, btn) {
-    let fieldsObj = {};
-    let inputs = document.querySelectorAll(`.s-field-${safeId}`);
-    
-    // Collecte des valeurs de la fiche modifiée
-    inputs.forEach(inp => {
-        fieldsObj[inp.getAttribute('data-col')] = inp.value;
-    });
-
-    let oldText = btn.innerText;
-    btn.innerText = "⏳ Sauvegarde...";
-    btn.disabled = true;
-
-    try {
-        let res = await fetch(GOOGLE_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: "update_stock_item", idPiece: numPiece, fields: fieldsObj })
-        });
-        let r = await res.json();
-        
-        if (r.status === "success") {
-            btn.innerText = "✅ Enregistré";
-            btn.style.background = "#27ae60";
-            
-            // Mise à jour de la mémoire locale (pour que ça reste à jour si on quitte et revient sur l'onglet)
-            let headers = window.rawStock[0].map(h => h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-            let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
-            if (idxNum === -1) idxNum = 0;
-            
-            let rowIndex = window.rawStock.findIndex((row, idx) => idx > 0 && row[idxNum].toString().trim() === numPiece.toString().trim());
-            if (rowIndex !== -1) {
-                window.rawStock[0].forEach((head, colIdx) => {
-                    let cleanHead = head.toString().trim();
-                    let inp = document.querySelector(`.s-field-${safeId}[data-col="${cleanHead}"]`);
-                    if (inp) window.rawStock[rowIndex][colIdx] = inp.value;
-                });
-            }
-
-            // Remise à l'état initial après 1.5 seconde
-            setTimeout(() => {
-                btn.innerText = "💾 Enregistrer les modifications";
-                btn.style.background = "#16a085";
-                btn.disabled = false;
-                window.renderStockWorkspace(); // Force le re-calcul des alertes de seuil
-            }, 1500);
-        } else {
-            alert("Erreur Serveur: " + r.msg);
-            btn.innerText = oldText; btn.disabled = false;
-        }
-    } catch(e) {
-        alert("Erreur de connexion internet.");
-        btn.innerText = oldText; btn.disabled = false;
-    }
-};
-
-// 5. Supprimer une pièce DÉFINITIVEMENT
-window.deleteStockItemFromServer = async function(numPiece, btn) {
-    if (!confirm("⚠️ DANGER : Es-tu sûr de vouloir supprimer définitivement cette pièce du stock ? Cette action est irréversible.")) return;
-    
-    let oldText = btn.innerText;
-    btn.innerText = "⏳ Suppression...";
-    btn.disabled = true;
-
-    try {
-        let res = await fetch(GOOGLE_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: "delete_stock_item", idPiece: numPiece })
-        });
-        let r = await res.json();
-        
-        if (r.status === "success") {
-            btn.innerText = "🗑️ Pièce Supprimée";
-            
-            // Suppression dans la mémoire locale
-            let headers = window.rawStock[0].map(h => h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-            let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
-            if (idxNum === -1) idxNum = 0;
-            
-            let rowIndex = window.rawStock.findIndex((row, idx) => idx > 0 && row[idxNum].toString().trim() === numPiece.toString().trim());
-            if (rowIndex !== -1) {
-                window.rawStock.splice(rowIndex, 1); // Retire la ligne du tableau
-            }
-            
-            // Suppression de la carte visuelle dans la page
-            let card = btn.closest('.stock-item-card');
-            if (card) card.remove();
-            
-            // Mise à jour du petit compteur en haut de la page
-            let countSpan = document.querySelector('#stock-workspace h2 span');
-            if (countSpan) countSpan.innerText = `(${window.rawStock.length - 1} articles)`;
-            
-        } else {
-            alert("Erreur Serveur: " + r.msg);
-            btn.innerText = oldText; btn.disabled = false;
-        }
-    } catch(e) {
-        alert("Erreur de connexion internet.");
-        btn.innerText = oldText; btn.disabled = false;
     }
 };
     // =====================================================================
