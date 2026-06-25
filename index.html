@@ -1247,7 +1247,143 @@ window.renderAtelierWorkspace = function() {
         `;
         ws.appendChild(card);
     });
+/* ========================================================================= */
+/* TITRE : MOTEUR DE RENDU PRINCIPAL DE L'INVENTAIRE ET DU STOCK             */
+/* ========================================================================= */
+window.renderStockWorkspace = function() {
+    let ws = document.getElementById('stock-workspace');
+    if (!ws) return;
 
+    // 1. Sécurité : Si l'onglet est vide ou non chargé
+    if (!window.rawStock || window.rawStock.length < 1) {
+        ws.innerHTML = `
+            <h2 style="color:#2c3e50; border-bottom:2px solid #16a085; padding-bottom:10px;">📦 Gestion du Stock</h2>
+            <div style="background:#fff; border:1px solid #ddd; border-radius:6px; text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">
+                ⚠️ Aucun onglet de stock détecté ou données vides dans Google Sheets.
+            </div>`;
+        return;
+    }
+
+    // 2. Extraction dynamique des en-têtes pour être insensible à l'ordre des colonnes
+    let headers = window.rawStock[0].map(h => h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+    
+    // Recherche des index de colonnes clés
+    let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
+    let idxRef = headers.findIndex(h => h === "ref");
+    let idxProd = headers.findIndex(h => h === "produit");
+    let idxDesc = headers.findIndex(h => h === "description");
+    let idxPhoto = headers.findIndex(h => h === "photo");
+    let idxCout = headers.findIndex(h => h === "cout");
+    let idxStock = headers.findIndex(h => h.includes("stock"));
+    let idxMini = headers.findIndex(h => h.includes("mini") || h.includes("seuil"));
+    let idxReste = headers.findIndex(h => h === "reste");
+    let idxPris = headers.findIndex(h => h === "pris");
+    let idxCmd = headers.findIndex(h => h.includes("commande") || h === "cmd");
+
+    // 3. Construction de la barre d'outils supérieure (Recherche & Bouton Ajouter)
+    let totalArticles = window.rawStock.length - 1;
+    ws.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #16a085; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+            <h2 style="color:#2c3e50; margin:0;">📦 Inventaire du Stock <span style="font-size:12px; color:#7f8c8d; font-weight:normal;">(${totalArticles} articles)</span></h2>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" id="search-stock" placeholder="🔍 Rechercher une pièce..." onkeyup="window.filterStockItems(this.value)" style="padding:8px; border-radius:6px; border:1px solid #ccc; outline:none; width:180px; font-weight:bold; font-size:13px;">
+                <button onclick="window.toggleAddStockForm()" style="background:#16a085; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px;">➕ Nouvelle Pièce</button>
+            </div>
+        </div>
+        
+        <div id="add-stock-form-container" style="display:none; background:#fff; border:2px solid #16a085; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+            <h4 style="margin:0 0 12px 0; color:#16a085; text-transform:uppercase;">Créer un nouvel article de stock</h4>
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px;" id="add-stock-fields-grid"></div>
+            <div style="display:flex; gap:10px; margin-top:15px; justify-content:flex-end;">
+                <button onclick="window.toggleAddStockForm()" style="padding:10px 15px; background:#e1e8ed; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
+                <button onclick="window.addStockItemToServer(this)" style="padding:10px 20px; background:#16a085; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 Valider l'ajout</button>
+            </div>
+        </div>
+        
+        <div id="stock-cards-list" style="display:flex; flex-direction:column; gap:15px;"></div>`;
+
+    // 4. Génération dynamique des inputs pour le formulaire de création
+    let addGrid = document.getElementById('add-stock-fields-grid');
+    window.rawStock[0].forEach(colName => {
+        let cleanName = colName.toString().trim();
+        if (cleanName === "") return;
+        // On génère des inputs pour toutes les colonnes du tableau
+        addGrid.innerHTML += `
+            <div>
+                <span class="edit-label" style="font-size:10px;">${cleanName}</span>
+                <input type="text" class="edit-input new-stock-field" data-col="${cleanName}" style="margin-top:2px; margin-bottom:0; padding:6px; height:30px; box-sizing:border-box;">
+            </div>`;
+    });
+
+    // 5. Boucle de génération des fiches de matériel (Ligne par Ligne)
+    let cardsContainer = document.getElementById('stock-cards-list');
+    
+    for (let i = 1; i < window.rawStock.length; i++) {
+        let row = window.rawStock[i];
+        let numPiece = idxNum !== -1 ? row[idxNum] : i;
+        if (!numPiece || numPiece.toString().trim() === "") continue;
+
+        let safeId = "stock-" + numPiece.toString().replace(/[^a-zA-Z0-9]/g, "-");
+        
+        // Extraction des valeurs de cellules
+        let valRef = idxRef !== -1 ? row[idxRef] : "";
+        let valProd = idxProd !== -1 ? row[idxProd] : "";
+        let valDesc = idxDesc !== -1 ? row[idxDesc] : "";
+        let valPhoto = idxPhoto !== -1 ? row[idxPhoto] : "";
+        let valCout = idxCout !== -1 ? row[idxCout] : "0";
+        let valStock = idxStock !== -1 ? parseFloat(row[idxStock]) || 0 : 0;
+        let valMini = idxMini !== -1 ? parseFloat(row[idxMini]) || 0 : 0;
+        let valReste = idxReste !== -1 ? row[idxReste] : "";
+        let valPris = idxPris !== -1 ? row[idxPris] : "";
+        let valCmd = idxCmd !== -1 ? row[idxCmd] : "";
+
+        // Alerte visuelle si le stock descend sous le seuil mini
+        let alerteStockStyle = (valStock <= valMini) ? "background:#fdf2f2; border-color:#ec7063;" : "background:#fff;";
+        let badgeAlerteHtml = (valStock <= valMini) ? `<span style="background:#e74c3c; color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-weight:bold; vertical-align:middle; margin-left:8px;">⚠️ ALERTE SEUIL</span>` : "";
+
+        // Conversion du chemin relatif AppSheet en image réelle
+        let parsedImgUrl = window.parseAppSheetPhotoUrl(valPhoto.toString());
+
+        // Construction HTML de la carte avec structure Flex (Champs à gauche, Photo à droite)
+        let cardBlock = document.createElement('div');
+        cardBlock.className = "stock-item-card";
+        cardBlock.setAttribute("data-num", numPiece);
+        cardBlock.style = `border:1px solid #ddd; border-left:5px solid #16a085; border-radius:8px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.03); display:flex; gap:15px; align-items:stretch; flex-wrap:wrap-reverse; ${alerteStockStyle}`;
+
+        // Contenu dynamique de la carte
+        cardBlock.innerHTML = `
+            <div style="flex:3; min-width:280px; display:flex; flex-direction:column; gap:8px;">
+                <h3 style="margin:0; color:#2c3e50; font-size:15px;">
+                    📦 Réf: <span style="color:#16a085;">${valRef}</span> - ${valProd} ${badgeAlerteHtml}
+                    <span style="font-size:11px; font-weight:normal; color:#888; float:right;">N° Enregistrement: ${numPiece}</span>
+                </h3>
+                
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:8px; margin-top:5px;">
+                    <div><span class="edit-label" style="font-size:9px;">Référence</span><input type="text" class="edit-input s-field-${safeId}" data-col="ref" value="${valRef}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                    <div><span class="edit-label" style="font-size:9px;">Nom Produit</span><input type="text" class="edit-input s-field-${safeId}" data-col="produit" value="${valProd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                    <div style="grid-column: span 2;"><span class="edit-label" style="font-size:9px;">Description</span><input type="text" class="edit-input s-field-${safeId}" data-col="description" value="${valDesc}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                    <div><span class="edit-label" style="font-size:9px;">Coût (€)</span><input type="text" class="edit-input s-field-${safeId}" data-col="cout" value="${valCout}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                    <div><span class="edit-label" style="font-size:9px; color:#e74c3c; font-weight:bold;">En Stock</span><input type="number" class="edit-input s-field-${safeId}" data-col="en stock" value="${valStock}" style="padding:4px; margin:0; font-size:11.5px; height:26px; font-weight:bold;"></div>
+                    <div><span class="edit-label" style="font-size:9px;">Seuil Mini</span><input type="number" class="edit-input s-field-${safeId}" data-col="seuil mini" value="${valMini}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                    <div><span class="edit-label" style="font-size:9px;">Reste</span><input type="text" class="edit-input s-field-${safeId}" data-col="reste" value="${valReste}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                    <div><span class="edit-label" style="font-size:9px;">Pris</span><input type="text" class="edit-input s-field-${safeId}" data-col="pris" value="${valPris}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                    <div><span class="edit-label" style="font-size:9px;">Commande</span><input type="text" class="edit-input s-field-${safeId}" data-col="commande" value="${valCmd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                    <input type="hidden" class="edit-input s-field-${safeId}" data-col="photo" value="${valPhoto}">
+                </div>
+                
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button onclick="window.deleteStockItemFromServer('${numPiece}', this)" style="background:none; border:1px solid #ccc; color:#e74c3c; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🗑️ Supprimer</button>
+                    <button onclick="window.saveStockItemEdits('${numPiece}', '${safeId}', this)" style="flex-grow:1; background:#16a085; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">💾 Enregistrer les modifications</button>
+                </div>
+            </div>
+            
+            <div style="flex:1; min-width:130px; max-width:180px; display:flex; align-items:center; justify-content:center; background:#fafbfc; border:1px solid #e1e8ed; border-radius:6px; overflow:hidden; padding:5px; box-sizing:border-box;">
+                <img src="${parsedImgUrl}" style="max-width:100%; max-height:120px; object-fit:contain; border-radius:4px;" onerror="this.src='https://placehold.co/150x150?text=Image+Introuvable'"/>
+            </div>`;
+
+        cardsContainer.appendChild(cardBlock);
+    }
+};
     // =====================================================================
     // INITIALISATION POST-RENDU DES CARTES SATELLITES MINIATURES
     // =====================================================================
