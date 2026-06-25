@@ -1248,7 +1248,7 @@ window.renderAtelierWorkspace = function() {
         ws.appendChild(card);
     });
 /* ========================================================================= */
-/* TITRE : MOTEUR DE RENDU PRINCIPAL DE L'INVENTAIRE ET DU STOCK             */
+/* TITRE : MOTEUR DE RENDU SÉCURISÉ DE L'INVENTAIRE ET DU STOCK              */
 /* ========================================================================= */
 window.renderStockWorkspace = function() {
     let ws = document.getElementById('stock-workspace');
@@ -1264,10 +1264,10 @@ window.renderStockWorkspace = function() {
         return;
     }
 
-    // 2. Extraction dynamique des en-têtes pour être insensible à l'ordre des colonnes
-    let headers = window.rawStock[0].map(h => h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+    // 2. Extraction dynamique des en-têtes (insensible à l'ordre et aux accents)
+    let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
     
-    // Recherche des index de colonnes clés
+    // Recherche des index de chaque colonne du tableau de stock
     let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
     let idxRef = headers.findIndex(h => h === "ref");
     let idxProd = headers.findIndex(h => h === "produit");
@@ -1280,7 +1280,7 @@ window.renderStockWorkspace = function() {
     let idxPris = headers.findIndex(h => h === "pris");
     let idxCmd = headers.findIndex(h => h.includes("commande") || h === "cmd");
 
-    // 3. Construction de la barre d'outils supérieure (Recherche & Bouton Ajouter)
+    // 3. Construction de la barre supérieure et du squelette du formulaire
     let totalArticles = window.rawStock.length - 1;
     ws.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #16a085; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
@@ -1302,12 +1302,11 @@ window.renderStockWorkspace = function() {
         
         <div id="stock-cards-list" style="display:flex; flex-direction:column; gap:15px;"></div>`;
 
-    // 4. Génération dynamique des inputs pour le formulaire de création
+    // 4. Génération dynamique des champs du formulaire d'ajout
     let addGrid = document.getElementById('add-stock-fields-grid');
     window.rawStock[0].forEach(colName => {
-        let cleanName = colName.toString().trim();
+        let cleanName = colName ? colName.toString().trim() : "";
         if (cleanName === "") return;
-        // On génère des inputs pour toutes les colonnes du tableau
         addGrid.innerHTML += `
             <div>
                 <span class="edit-label" style="font-size:10px;">${cleanName}</span>
@@ -1315,47 +1314,58 @@ window.renderStockWorkspace = function() {
             </div>`;
     });
 
-    // 5. Boucle de génération des fiches de matériel (Ligne par Ligne)
+    // Sécurité visuelle si le tableau ne contient aucune ligne sous les titres
+    if (window.rawStock.length <= 1) {
+        document.getElementById('stock-cards-list').innerHTML = `
+            <div style="text-align:center; padding:25px; color:#7f8c8d; font-style:italic; background:#fff; border:1px solid #ddd; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                Classeur connecté avec succès ! Cependant, aucune ligne de matériel n'est enregistrée sous la ligne des en-têtes dans ton Google Sheet. Tu peux utiliser le bouton "Nouvelle Pièce" pour créer ton premier article.
+            </div>`;
+        return;
+    }
+
+    // 5. Boucle de génération des fiches matérielles
     let cardsContainer = document.getElementById('stock-cards-list');
     
     for (let i = 1; i < window.rawStock.length; i++) {
         let row = window.rawStock[i];
-        let numPiece = idxNum !== -1 ? row[idxNum] : i;
-        if (!numPiece || numPiece.toString().trim() === "") continue;
+        if (!row || row.length === 0) continue; // Ignore les lignes totalement corrompues ou blanches
 
-        let safeId = "stock-" + numPiece.toString().replace(/[^a-zA-Z0-9]/g, "-");
+        // Sécurité Numéro : Si la cellule numéro est vide, on prend l'index de la ligne pour ne pas bloquer l'affichage
+        let numRaw = (idxNum !== -1 && row[idxNum] !== undefined && row[idxNum] !== null) ? row[idxNum].toString().trim() : "";
+        let numPiece = (numRaw !== "") ? numRaw : i.toString();
+
+        let safeId = "stock-" + numPiece.replace(/[^a-zA-Z0-9]/g, "-");
         
-        // Extraction des valeurs de cellules
-        let valRef = idxRef !== -1 ? row[idxRef] : "";
-        let valProd = idxProd !== -1 ? row[idxProd] : "";
-        let valDesc = idxDesc !== -1 ? row[idxDesc] : "";
-        let valPhoto = idxPhoto !== -1 ? row[idxPhoto] : "";
-        let valCout = idxCout !== -1 ? row[idxCout] : "0";
-        let valStock = idxStock !== -1 ? parseFloat(row[idxStock]) || 0 : 0;
-        let valMini = idxMini !== -1 ? parseFloat(row[idxMini]) || 0 : 0;
-        let valReste = idxReste !== -1 ? row[idxReste] : "";
-        let valPris = idxPris !== -1 ? row[idxPris] : "";
-        let valCmd = idxCmd !== -1 ? row[idxCmd] : "";
+        // Extraction sécurisée des cellules pour parer aux cellules vides ou indéfinies (undefined)
+        let valRef = (idxRef !== -1 && row[idxRef]) ? row[idxRef].toString().trim() : "";
+        let valProd = (idxProd !== -1 && row[idxProd]) ? row[idxProd].toString().trim() : "Matériel sans nom";
+        let valDesc = (idxDesc !== -1 && row[idxDesc]) ? row[idxDesc].toString().trim() : "";
+        let valPhoto = (idxPhoto !== -1 && row[idxPhoto]) ? row[idxPhoto].toString().trim() : "";
+        let valCout = (idxCout !== -1 && row[idxCout]) ? row[idxCout].toString().trim() : "0";
+        let valStock = (idxStock !== -1 && row[idxStock]) ? parseFloat(row[idxStock]) || 0 : 0;
+        let valMini = (idxMini !== -1 && row[idxMini]) ? parseFloat(row[idxMini]) || 0 : 0;
+        let valReste = (idxReste !== -1 && row[idxReste]) ? row[idxReste].toString().trim() : "";
+        let valPris = (idxPris !== -1 && row[idxPris]) ? row[idxPris].toString().trim() : "";
+        let valCmd = (idxCmd !== -1 && row[idxCmd]) ? row[idxCmd].toString().trim() : "";
 
-        // Alerte visuelle si le stock descend sous le seuil mini
+        // Gestion de l'alerte visuelle de stock bas
         let alerteStockStyle = (valStock <= valMini) ? "background:#fdf2f2; border-color:#ec7063;" : "background:#fff;";
         let badgeAlerteHtml = (valStock <= valMini) ? `<span style="background:#e74c3c; color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-weight:bold; vertical-align:middle; margin-left:8px;">⚠️ ALERTE SEUIL</span>` : "";
 
-        // Conversion du chemin relatif AppSheet en image réelle
-        let parsedImgUrl = window.parseAppSheetPhotoUrl(valPhoto.toString());
+        // Conversion sécurisée de l'URL d'image AppSheet
+        let parsedImgUrl = window.parseAppSheetPhotoUrl(valPhoto);
 
-        // Construction HTML de la carte avec structure Flex (Champs à gauche, Photo à droite)
+        // Injection de la fiche
         let cardBlock = document.createElement('div');
         cardBlock.className = "stock-item-card";
         cardBlock.setAttribute("data-num", numPiece);
         cardBlock.style = `border:1px solid #ddd; border-left:5px solid #16a085; border-radius:8px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.03); display:flex; gap:15px; align-items:stretch; flex-wrap:wrap-reverse; ${alerteStockStyle}`;
 
-        // Contenu dynamique de la carte
         cardBlock.innerHTML = `
             <div style="flex:3; min-width:280px; display:flex; flex-direction:column; gap:8px;">
                 <h3 style="margin:0; color:#2c3e50; font-size:15px;">
-                    📦 Réf: <span style="color:#16a085;">${valRef}</span> - ${valProd} ${badgeAlerteHtml}
-                    <span style="font-size:11px; font-weight:normal; color:#888; float:right;">N° Enregistrement: ${numPiece}</span>
+                    📦 Réf: <span style="color:#16a085;">${valRef || "Aucune"}</span> - ${valProd} ${badgeAlerteHtml}
+                    <span style="font-size:11px; font-weight:normal; color:#888; float:right;">N°: ${numPiece}</span>
                 </h3>
                 
                 <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:8px; margin-top:5px;">
