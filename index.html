@@ -964,331 +964,560 @@
                 } else { alert("Erreur Google"); window.renderSelectionPanel(); }
             } catch(e) { alert("Échec réseau."); window.renderSelectionPanel(); }
         };
-                /* ========================================================================= */
-        /* CHAPITRE 10 : MODULE ATELIER ET BANC D'ESSAIS                             */
-        /* ========================================================================= */
-        window.renderAtelierWorkspace = function() {
-            let ws = document.getElementById('atelier-workspace');
-            if(!ws) return;
-            
-            ws.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #8e44ad; margin-bottom:15px;">
-                    <h2 style="color:#2c3e50; margin:0;">🧰 Banc d'Essais</h2>
-                    <input type="text" id="search-atelier" placeholder="🔍 N° Canon..." onkeyup="window.filterAtelierCanons(this.value)" style="padding:8px; border-radius:6px; border:1px solid #ccc; outline:none; width:120px; font-weight:bold;">
-                </div>`;
+         /* ========================================================================= */
+/* CHAPITRE 10 : MODULE ATELIER ET BANC D'ESSAIS                             */
+/* ========================================================================= */
+window.renderAtelierWorkspace = function() {
+    let ws = document.getElementById('atelier-workspace');
+    if(!ws) return;
+    
+    ws.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #8e44ad; margin-bottom:15px;">
+            <h2 style="color:#2c3e50; margin:0;">🧰 Banc d'Essais</h2>
+            <input type="text" id="search-atelier" placeholder="🔍 N° Canon..." onkeyup="window.filterAtelierCanons(this.value)" style="padding:8px; border-radius:6px; border:1px solid #ccc; outline:none; width:120px; font-weight:bold;">
+        </div>`;
 
-            let canonsEnAtelier = window.suiviEntretienData.filter(row => row[3] && row[3].toString().toLowerCase().trim() === "oui").map(r => r[0].toString());
+    let canonsEnAtelier = window.suiviEntretienData.filter(row => row[3] && row[3].toString().toLowerCase().trim() === "oui").map(r => r[0].toString());
 
-            if(canonsEnAtelier.length === 0) {
-                ws.innerHTML += `<div style="background:#fff; border:1px solid #ddd; border-radius:6px; text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">✅ Aucun enneigeur n'est actuellement marqué "Préventif Usine".</div>`;
-                return;
+    if(canonsEnAtelier.length === 0) {
+        ws.innerHTML += `<div style="background:#fff; border:1px solid #ddd; border-radius:6px; text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">✅ Aucun enneigeur n'est actuellement marqué "Préventif Usine".</div>`;
+        return;
+    }
+
+    let idsValides = new Set();
+    if (window.rawAtelier && window.rawAtelier.length > 1) {
+        let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim());
+        let idxIdAtelier = headersAtelier.findIndex(h => h === "id" || h.includes("n°"));
+        if (idxIdAtelier !== -1) {
+            for (let i = 1; i < window.rawAtelier.length; i++) {
+                idsValides.add(window.rawAtelier[i][idxIdAtelier].toString().trim());
             }
+        }
+    }
 
-            let idsValides = new Set();
-            if (window.rawAtelier && window.rawAtelier.length > 1) {
-                let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim());
-                let idxIdAtelier = headersAtelier.findIndex(h => h === "id" || h.includes("n°"));
-                if (idxIdAtelier !== -1) {
-                    for (let i = 1; i < window.rawAtelier.length; i++) {
-                        idsValides.add(window.rawAtelier[i][idxIdAtelier].toString().trim());
-                    }
-                }
-            }
+    let listeAFaire = []; let listeValidee = [];
+    canonsEnAtelier.forEach(idCanon => { if (idsValides.has(idCanon)) listeValidee.push(idCanon); else listeAFaire.push(idCanon); });
+    
+    listeAFaire.sort((a, b) => parseInt(a) - parseInt(b));
+    listeValidee.sort((a, b) => parseInt(a) - parseInt(b));
+    let orderedCanons = [...listeAFaire, ...listeValidee];
 
-            let listeAFaire = []; let listeValidee = [];
-            canonsEnAtelier.forEach(idCanon => { if (idsValides.has(idCanon)) listeValidee.push(idCanon); else listeAFaire.push(idCanon); });
-            
-            listeAFaire.sort((a, b) => parseInt(a) - parseInt(b));
-            listeValidee.sort((a, b) => parseInt(a) - parseInt(b));
-            let orderedCanons = [...listeAFaire, ...listeValidee];
+    ws.innerHTML += `
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:13px; color:#555; background:#eaf2f8; padding:10px; border-radius:4px; border-left:4px solid #3498db;">
+            <b>${canonsEnAtelier.length} canon(s) au banc d'essai.</b>
+            <span style="color:#27ae60; font-weight:bold;">${listeValidee.length} archivé(s) (en bas de liste)</span>
+        </div>`;
 
-            ws.innerHTML += `
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:13px; color:#555; background:#eaf2f8; padding:10px; border-radius:4px; border-left:4px solid #3498db;">
-                    <b>${canonsEnAtelier.length} canon(s) au banc d'essai.</b>
-                    <span style="color:#27ae60; font-weight:bold;">${listeValidee.length} archivé(s) (en bas de liste)</span>
+    let mapsToInitialize = [];
+
+    orderedCanons.forEach(idCanon => {
+        let feature = window.snowCannons.features.find(f => f.properties.id == idCanon); if(!feature) return;
+
+        let p = feature.properties; 
+        let piste = window.getV(p, window.keyPiste); 
+        let safeId = idCanon.replace(/[^a-zA-Z0-9]/g, ""); 
+        let estValide = idsValides.has(idCanon);
+        let existingData = {};
+        
+        if (estValide) {
+            let headersAtelier = window.rawAtelier[0].map(h => h.toString().trim());
+            let idxIdAtelier = headersAtelier.findIndex(h => h.toLowerCase() === "id" || h.toLowerCase().includes("n°"));
+            let rowData = window.rawAtelier.find(r => r[idxIdAtelier].toString().trim() === idCanon);
+            if (rowData) headersAtelier.forEach((h, i) => { existingData[h.toLowerCase().trim()] = rowData[i]; });
+        }
+
+        const getVal = (col) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : "";
+
+        let typeVannePrincipale = window.getV(p, "Type de vanne").toUpperCase();
+        let valVanneAd = (window.getV(p, "vanne additio") || "").toLowerCase();
+
+        let defaultVanne = "none";
+        if (valVanneAd.includes("clarinette")) defaultVanne = "v2000";
+        else if (valVanneAd.includes("2var")) defaultVanne = "var_double";
+        else if (valVanneAd.includes("var")) defaultVanne = "var";
+
+        let suiviRow = window.suiviEntretienData.find(row => row[0] == idCanon);
+        let photoUrlBrute = suiviRow && suiviRow[6] ? suiviRow[6].toString().trim() : "";
+        let photoDisplayHtml = "";
+        
+        if (photoUrlBrute !== "") {
+            let directImgUrl = window.parseDriveUrl(photoUrlBrute);
+            photoDisplayHtml = `
+                <div style="margin-top:10px; margin-bottom:10px; text-align:center;">
+                    <span class="edit-label" style="display:block; text-align:left; margin-bottom:4px;">📷 Image Référence (Google Drive) :</span>
+                    <a href="${photoUrlBrute}" target="_blank">
+                        <img src="${directImgUrl}" style="max-width:100%; max-height:220px; border-radius:6px; border:1px solid #ddd; box-shadow:0 2px 5px rgba(0,0,0,0.1);" alt="Photo Terrain"/>
+                    </a>
                 </div>`;
+        }
 
-            let mapsToInitialize = [];
+        let lng = feature.geometry.coordinates[0];
+        let lat = feature.geometry.coordinates[1];
+        let mapContainerHtml = "";
+        
+        if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+            mapContainerHtml = `<div id="minimap-${safeId}" style="width:100%; height:130px; border-radius:6px; margin-bottom:12px; border:1px solid #ccc; box-shadow:inset 0 1px 3px rgba(0,0,0,0.2); z-index:5;"></div>`;
+            mapsToInitialize.push({ id: `minimap-${safeId}`, lat: lat, lng: lng, idCanon: idCanon });
+        }
 
-            orderedCanons.forEach(idCanon => {
-                let feature = window.snowCannons.features.find(f => f.properties.id == idCanon); if(!feature) return;
+        let calcR18Nitrile = 0, calcR18Ptfe = 0, calcPtfeR3 = 0;
+        let calcR11Nitrile = 0, calcR11Ptfe = 0, calcPtfeVar = 0;
 
-                let p = feature.properties; 
-                let piste = window.getV(p, window.keyPiste); 
-                let safeId = idCanon.replace(/[^a-zA-Z0-9]/g, ""); 
-                let estValide = idsValides.has(idCanon);
-                let existingData = {};
-                
-                if (estValide) {
-                    let headersAtelier = window.rawAtelier[0].map(h => h.toString().trim());
-                    let idxIdAtelier = headersAtelier.findIndex(h => h.toLowerCase() === "id" || h.toLowerCase().includes("n°"));
-                    let rowData = window.rawAtelier.find(r => r[idxIdAtelier].toString().trim() === idCanon);
-                    if (rowData) headersAtelier.forEach((h, i) => { existingData[h.toLowerCase().trim()] = rowData[i]; });
-                }
+        if (typeVannePrincipale === "YA") { calcR18Nitrile = 2; calcR18Ptfe = 4; calcPtfeR3 = 1; }
+        else if (typeVannePrincipale === "YB") { calcR18Nitrile = 3; calcR18Ptfe = 1; calcPtfeR3 = 1; }
+        
+        if (defaultVanne === "v2000") { calcR18Nitrile += 6; calcR18Ptfe += 2; calcPtfeR3 += 2; } 
+        else if (defaultVanne === "var" || defaultVanne === "var_double") {
+            let multiplicateur = (defaultVanne === "var_double") ? 2 : 1;
+            calcR11Nitrile = 6 * multiplicateur; calcR11Ptfe = 2 * multiplicateur; calcPtfeVar = 2 * multiplicateur;
+        }
 
-                const getVal = (col) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : "";
+        const getConsommable = (col, autoCalc) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : (autoCalc > 0 ? autoCalc : "");
 
-                let typeVannePrincipale = window.getV(p, "Type de vanne").toUpperCase();
-                let valVanneAd = (window.getV(p, "vanne additio") || "").toLowerCase();
+        let headersGen = window.rawGeneral[0] || []; let techHtml = "";
+        headersGen.forEach(h => {
+            if(h.toLowerCase().includes('xy') || h.toLowerCase().includes('gps') || h.toLowerCase() === 'id') return;
+            let val = window.getV(p, h);
+            techHtml += `<div><span class="edit-label">${h}</span><input type="text" class="edit-input tech-field-${safeId}" data-head="${h}" value="${val}" style="margin-bottom:0; padding:4px; font-size:11px; height:26px;"></div>`;
+        });
 
-                let defaultVanne = "none";
-                if (valVanneAd.includes("clarinette")) defaultVanne = "v2000";
-                else if (valVanneAd.includes("2var")) defaultVanne = "var_double";
-                else if (valVanneAd.includes("var")) defaultVanne = "var";
+        let hist = window.getHistoryTickets(idCanon); let histHtml = `<div style="padding:10px; background:#fff; font-size:12px;">`;
+        if(hist.length === 0) histHtml += `<span style="color:#7f8c8d; font-style:italic;">Aucune panne enregistrée.</span>`;
+        else hist.forEach(t => { histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${t.date}</b> : <span style="color:#e74c3c;">${t.defaut}</span></div>`; });
+        histHtml += `</div>`;
 
-                let suiviRow = window.suiviEntretienData.find(row => row[0] == idCanon);
-                let photoUrlBrute = suiviRow && suiviRow[6] ? suiviRow[6].toString().trim() : "";
-                let photoDisplayHtml = "";
-                
-                if (photoUrlBrute !== "") {
-                    let directImgUrl = window.parseDriveUrl(photoUrlBrute);
-                    photoDisplayHtml = `
-                        <div style="margin-top:10px; margin-bottom:10px; text-align:center;">
-                            <span class="edit-label" style="display:block; text-align:left; margin-bottom:4px;">📷 Image Référence (Google Drive) :</span>
-                            <a href="${photoUrlBrute}" target="_blank">
-                                <img src="${directImgUrl}" style="max-width:100%; max-height:220px; border-radius:6px; border:1px solid #ddd; box-shadow:0 2px 5px rgba(0,0,0,0.1);" alt="Photo Terrain"/>
-                            </a>
-                        </div>`;
-                }
-
-                let lng = feature.geometry.coordinates[0];
-                let lat = feature.geometry.coordinates[1];
-                let mapContainerHtml = "";
-                
-                if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-                    mapContainerHtml = `<div id="minimap-${safeId}" style="width:100%; height:130px; border-radius:6px; margin-bottom:12px; border:1px solid #ccc; box-shadow:inset 0 1px 3px rgba(0,0,0,0.2); z-index:5;"></div>`;
-                    mapsToInitialize.push({ id: `minimap-${safeId}`, lat: lat, lng: lng, idCanon: idCanon });
-                }
-
-                let calcR18Nitrile = 0, calcR18Ptfe = 0, calcPtfeR3 = 0;
-                let calcR11Nitrile = 0, calcR11Ptfe = 0, calcPtfeVar = 0;
-
-                if (typeVannePrincipale === "YA") { calcR18Nitrile = 2; calcR18Ptfe = 4; calcPtfeR3 = 1; }
-                else if (typeVannePrincipale === "YB") { calcR18Nitrile = 3; calcR18Ptfe = 1; calcPtfeR3 = 1; }
-                
-                if (defaultVanne === "v2000") { calcR18Nitrile += 6; calcR18Ptfe += 2; calcPtfeR3 += 2; } 
-                else if (defaultVanne === "var" || defaultVanne === "var_double") {
-                    let multiplicateur = (defaultVanne === "var_double") ? 2 : 1;
-                    calcR11Nitrile = 6 * multiplicateur; calcR11Ptfe = 2 * multiplicateur; calcPtfeVar = 2 * multiplicateur;
-                }
-
-                const getConsommable = (col, autoCalc) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : (autoCalc > 0 ? autoCalc : "");
-
-                let headersGen = window.rawGeneral[0] || []; let techHtml = "";
-                headersGen.forEach(h => {
-                    if(h.toLowerCase().includes('xy') || h.toLowerCase().includes('gps') || h.toLowerCase() === 'id') return;
-                    let val = window.getV(p, h);
-                    techHtml += `<div><span class="edit-label">${h}</span><input type="text" class="edit-input tech-field-${safeId}" data-head="${h}" value="${val}" style="margin-bottom:0; padding:4px; font-size:11px; height:26px;"></div>`;
-                });
-
-                let hist = window.getHistoryTickets(idCanon); let histHtml = `<div style="padding:10px; background:#fff; font-size:12px;">`;
-                if(hist.length === 0) histHtml += `<span style="color:#7f8c8d; font-style:italic;">Aucune panne enregistrée.</span>`;
-                else hist.forEach(t => { histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${t.date}</b> : <span style="color:#e74c3c;">${t.defaut}</span></div>`; });
-                histHtml += `</div>`;
-
-                let formHtml = `
-                    <div style="padding:10px; background:#fdfdfe;">
-                        <div style="background:#f4f9f9; border-left:4px solid #3498db; padding:10px; border-radius:4px; margin-bottom:12px; border:1px solid #e1e8ed; border-left-width:4px;">
-                            <h4 style="margin:0 0 8px 0; color:#2980b9; font-size:12px;">🔵 VANNE PRINCIPALE</h4>
-                            <div style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:4px;">[Test 1] Avant Intervention :</div>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:6px; margin-bottom:8px;">
-                                <div><span class="edit-label">Pression Eau 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau 1" value="${getVal('test pression eau 1')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Pression Air 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression air 1" value="${getVal('test pression air 1')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Test Élec 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec Vanne" value="${getVal('test elec Vanne')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Manu 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="manu 1" value="${getVal('manu 1')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Capteur 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="capteur 1" value="${getVal('capteur 1')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                            </div>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:8px; background:rgba(0,0,0,0.02); padding:6px; border-radius:4px;">
-                                <div><span class="edit-label">Maintenance effectuée</span><input type="text" class="edit-input b-field-${safeId}" data-col="maintenance effectué" value="${getVal('maintenance effectué')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Pièces utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces utilisés" value="${getVal('pièces utilisés')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                            </div>
-                            <div style="font-size:11px; font-weight:bold; color:#27ae60; margin-bottom:4px;">[Test 2] Après Intervention :</div>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:6px;">
-                                <div><span class="edit-label">Pression Eau 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau 2" value="${getVal('test pression eau 2')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Pression Air 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression air 2" value="${getVal('test pression air 2')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Test Élec 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec vanne" value="${getVal('test elec vanne')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Manu 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="manu 2" value="${getVal('manu 2')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Capteur 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="capteur 2" value="${getVal('capteur 2')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Vanne prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="prête" value="${getVal('prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:26px; font-weight:bold; color:#27ae60;"></div>
-                            </div>
-                        </div>
-
-                        <h4 style="margin:15px 0 8px 0; color:#8e44ad; border-bottom:1px solid #eee; padding-bottom:4px; font-size:12px;">➕ CONFIGURATION VANNE ADDITIONNELLE</h4>
-                        <select class="edit-input" onchange="window.handleSelectVanne('${safeId}', this.value)" style="margin-bottom:12px; border-color:#8e44ad; font-weight:bold; font-size:11px; padding:4px; height:28px;">
-                            <option value="none" ${defaultVanne === 'none' ? 'selected' : ''}>-- Aucune vanne additionnelle détectée --</option>
-                            <option value="var" ${defaultVanne === 'var' ? 'selected' : ''}>Afficher Bloc complet VAR (Simple)</option>
-                            <option value="var_double" ${defaultVanne === 'var_double' ? 'selected' : ''}>Afficher Bloc complet VAR Double (2VAR)</option>
-                            <option value="v2000" ${defaultVanne === 'v2000' ? 'selected' : ''}>Afficher Bloc complet V2000 (Clarinette)</option>
-                        </select>
-                        
-                        <div id="bloc-var-${safeId}" style="display:${defaultVanne === 'var' ? 'block' : 'none'}; background:#fdf2e9; padding:10px; border-radius:4px; border:1px solid #f8c471; margin-bottom:12px;">
-                            <b style="color:#d35400; font-size:11px; margin-bottom:6px; display:block;">🛡️ BLOC DE TEST : VAR (1)</b>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px;">
-                                <div><span class="edit-label">Test Élec 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1)" value="${getVal('test elec VAR (1)')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Pression 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var" value="${getVal('test pression 1 var')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Test Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1) bis" value="${getVal('test elec VAR (1) bis')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Pression 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                            </div>
-                            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:6px; margin-top:6px;">
-                                <div><span class="edit-label">Pièces VAR utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 1 utilisés" value="${getVal('pièces var 1 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">VAR (1) prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                            </div>
-                        </div>
-
-                        <div id="bloc-var-double-${safeId}" style="display:${defaultVanne === 'var_double' ? 'block' : 'none'}; background:#fef5e7; padding:10px; border-radius:4px; border:1px solid #eb984e; margin-bottom:12px;">
-                            <b style="color:#ba4a00; font-size:11px; margin-bottom:6px; display:block;">🛡️ BLOC DE TEST : VAR DOUBLE (2VAR)</b>
-                            <div style="font-weight:bold; font-size:10px; color:#ba4a00; text-transform:uppercase; margin-bottom:2px;">• Perche 1 (VAR 1)</div>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:4px; background:rgba(255,255,255,0.4); padding:4px; border-radius:4px; margin-bottom:6px;">
-                                <div><span class="edit-label">Élec 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1)" value="${getVal('test elec VAR (1)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Press 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var" value="${getVal('test pression 1 var')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1) bis" value="${getVal('test elec VAR (1) bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Press 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 1 utilisés" value="${getVal('pièces var 1 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">VAR 1 Prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                            </div>
-                            <div style="font-weight:bold; font-size:10px; color:#ba4a00; text-transform:uppercase; margin-bottom:2px;">• Perche 2 (VAR 2)</div>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:4px; background:rgba(255,255,255,0.4); padding:4px; border-radius:4px;">
-                                <div><span class="edit-label">Élec 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (2)" value="${getVal('test elec VAR (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Press 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var (2)" value="${getVal('test pression 1 var (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (2) bis" value="${getVal('test elec VAR (2) bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Press 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var (2)" value="${getVal('test pression 2 var (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 2 utilisés" value="${getVal('pièces var 2 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">VAR 2 Prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (2) prête" value="${getVal('VAR (2) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                            </div>
-                        </div>
-
-                        <div id="bloc-v2000-${safeId}" style="display:${defaultVanne === 'v2000' ? 'block' : 'none'}; background:#eaf2f8; padding:10px; border-radius:4px; border:1px solid #85c1e9; margin-bottom:12px;">
-                            <b style="color:#2980b9; font-size:11px; margin-bottom:6px; display:block;">🛡️ BLOC DE TEST : VALVE V2000 (CLARINETTE)</b>
-                            <div style="font-weight:bold; font-size:10px; color:#2980b9; margin-bottom:2px;">[Test 1] Avant Intervention :</div>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:4px; background:rgba(255,255,255,0.4); padding:4px; border-radius:4px; margin-bottom:6px;">
-                                <div><span class="edit-label">Élec C2 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 1 elec V2000 c2" value="${getVal('test 1 elec V2000 c2')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Élec C3 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 1 elec V2000 c3" value="${getVal('test 1 elec V2000 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Press Eau C2 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau v2000 c2" value="${getVal('test pression eau v2000 c2')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Press Eau C3 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau v2000 c3" value="${getVal('test pression eau v2000 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                            </div>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
-                                <div><span class="edit-label">Pièces V2000 utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces v2000 utilisés" value="${getVal('pièces v2000 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Commentaire V2000</span><input type="text" class="edit-input b-field-${safeId}" data-col="commentaire v2000" value="${getVal('commentaire v2000')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                            </div>
-                            <div style="font-weight:bold; font-size:10px; color:#27ae60; margin-bottom:2px;">[Test 2] Après Intervention :</div>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:4px; background:rgba(255,255,255,0.4); padding:4px; border-radius:4px;">
-                                <div><span class="edit-label">Élec C2 [2]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 2 elec v2000 c2" value="${getVal('test 2 elec v2000 c2')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Élec C3 [2]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 2 elec v2000 c3" value="${getVal('test 2 elec v2000 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Press Eau C2 [2]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 2 pression eau v2000 2 c2" value="${getVal('test 2 pression eau v2000 2 c2')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div><span class="edit-label">Press Eau C3 [2]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 2 pression eau v2000 2 c3" value="${getVal('test 2 pression eau v2000 2 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div style="grid-column: span 3; display:flex; align-items:center; font-weight:bold; color:#27ae60;">V2000 Prête ?</div>
-                                <div><input type="text" class="edit-input b-field-${safeId}" data-col="V2000 prête" value="${getVal('V2000 prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px; font-weight:bold; color:#27ae60;"></div>
-                            </div>
-                        </div>
-                        
-                        <div style="background:#f4f6f8; padding:8px; border-radius:4px; margin-top:10px; border:1px dashed #ccc;">
-                            <div style="font-weight:bold; font-size:10px; color:#555; text-transform:uppercase; margin-bottom:4px;">📋 Consommables (Calculés via Type Vanne + AD) :</div>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap:4px; margin-bottom:6px;">
-                                <div><span class="edit-label" style="font-size:9px;">R18 Nitrile</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint R18 NITRILE" value="${getConsommable('joint R18 NITRILE', calcR18Nitrile)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#d35400;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">R18 PTFE</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint R18 ptfe" value="${getConsommable('joint R18 ptfe', calcR18Ptfe)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#d35400;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">PTFE R3</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint PTFE r3" value="${getConsommable('joint PTFE r3', calcPtfeR3)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#d35400;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">R11 Nitrile</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint R11 NITRILE" value="${getConsommable('joint R11 NITRILE', calcR11Nitrile)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#2980b9;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">R11 PTFE</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint R11 ptfe" value="${getConsommable('joint R11 ptfe', calcR11Ptfe)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#2980b9;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">PTFE VAR</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint PTFE var" value="${getConsommable('joint PTFE var', calcPtfeVar)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#2980b9;"></div>
-                            </div>
-                            <div><span class="edit-label">Commentaire de clôture</span><input type="text" class="edit-input b-field-${safeId}" data-col="Commentaire" value="${getVal('Commentaire')}" placeholder="Remarques de fin d'essai..." style="padding:4px; margin-bottom:0; font-size:11px; height:26px;"></div>
-                        </div>
-
-                        <button onclick="window.saveAtelierBancRow('${idCanon}', '${safeId}', this)" style="width:100%; margin-top:12px; background:${estValide ? '#27ae60' : '#8e44ad'}; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,0.15);">
-                            ${estValide ? '🔄 Mettre à jour le rapport d\'Essai' : '🚀 Archiver ce rapport de Banc d\'Essais'}
-                        </button>
+        let formHtml = `
+            <div style="padding:10px; background:#fdfdfe;">
+                <div style="background:#f4f9f9; border-left:4px solid #3498db; padding:10px; border-radius:4px; margin-bottom:12px; border:1px solid #e1e8ed; border-left-width:4px;">
+                    <h4 style="margin:0 0 8px 0; color:#2980b9; font-size:12px;">🔵 VANNE PRINCIPALE</h4>
+                    <div style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:4px;">[Test 1] Avant Intervention :</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:6px; margin-bottom:8px;">
+                        <div><span class="edit-label">Pression Eau 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau 1" value="${getVal('test pression eau 1')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Pression Air 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression air 1" value="${getVal('test pression air 1')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Test Élec 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec Vanne" value="${getVal('test elec Vanne')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Manu 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="manu 1" value="${getVal('manu 1')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Capteur 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="capteur 1" value="${getVal('capteur 1')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
                     </div>
-                `;
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:8px; background:rgba(0,0,0,0.02); padding:6px; border-radius:4px;">
+                        <div><span class="edit-label">Maintenance effectuée</span><input type="text" class="edit-input b-field-${safeId}" data-col="maintenance effectué" value="${getVal('maintenance effectué')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Pièces utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces utilisés" value="${getVal('pièces utilisés')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                    </div>
+                    <div style="font-size:11px; font-weight:bold; color:#27ae60; margin-bottom:4px;">[Test 2] Après Intervention :</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:6px;">
+                        <div><span class="edit-label">Pression Eau 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau 2" value="${getVal('test pression eau 2')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Pression Air 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression air 2" value="${getVal('test pression air 2')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Test Élec 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec vanne" value="${getVal('test elec vanne')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Manu 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="manu 2" value="${getVal('manu 2')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Capteur 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="capteur 2" value="${getVal('capteur 2')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Vanne prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="prête" value="${getVal('prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:26px; font-weight:bold; color:#27ae60;"></div>
+                    </div>
+                </div>
 
-                let card = document.createElement('div');
-                card.className = "atelier-card";
-                if (estValide) { card.style.borderLeftColor = "#27ae60"; card.style.background = "#f4fdf7"; }
+                <h4 style="margin:15px 0 8px 0; color:#8e44ad; border-bottom:1px solid #eee; padding-bottom:4px; font-size:12px;">➕ CONFIGURATION VANNE ADDITIONNELLE</h4>
+                <select class="edit-input" onchange="window.handleSelectVanne('${safeId}', this.value)" style="margin-bottom:12px; border-color:#8e44ad; font-weight:bold; font-size:11px; padding:4px; height:28px;">
+                    <option value="none" ${defaultVanne === 'none' ? 'selected' : ''}>-- Aucune vanne additionnelle détectée --</option>
+                    <option value="var" ${defaultVanne === 'var' ? 'selected' : ''}>Afficher Bloc complet VAR (Simple)</option>
+                    <option value="var_double" ${defaultVanne === 'var_double' ? 'selected' : ''}>Afficher Bloc complet VAR Double (2VAR)</option>
+                    <option value="v2000" ${defaultVanne === 'v2000' ? 'selected' : ''}>Afficher Bloc complet V2000 (Clarinette)</option>
+                </select>
+                
+                <div id="bloc-var-${safeId}" style="display:${defaultVanne === 'var' ? 'block' : 'none'}; background:#fdf2e9; padding:10px; border-radius:4px; border:1px solid #f8c471; margin-bottom:12px;">
+                    <b style="color:#d35400; font-size:11px; margin-bottom:6px; display:block;">🛡️ BLOC DE TEST : VAR (1)</b>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px;">
+                        <div><span class="edit-label">Test Élec 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1)" value="${getVal('test elec VAR (1)')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Pression 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var" value="${getVal('test pression 1 var')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Test Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1) bis" value="${getVal('test elec VAR (1) bis')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Pression 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 2fr 1fr; gap:6px; margin-top:6px;">
+                        <div><span class="edit-label">Pièces VAR utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 1 utilisés" value="${getVal('pièces var 1 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">VAR (1) prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                    </div>
+                </div>
 
-                card.innerHTML = `
-                    <h3>📍 Canon N° ${idCanon} 
-                        ${estValide ? '<span style="background:#27ae60; color:white; font-size:9px; padding:2px 6px; border-radius:10px; vertical-align:middle; margin-left:8px; font-weight:bold;">✅ ARCHIVÉ</span>' : ''}
-                        <span style="font-size:12px; font-weight:normal; color:#888; float:right;">Piste: ${piste}</span>
-                    </h3>
-                    ${mapContainerHtml}
-                    ${photoDisplayHtml}
-                    <details class="atelier-sub-details" style="margin-bottom:6px;"><summary>⚙️ 1. Caractéristiques Techniques (Général)</summary>
-                        <div class="atelier-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:6px; padding:10px;">${techHtml}</div>
-                        <div style="padding:0 10px 10px 10px;"><button onclick="window.saveAtelierTechRow('${idCanon}','${safeId}',this)" style="width:100%; background:#2c3e50; color:white; border:none; padding:6px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:11px;">💾 Mettre à jour les données techniques</button></div>
-                    </details>
-                    <details class="atelier-sub-details" style="margin-bottom:6px;"><summary>🕒 2. Rapports d'anomalies de la ligne (Tickets)</summary>${histHtml}</details>
-                    <details class="atelier-sub-details" open><summary>📝 3. Fiche d'Essai d'étanchéité & Hydraulique</summary>${formHtml}</details>
-                `;
-                ws.appendChild(card);
-            });
+                <div id="bloc-var-double-${safeId}" style="display:${defaultVanne === 'var_double' ? 'block' : 'none'}; background:#fef5e7; padding:10px; border-radius:4px; border:1px solid #eb984e; margin-bottom:12px;">
+                    <b style="color:#ba4a00; font-size:11px; margin-bottom:6px; display:block;">🛡️ BLOC DE TEST : VAR DOUBLE (2VAR)</b>
+                    <div style="font-weight:bold; font-size:10px; color:#ba4a00; text-transform:uppercase; margin-bottom:2px;">• Perche 1 (VAR 1)</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:4px; background:rgba(255,255,255,0.4); padding:4px; border-radius:4px; margin-bottom:6px;">
+                        <div><span class="edit-label">Élec 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1)" value="${getVal('test elec VAR (1)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Press 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var" value="${getVal('test pression 1 var')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1) bis" value="${getVal('test elec VAR (1) bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Press 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 1 utilisés" value="${getVal('pièces var 1 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">VAR 1 Prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                    </div>
+                    <div style="font-weight:bold; font-size:10px; color:#ba4a00; text-transform:uppercase; margin-bottom:2px;">• Perche 2 (VAR 2)</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:4px; background:rgba(255,255,255,0.4); padding:4px; border-radius:4px;">
+                        <div><span class="edit-label">Élec 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (2)" value="${getVal('test elec VAR (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Press 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var (2)" value="${getVal('test pression 1 var (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (2) bis" value="${getVal('test elec VAR (2) bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Press 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var (2)" value="${getVal('test pression 2 var (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 2 utilisés" value="${getVal('pièces var 2 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">VAR 2 Prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (2) prête" value="${getVal('VAR (2) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                    </div>
+                </div>
 
-            setTimeout(() => {
-                mapsToInitialize.forEach(mapData => {
-                    let container = document.getElementById(mapData.id);
-                    if (!container) return;
-                    let miniMap = L.map(mapData.id, { zoomControl: false, attributionControl: false, dragging: false, touchZoom: false, scrollWheelZoom: false }).setView([mapData.lat, mapData.lng], 16);
-                    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(miniMap);
-                    L.marker([mapData.lat, mapData.lng]).addTo(miniMap);
-                });
-            }, 200);
-        };
+                <div id="bloc-v2000-${safeId}" style="display:${defaultVanne === 'v2000' ? 'block' : 'none'}; background:#eaf2f8; padding:10px; border-radius:4px; border:1px solid #85c1e9; margin-bottom:12px;">
+                    <b style="color:#2980b9; font-size:11px; margin-bottom:6px; display:block;">🛡️ BLOC DE TEST : VALVE V2000 (CLARINETTE)</b>
+                    <div style="font-weight:bold; font-size:10px; color:#2980b9; margin-bottom:2px;">[Test 1] Avant Intervention :</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:4px; background:rgba(255,255,255,0.4); padding:4px; border-radius:4px; margin-bottom:6px;">
+                        <div><span class="edit-label">Élec C2 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 1 elec V2000 c2" value="${getVal('test 1 elec V2000 c2')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Élec C3 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 1 elec V2000 c3" value="${getVal('test 1 elec V2000 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Press Eau C2 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau v2000 c2" value="${getVal('test pression eau v2000 c2')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Press Eau C3 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau v2000 c3" value="${getVal('test pression eau v2000 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+                        <div><span class="edit-label">Pièces V2000 utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces v2000 utilisés" value="${getVal('pièces v2000 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Commentaire V2000</span><input type="text" class="edit-input b-field-${safeId}" data-col="commentaire v2000" value="${getVal('commentaire v2000')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                    </div>
+                    <div style="font-weight:bold; font-size:10px; color:#27ae60; margin-bottom:2px;">[Test 2] Après Intervention :</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:4px; background:rgba(255,255,255,0.4); padding:4px; border-radius:4px;">
+                        <div><span class="edit-label">Élec C2 [2]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 2 elec v2000 c2" value="${getVal('test 2 elec v2000 c2')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Élec C3 [2]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 2 elec v2000 c3" value="${getVal('test 2 elec v2000 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Press Eau C2 [2]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 2 pression eau v2000 2 c2" value="${getVal('test 2 pression eau v2000 2 c2')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div><span class="edit-label">Press Eau C3 [2]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test 2 pression eau v2000 2 c3" value="${getVal('test 2 pression eau v2000 2 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div style="grid-column: span 3; display:flex; align-items:center; font-weight:bold; color:#27ae60;">V2000 Prête ?</div>
+                        <div><input type="text" class="edit-input b-field-${safeId}" data-col="V2000 prête" value="${getVal('V2000 prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px; font-weight:bold; color:#27ae60;"></div>
+                    </div>
+                </div>
+                
+                <div style="background:#f4f6f8; padding:8px; border-radius:4px; margin-top:10px; border:1px dashed #ccc;">
+                    <div style="font-weight:bold; font-size:10px; color:#555; text-transform:uppercase; margin-bottom:4px;">📋 Consommables (Calculés via Type Vanne + AD) :</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap:4px; margin-bottom:6px;">
+                        <div><span class="edit-label" style="font-size:9px;">R18 Nitrile</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint R18 NITRILE" value="${getConsommable('joint R18 NITRILE', calcR18Nitrile)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#d35400;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">R18 PTFE</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint R18 ptfe" value="${getConsommable('joint R18 ptfe', calcR18Ptfe)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#d35400;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">PTFE R3</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint PTFE r3" value="${getConsommable('joint PTFE r3', calcPtfeR3)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#d35400;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">R11 Nitrile</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint R11 NITRILE" value="${getConsommable('joint R11 NITRILE', calcR11Nitrile)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#2980b9;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">R11 PTFE</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint R11 ptfe" value="${getConsommable('joint R11 ptfe', calcR11Ptfe)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#2980b9;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">PTFE VAR</span><input type="text" class="edit-input b-field-${safeId}" data-col="joint PTFE var" value="${getConsommable('joint PTFE var', calcPtfeVar)}" style="padding:4px; margin:0; font-size:10px; height:22px; font-weight:bold; color:#2980b9;"></div>
+                    </div>
+                    <div><span class="edit-label">Commentaire de clôture</span><input type="text" class="edit-input b-field-${safeId}" data-col="Commentaire" value="${getVal('Commentaire')}" placeholder="Remarques de fin d'essai..." style="padding:4px; margin-bottom:0; font-size:11px; height:26px;"></div>
+                </div>
 
-        window.filterAtelierCanons = function(val) {
-            let search = val.toLowerCase().trim();
-            let cards = document.querySelectorAll('.atelier-card');
-            cards.forEach(card => {
-                let title = card.querySelector('h3').innerText.toLowerCase();
-                card.style.display = title.includes(search) ? 'block' : 'none';
-            });
-        };
+                <button onclick="window.saveAtelierBancRow('${idCanon}', '${safeId}', this)" style="width:100%; margin-top:12px; background:${estValide ? '#27ae60' : '#8e44ad'}; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                    ${estValide ? '🔄 Mettre à jour le rapport d\'Essai' : '🚀 Archiver ce rapport de Banc d\'Essais'}
+                </button>
+            </div>
+        `;
 
-        window.saveAtelierTechRow = async function(idCanon, safeId, btn) {
-            let fields = {};
-            document.querySelectorAll(`.tech-field-${safeId}`).forEach(inp => { fields[inp.getAttribute('data-head')] = inp.value; });
-            let pl = { action: "update_general", idCanon: idCanon, lat: 0, lng: 0, fields: fields }; 
-            let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement..."; btn.disabled = true;
-            try {
-                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(pl) }); let r = await res.json();
-                if(r.status === "success") { 
-                    btn.innerText = "✅ Succès !"; 
-                    let feat = window.snowCannons.features.find(f => f.properties.id == idCanon);
-                    if(feat) { Object.keys(fields).forEach(k => { let obj = feat.properties.fullData.find(x => x.k.toLowerCase().trim() === k.toLowerCase().trim()); if(obj) obj.v = fields[k]; }); }
-                    setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000); 
-                } else { alert("Erreur serveur"); btn.disabled = false; btn.innerText = oldText; }
-            } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
-        };
+        let card = document.createElement('div');
+        card.className = "atelier-card";
+        if (estValide) { card.style.borderLeftColor = "#27ae60"; card.style.background = "#f4fdf7"; }
 
-        window.handleSelectVanne = function(safeId, val) {
-            let bVar = document.getElementById(`bloc-var-${safeId}`); let bVarDbl = document.getElementById(`bloc-var-double-${safeId}`); let bV2000 = document.getElementById(`bloc-v2000-${safeId}`);
-            if (bVar) bVar.style.display = (val === 'var') ? 'block' : 'none';
-            if (bVarDbl) bVarDbl.style.display = (val === 'var_double') ? 'block' : 'none';
-            if (bV2000) bV2000.style.display = (val === 'v2000') ? 'block' : 'none';
-        };
+        card.innerHTML = `
+            <h3>📍 Canon N° ${idCanon} 
+                ${estValide ? '<span style="background:#27ae60; color:white; font-size:9px; padding:2px 6px; border-radius:10px; vertical-align:middle; margin-left:8px; font-weight:bold;">✅ ARCHIVÉ</span>' : ''}
+                <span style="font-size:12px; font-weight:normal; color:#888; float:right;">Piste: ${piste}</span>
+            </h3>
+            ${mapContainerHtml}
+            ${photoDisplayHtml}
+            <details class="atelier-sub-details" style="margin-bottom:6px;"><summary>⚙️ 1. Caractéristiques Techniques (Général)</summary>
+                <div class="atelier-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:6px; padding:10px;">${techHtml}</div>
+                <div style="padding:0 10px 10px 10px;"><button onclick="window.saveAtelierTechRow('${idCanon}','${safeId}',this)" style="width:100%; background:#2c3e50; color:white; border:none; padding:6px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:11px;">💾 Mettre à jour les données techniques</button></div>
+            </details>
+            <details class="atelier-sub-details" style="margin-bottom:6px;"><summary>🕒 2. Rapports d'anomalies de la ligne (Tickets)</summary>${histHtml}</details>
+            <details class="atelier-sub-details" open><summary>📝 3. Fiche d'Essai d'étanchéité & Hydraulique</summary>${formHtml}</details>
+        `;
+        ws.appendChild(card);
+    });
 
-        window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
-            let fieldsObj = {}; let canonData = window.snowCannons.features.find(f => f.properties.id == idCanon); let p = canonData ? canonData.properties : null;
-            let valVanneAd = p ? window.getV(p, "vanne additio") : "";
-            let isDouble = valVanneAd.toLowerCase().includes("2var") ? "oui" : (p ? window.getV(p, "abris double") : "");
+    setTimeout(() => {
+        mapsToInitialize.forEach(mapData => {
+            let container = document.getElementById(mapData.id);
+            if (!container) return;
+            let miniMap = L.map(mapData.id, { zoomControl: false, attributionControl: false, dragging: false, touchZoom: false, scrollWheelZoom: false }).setView([mapData.lat, mapData.lng], 16);
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(miniMap);
+            L.marker([mapData.lat, mapData.lng]).addTo(miniMap);
+        });
+    }, 200);
+};
 
-            fieldsObj["id"] = idCanon; fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; fieldsObj["abris double"] = isDouble; 
-            fieldsObj["type"] = p ? window.getV(p, "Type de vanne") : ""; fieldsObj["vanne additionnelle"] = valVanneAd; fieldsObj["type vanne AD 1"] = valVanneAd; 
+window.filterAtelierCanons = function(val) {
+    let search = val.toLowerCase().trim();
+    let cards = document.querySelectorAll('.atelier-card');
+    cards.forEach(card => {
+        let title = card.querySelector('h3').innerText.toLowerCase();
+        card.style.display = title.includes(search) ? 'block' : 'none';
+    });
+};
+
+window.saveAtelierTechRow = async function(idCanon, safeId, btn) {
+    let fields = {};
+    document.querySelectorAll(`.tech-field-${safeId}`).forEach(inp => { fields[inp.getAttribute('data-head')] = inp.value; });
+    let pl = { action: "update_general", idCanon: idCanon, lat: 0, lng: 0, fields: fields }; 
+    let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement..."; btn.disabled = true;
+    try {
+        let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(pl) }); let r = await res.json();
+        if(r.status === "success") { 
+            btn.innerText = "✅ Succès !"; 
+            let feat = window.snowCannons.features.find(f => f.properties.id == idCanon);
+            if(feat) { Object.keys(fields).forEach(k => { let obj = feat.properties.fullData.find(x => x.k.toLowerCase().trim() === k.toLowerCase().trim()); if(obj) obj.v = fields[k]; }); }
+            setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000); 
+        } else { alert("Erreur serveur"); btn.disabled = false; btn.innerText = oldText; }
+    } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
+};
+
+window.handleSelectVanne = function(safeId, val) {
+    let bVar = document.getElementById(`bloc-var-${safeId}`); let bVarDbl = document.getElementById(`bloc-var-double-${safeId}`); let bV2000 = document.getElementById(`bloc-v2000-${safeId}`);
+    if (bVar) bVar.style.display = (val === 'var') ? 'block' : 'none';
+    if (bVarDbl) bVarDbl.style.display = (val === 'var_double') ? 'block' : 'none';
+    if (bV2000) bV2000.style.display = (val === 'v2000') ? 'block' : 'none';
+};
+
+window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
+    let fieldsObj = {}; let canonData = window.snowCannons.features.find(f => f.properties.id == idCanon); let p = canonData ? canonData.properties : null;
+    let valVanneAd = p ? window.getV(p, "vanne additio") : "";
+    let isDouble = valVanneAd.toLowerCase().includes("2var") ? "oui" : (p ? window.getV(p, "abris double") : "");
+
+    fieldsObj["id"] = idCanon; fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; fieldsObj["abris double"] = isDouble; 
+    fieldsObj["type"] = p ? window.getV(p, "Type de vanne") : ""; fieldsObj["vanne additionnelle"] = valVanneAd; fieldsObj["type vanne AD 1"] = valVanneAd; 
+    
+    document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
+        if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
+        fieldsObj[inp.getAttribute('data-col')] = inp.value;
+    });
+
+    let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement & Synchro..."; btn.disabled = true;
+    try {
+        let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); let r = await res.json();
+        if(r.status === "success") {
+            btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
+            if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
+            let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); let rowData = new Array(headersAtelier.length).fill(""); rowData[headersAtelier.indexOf("id")] = idCanon; window.rawAtelier.push(rowData);
+            setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
+        } else { alert("Erreur Apps Script"); btn.disabled = false; btn.innerText = oldText; }
+    } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
+};
+
+/* ========================================================================= */
+/* CHAPITRE 13 : GESTION DE L'INVENTAIRE ET DU STOCK (COMPLET & SÉCURISÉ)    */
+/* ========================================================================= */
+window.renderStockWorkspace = function() {
+    let ws = document.getElementById('stock-workspace');
+    if (!ws) return;
+
+    // Décale le conteneur du stock vers le bas de 75px pour libérer la topbar fixe
+    ws.style.paddingTop = "75px"; 
+
+    if (!window.rawStock || window.rawStock.length < 1) {
+        ws.innerHTML = `
+            <h2 style="color:#2c3e50; border-bottom:2px solid #16a085; padding-bottom:10px;">📦 Gestion du Stock</h2>
+            <div style="background:#fff; border:1px solid #ddd; border-radius:6px; text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">
+                ⚠️ Aucun onglet de stock détecté ou données vides dans Google Sheets.
+            </div>`;
+        return;
+    }
+
+    // Extraction dynamique des en-têtes (insensible à l'ordre, aux accents et aux espaces)
+    let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
+    
+    // Recherche robuste des correspondances d'index de colonnes
+    let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
+    let idxRef = headers.findIndex(h => h === "ref");
+    let idxProd = headers.findIndex(h => h === "produit");
+    let idxDesc = headers.findIndex(h => h === "description");
+    let idxPhoto = headers.findIndex(h => h === "photo");
+    let idxCout = headers.findIndex(h => h === "cout");
+    let idxStock = headers.findIndex(h => h.includes("stock"));
+    let idxMini = headers.findIndex(h => h.includes("mini") || h.includes("seuil"));
+    let idxReste = headers.findIndex(h => h === "reste");
+    let idxPris = headers.findIndex(h => h === "pris");
+    let idxCmd = headers.findIndex(h => h.includes("commande") || h === "cmd");
+
+    let totalArticles = window.rawStock.length - 1;
+    ws.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #16a085; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+            <h2 style="color:#2c3e50; margin:0;">📦 Inventaire du Stock <span style="font-size:12px; color:#7f8c8d; font-weight:normal;">(${totalArticles} articles)</span></h2>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" id="search-stock" placeholder="🔍 Rechercher une pièce..." onkeyup="window.filterStockItems(this.value)" style="padding:8px; border-radius:6px; border:1px solid #ccc; outline:none; width:180px; font-weight:bold; font-size:13px;">
+                <button onclick="window.toggleAddStockForm()" style="background:#16a085; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px;">➕ Nouvelle Pièce</button>
+            </div>
+        </div>
+        
+        <div id="add-stock-form-container" style="display:none; background:#fff; border:2px solid #16a085; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+            <h4 style="margin:0 0 12px 0; color:#16a085; text-transform:uppercase;">Créer un nouvel article de stock</h4>
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px;" id="add-stock-fields-grid"></div>
+            <div style="display:flex; gap:10px; margin-top:15px; justify-content:flex-end;">
+                <button onclick="window.toggleAddStockForm()" style="padding:10px 15px; background:#e1e8ed; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
+                <button onclick="window.addStockItemToServer(this)" style="padding:10px 20px; background:#16a085; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 Valider l'ajout</button>
+            </div>
+        </div>
+        
+        <div id="stock-cards-list" style="display:flex; flex-direction:column; gap:15px;"></div>`;
+
+    let addGrid = document.getElementById('add-stock-fields-grid');
+    window.rawStock[0].forEach(colName => {
+        let cleanName = colName ? colName.toString().trim() : "";
+        if (cleanName === "") return;
+        addGrid.innerHTML += `
+            <div>
+                <span class="edit-label" style="font-size:10px;">${cleanName}</span>
+                <input type="text" class="edit-input new-stock-field" data-col="${cleanName}" style="margin-top:2px; margin-bottom:0; padding:6px; height:30px; box-sizing:border-box;">
+            </div>`;
+    });
+
+    if (window.rawStock.length <= 1) {
+        document.getElementById('stock-cards-list').innerHTML = `
+            <div style="text-align:center; padding:25px; color:#7f8c8d; font-style:italic; background:#fff; border:1px solid #ddd; border-radius:6px;">
+                Aucune ligne de matériel enregistrée sous la ligne des titres dans le Google Sheet.
+            </div>`;
+        return;
+    }
+
+    let cardsContainer = document.getElementById('stock-cards-list');
+    
+    for (let i = 1; i < window.rawStock.length; i++) {
+        try {
+            let row = window.rawStock[i];
+            if (!row || row.length === 0) continue; 
+
+            let isRowEmpty = row.every(cell => cell === null || cell === undefined || cell.toString().trim() === "");
+            if (isRowEmpty) continue;
+
+            let numRaw = (idxNum !== -1 && row[idxNum] !== undefined && row[idxNum] !== null) ? row[idxNum].toString().trim() : "";
+            let numPiece = (numRaw !== "") ? numRaw : i.toString();
+            let safeId = "stock-" + numPiece.replace(/[^a-zA-Z0-9]/g, "-");
             
-            document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
-                if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
-                fieldsObj[inp.getAttribute('data-col')] = inp.value;
-            });
+            let valRef = (idxRef !== -1 && row[idxRef] !== undefined) ? row[idxRef].toString().trim() : "";
+            let valProd = (idxProd !== -1 && row[idxProd] !== undefined) ? row[idxProd].toString().trim() : "Matériel sans nom";
+            let valDesc = (idxDesc !== -1 && row[idxDesc] !== undefined) ? row[idxDesc].toString().trim() : "";
+            let valPhoto = (idxPhoto !== -1 && row[idxPhoto] !== undefined) ? row[idxPhoto].toString().trim() : "";
+            let valCout = (idxCout !== -1 && row[idxCout] !== undefined) ? row[idxCout].toString().trim() : "0";
+            let valStock = (idxStock !== -1 && row[idxStock] !== undefined) ? parseFloat(row[idxStock]) || 0 : 0;
+            let valMini = (idxMini !== -1 && row[idxMini] !== undefined) ? parseFloat(row[idxMini]) || 0 : 0;
+            let valReste = (idxReste !== -1 && row[idxReste] !== undefined) ? row[idxReste].toString().trim() : "";
+            let valPris = (idxPris !== -1 && row[idxPris] !== undefined) ? row[idxPris].toString().trim() : "";
+            let valCmd = (idxCmd !== -1 && row[idxCmd] !== undefined) ? row[idxCmd].toString().trim() : "";
 
-            let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement & Synchro..."; btn.disabled = true;
-            try {
-                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); let r = await res.json();
-                if(r.status === "success") {
-                    btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
-                    if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
-                    let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); let rowData = new Array(headersAtelier.length).fill(""); rowData[headersAtelier.indexOf("id")] = idCanon; window.rawAtelier.push(rowData);
-                    setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
-                } else { alert("Erreur Apps Script"); btn.disabled = false; btn.innerText = oldText; }
-            } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
+            let alerteStockStyle = (valStock <= valMini) ? "background:#fdf2f2; border-color:#ec7063;" : "background:#fff;";
+            let badgeAlerteHtml = (valStock <= valMini) ? `<span style="background:#e74c3c; color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-weight:bold; vertical-align:middle; margin-left:8px;">⚠️ ALERTE SEUIL</span>` : "";
+
+            let parsedImgUrl = window.parseAppSheetPhotoUrl(valPhoto);
+
+            let cardBlock = document.createElement('div');
+            cardBlock.className = "stock-item-card";
+            cardBlock.setAttribute("data-num", numPiece);
+            cardBlock.style = `border:1px solid #ddd; border-left:5px solid #16a085; border-radius:8px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.03); display:flex; gap:15px; align-items:stretch; flex-wrap:wrap-reverse; ${alerteStockStyle}`;
+
+            cardBlock.innerHTML = `
+                <div style="flex:3; min-width:280px; display:flex; flex-direction:column; gap:8px;">
+                    <h3 style="margin:0; color:#2c3e50; font-size:15px;">
+                        📦 Réf: <span style="color:#16a085;">${valRef || "Aucune"}</span> - ${valProd} ${badgeAlerteHtml}
+                        <span style="font-size:11px; font-weight:normal; color:#888; float:right;">N°: ${numPiece}</span>
+                    </h3>
+                    
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:8px; margin-top:5px;">
+                        <div><span class="edit-label" style="font-size:9px;">Référence</span><input type="text" class="edit-input s-field-${safeId}" data-col="ref" value="${valRef}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Nom Produit</span><input type="text" class="edit-input s-field-${safeId}" data-col="produit" value="${valProd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div style="grid-column: span 2;"><span class="edit-label" style="font-size:9px;">Description</span><input type="text" class="edit-input s-field-${safeId}" data-col="description" value="${valDesc}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Coût (€)</span><input type="text" class="edit-input s-field-${safeId}" data-col="cout" value="${valCout}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px; color:#e74c3c; font-weight:bold;">En Stock</span><input type="number" class="edit-input s-field-${safeId}" data-col="en stock" value="${valStock}" style="padding:4px; margin:0; font-size:11.5px; height:26px; font-weight:bold;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Seuil Mini</span><input type="number" class="edit-input s-field-${safeId}" data-col="seuil mini" value="${valMini}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Reste</span><input type="text" class="edit-input s-field-${safeId}" data-col="reste" value="${valReste}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Pris</span><input type="text" class="edit-input s-field-${safeId}" data-col="pris" value="${valPris}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <div><span class="edit-label" style="font-size:9px;">Commande</span><input type="text" class="edit-input s-field-${safeId}" data-col="commande" value="${valCmd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
+                        <input type="hidden" class="edit-input s-field-${safeId}" data-col="photo" value="${valPhoto}">
+                    </div>
+                    
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button onclick="window.deleteStockItemFromServer('${numPiece}', this)" style="background:none; border:1px solid #ccc; color:#e74c3c; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🗑️ Supprimer</button>
+                        <button onclick="window.saveStockItemEdits('${numPiece}', '${safeId}', this)" style="flex-grow:1; background:#16a085; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">💾 Enregistrer les modifications</button>
+                    </div>
+                </div>
+                
+                <div style="flex:1; min-width:130px; max-width:180px; display:flex; align-items:center; justify-content:center; background:#fafbfc; border:1px solid #e1e8ed; border-radius:6px; overflow:hidden; padding:5px; box-sizing:border-box;">
+                    <img src="${parsedImgUrl}" style="max-width:100%; max-height:120px; object-fit:contain; border-radius:4px;" onerror="this.src='https://placehold.co/150x150?text=Image+Introuvable'"/>
+                </div>`;
+
+                    cardsContainer.appendChild(cardBlock);
+                } catch (err) {
+                    console.error("Erreur d'affichage sur la ligne index : " + i, err);
+                }
+            }
         };
 
+        window.toggleAddStockForm = function() {
+            let form = document.getElementById('add-stock-form-container');
+            if (form) form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+        };
+
+        window.filterStockItems = function(val) {
+            let search = val.toLowerCase().trim();
+            let cards = document.querySelectorAll('.stock-item-card');
+            
+            cards.forEach(card => {
+                let textContent = card.innerText.toLowerCase();
+                let inputs = card.querySelectorAll('input');
+                let match = textContent.includes(search);
+                
+                if (!match) {
+                    inputs.forEach(inp => {
+                        if (inp.value.toLowerCase().includes(search)) match = true;
+                    });
+                }
+                card.style.display = match ? 'flex' : 'none'; 
+            });
+        };
+
+        window.addStockItemToServer = async function(btn) {
+            let fieldsObj = {}; let inputs = document.querySelectorAll('.new-stock-field'); let hasData = false;
+            inputs.forEach(inp => { let colName = inp.getAttribute('data-col'); let val = inp.value; fieldsObj[colName] = val; if(val.trim() !== "") hasData = true; });
+            if (!hasData) { alert("⚠️ Renseigne au moins une information."); return; }
+
+            let oldText = btn.innerText; btn.innerText = "⏳ Envoi..."; btn.disabled = true;
+
+            try {
+                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "add_stock_item", fields: fieldsObj }) }); let r = await res.json();
+                if (r.status === "success") {
+                    btn.innerText = "✅ Succès !";
+                    let newRow = new Array(window.rawStock[0].length).fill("");
+                    window.rawStock[0].forEach((header, index) => { let colName = header.toString().trim(); if (fieldsObj[colName] !== undefined) newRow[index] = fieldsObj[colName]; });
+                    window.rawStock.push(newRow);
+                    setTimeout(() => { window.renderStockWorkspace(); }, 1200);
+                } else { alert("Erreur: " + r.msg); btn.innerText = oldText; btn.disabled = false; }
+            } catch(e) { alert("Erreur de la connexion."); btn.innerText = oldText; btn.disabled = false; }
+        };
+
+        window.saveStockItemEdits = async function(numPiece, safeId, btn) {
+            let fieldsObj = {}; let inputs = document.querySelectorAll(`.s-field-${safeId}`);
+            inputs.forEach(inp => { fieldsObj[inp.getAttribute('data-col')] = inp.value; });
+
+            let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement..."; btn.disabled = true;
+
+            try {
+                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "update_stock_item", idPiece: numPiece, fields: fieldsObj }) }); let r = await res.json();
+                if (r.status === "success") {
+                    btn.innerText = "✅ Enregistré !"; btn.style.background = "#27ae60";
+                    let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
+                    let idxNum = headers.findIndex(h => h.includes("numero") || h === "id"); if (idxNum === -1) idxNum = 0;
+                    
+                    let rowIndex = window.rawStock.findIndex((row, idx) => idx > 0 && row[idxNum].toString().trim() === numPiece.toString().trim());
+                    if (rowIndex !== -1) {
+                        window.rawStock[0].forEach((head, colIdx) => { let cleanHead = head.toString().trim(); let inp = document.querySelector(`.s-field-${safeId}[data-col="${cleanHead}"]`); if (inp) window.rawStock[rowIndex][colIdx] = inp.value; });
+                    }
+                    setTimeout(() => { window.renderStockWorkspace(); }, 1500);
+                } else { alert("Erreur: " + r.msg); btn.innerText = oldText; btn.disabled = false; }
+            } catch(e) { alert("Erreur réseau."); btn.innerText = oldText; btn.disabled = false; }
+        };
+
+        window.deleteStockItemFromServer = async function(numPiece, btn) {
+            if (!confirm("⚠️ Attention : Es-tu sûr de vouloir supprimer définitivement cette pièce du stock ?")) return;
+            let oldText = btn.innerText; btn.innerText = "⏳ Sup..."; btn.disabled = true;
+
+            try {
+                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "delete_stock_item", idPiece: numPiece }) }); let r = await res.json();
+                if (r.status === "success") {
+                    btn.innerText = "🗑️ Supprimé";
+                    let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
+                    let idxNum = headers.findIndex(h => h.includes("numero") || h === "id"); if (idxNum === -1) idxNum = 0;
+                    let rowIndex = window.rawStock.findIndex((row, idx) => idx > 0 && row[idxNum].toString().trim() === numPiece.toString().trim());
+                    if (rowIndex !== -1) window.rawStock.splice(rowIndex, 1);
+                    
+                    let card = btn.closest('.stock-item-card'); if (card) card.remove();
+                    let countSpan = document.querySelector('#stock-workspace h2 span'); if (countSpan) countSpan.innerText = `(${window.rawStock.length - 1} articles)`;
+                } else { alert("Erreur: " + r.msg); btn.innerText = oldText; btn.disabled = false; }
+            } catch(e) { alert("Erreur réseau."); btn.innerText = oldText; btn.disabled = false; }
+        };      
         /* ========================================================================= */
         /* CHAPITRE 11 : MAINTENANCE AVANCÉE ET MODULE "BUSES"                       */
         /* ========================================================================= */
@@ -1405,233 +1634,7 @@
         window.toggleExtLayer = function(id) { const ext = window.externalLayers[id]; ext.isVisible = !ext.isVisible; if(ext.isVisible) { window.map.addLayer(ext.layer); } else { window.map.removeLayer(ext.layer); } window.updateLayerDataInDB(id, { isVisible: ext.isVisible }); window.renderCustomLayersList(); };
         window.changeExtLayerStyle = function(id, newColor, newWeight) { if(window.externalLayers[id]) { if (newColor !== null) window.externalLayers[id].color = newColor; if (newWeight !== null) window.externalLayers[id].weight = parseInt(newWeight); let col = window.externalLayers[id].color; let w = window.externalLayers[id].weight; if(window.externalLayers[id].layer) { window.externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w}); window.externalLayers[id].layer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: col, fillColor: col }); } }); } window.updateLayerDataInDB(id, { color: col, weight: w }); } };
         window.deleteExtLayer = function(id) { window.map.removeLayer(window.externalLayers[id].layer); delete window.externalLayers[id]; window.deleteLayerFromDB(id); window.renderCustomLayersList(); };
-                /* ========================================================================= */
-        /* CHAPITRE 13 : GESTION DE L'INVENTAIRE ET DU STOCK (COMPLET & SÉCURISÉ)    */
-        /* ========================================================================= */
-        window.renderStockWorkspace = function() {
-            let ws = document.getElementById('stock-workspace');
-            if (!ws) return;
-
-            ws.style.paddingTop = "70px"; 
-
-            if (!window.rawStock || window.rawStock.length < 1) {
-                ws.innerHTML = `
-                    <h2 style="color:#2c3e50; border-bottom:2px solid #16a085; padding-bottom:10px;">📦 Gestion du Stock</h2>
-                    <div style="background:#fff; border:1px solid #ddd; border-radius:6px; text-align:center; padding:30px; color:#7f8c8d; font-weight:bold;">
-                        ⚠️ Aucun onglet de stock détecté ou données vides dans Google Sheets.
-                    </div>`;
-                return;
-            }
-
-            let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
-            
-            let idxNum = headers.findIndex(h => h.includes("numero") || h === "id");
-            let idxRef = headers.findIndex(h => h === "ref");
-            let idxProd = headers.findIndex(h => h === "produit");
-            let idxDesc = headers.findIndex(h => h === "description");
-            let idxPhoto = headers.findIndex(h => h === "photo");
-            let idxCout = headers.findIndex(h => h === "cout");
-            let idxStock = headers.findIndex(h => h.includes("stock"));
-            let idxMini = headers.findIndex(h => h.includes("mini") || h.includes("seuil"));
-            let idxReste = headers.findIndex(h => h === "reste");
-            let idxPris = headers.findIndex(h => h === "pris");
-            let idxCmd = headers.findIndex(h => h.includes("commande") || h === "cmd");
-
-            let totalArticles = window.rawStock.length - 1;
-            ws.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #16a085; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                    <h2 style="color:#2c3e50; margin:0;">📦 Inventaire du Stock <span style="font-size:12px; color:#7f8c8d; font-weight:normal;">(${totalArticles} articles)</span></h2>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <input type="text" id="search-stock" placeholder="🔍 Rechercher une pièce..." onkeyup="window.filterStockItems(this.value)" style="padding:8px; border-radius:6px; border:1px solid #ccc; outline:none; width:180px; font-weight:bold; font-size:13px;">
-                        <button onclick="window.toggleAddStockForm()" style="background:#16a085; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px;">➕ Nouvelle Pièce</button>
-                    </div>
-                </div>
-                
-                <div id="add-stock-form-container" style="display:none; background:#fff; border:2px solid #16a085; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 4px 15px rgba(0,0,0,0.05);">
-                    <h4 style="margin:0 0 12px 0; color:#16a085; text-transform:uppercase;">Créer un nouvel article de stock</h4>
-                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px;" id="add-stock-fields-grid"></div>
-                    <div style="display:flex; gap:10px; margin-top:15px; justify-content:flex-end;">
-                        <button onclick="window.toggleAddStockForm()" style="padding:10px 15px; background:#e1e8ed; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button>
-                        <button onclick="window.addStockItemToServer(this)" style="padding:10px 20px; background:#16a085; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 Valider l'ajout</button>
-                    </div>
-                </div>
-                
-                <div id="stock-cards-list" style="display:flex; flex-direction:column; gap:15px;"></div>`;
-
-            let addGrid = document.getElementById('add-stock-fields-grid');
-            window.rawStock[0].forEach(colName => {
-                let cleanName = colName ? colName.toString().trim() : "";
-                if (cleanName === "") return;
-                addGrid.innerHTML += `
-                    <div>
-                        <span class="edit-label" style="font-size:10px;">${cleanName}</span>
-                        <input type="text" class="edit-input new-stock-field" data-col="${cleanName}" style="margin-top:2px; margin-bottom:0; padding:6px; height:30px; box-sizing:border-box;">
-                    </div>`;
-            });
-
-            if (window.rawStock.length <= 1) {
-                document.getElementById('stock-cards-list').innerHTML = `
-                    <div style="text-align:center; padding:25px; color:#7f8c8d; font-style:italic; background:#fff; border:1px solid #ddd; border-radius:6px;">
-                        Aucune ligne de matériel enregistrée sous la ligne des titres dans le Google Sheet.
-                    </div>`;
-                return;
-            }
-
-            let cardsContainer = document.getElementById('stock-cards-list');
-            
-            for (let i = 1; i < window.rawStock.length; i++) {
-                try {
-                    let row = window.rawStock[i];
-                    if (!row || row.length === 0) continue; 
-
-                    let isRowEmpty = row.every(cell => cell === null || cell === undefined || cell.toString().trim() === "");
-                    if (isRowEmpty) continue;
-
-                    let numRaw = (idxNum !== -1 && row[idxNum] !== undefined && row[idxNum] !== null) ? row[idxNum].toString().trim() : "";
-                    let numPiece = (numRaw !== "") ? numRaw : i.toString();
-                    let safeId = "stock-" + numPiece.replace(/[^a-zA-Z0-9]/g, "-");
-                    
-                    let valRef = (idxRef !== -1 && row[idxRef]) ? row[idxRef].toString().trim() : "";
-                    let valProd = (idxProd !== -1 && row[idxProd]) ? row[idxProd].toString().trim() : "Matériel sans nom";
-                    let valDesc = (idxDesc !== -1 && row[idxDesc]) ? row[idxDesc].toString().trim() : "";
-                    let valPhoto = (idxPhoto !== -1 && row[idxPhoto]) ? row[idxPhoto].toString().trim() : "";
-                    let valCout = (idxCout !== -1 && row[idxCout]) ? row[idxCout].toString().trim() : "0";
-                    let valStock = (idxStock !== -1 && row[idxStock]) ? parseFloat(row[idxStock]) || 0 : 0;
-                    let valMini = (idxMini !== -1 && row[idxMini]) ? parseFloat(row[idxMini]) || 0 : 0;
-                    let valReste = (idxReste !== -1 && row[idxReste]) ? row[idxReste].toString().trim() : "";
-                    let valPris = (idxPris !== -1 && row[idxPris]) ? row[idxPris].toString().trim() : "";
-                    let valCmd = (idxCmd !== -1 && row[idxCmd]) ? row[idxCmd].toString().trim() : "";
-
-                    let alerteStockStyle = (valStock <= valMini) ? "background:#fdf2f2; border-color:#ec7063;" : "background:#fff;";
-                    let badgeAlerteHtml = (valStock <= valMini) ? `<span style="background:#e74c3c; color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-weight:bold; vertical-align:middle; margin-left:8px;">⚠️ ALERTE SEUIL</span>` : "";
-
-                    let parsedImgUrl = window.parseAppSheetPhotoUrl(valPhoto);
-
-                    let cardBlock = document.createElement('div');
-                    cardBlock.className = "stock-item-card";
-                    cardBlock.setAttribute("data-num", numPiece);
-                    cardBlock.style = `border:1px solid #ddd; border-left:5px solid #16a085; border-radius:8px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.03); display:flex; gap:15px; align-items:stretch; flex-wrap:wrap-reverse; ${alerteStockStyle}`;
-
-                    cardBlock.innerHTML = `
-                        <div style="flex:3; min-width:280px; display:flex; flex-direction:column; gap:8px;">
-                            <h3 style="margin:0; color:#2c3e50; font-size:15px;">
-                                📦 Réf: <span style="color:#16a085;">${valRef || "Aucune"}</span> - ${valProd} ${badgeAlerteHtml}
-                                <span style="font-size:11px; font-weight:normal; color:#888; float:right;">N°: ${numPiece}</span>
-                            </h3>
-                            
-                            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:8px; margin-top:5px;">
-                                <div><span class="edit-label" style="font-size:9px;">Référence</span><input type="text" class="edit-input s-field-${safeId}" data-col="ref" value="${valRef}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">Nom Produit</span><input type="text" class="edit-input s-field-${safeId}" data-col="produit" value="${valProd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                                <div style="grid-column: span 2;"><span class="edit-label" style="font-size:9px;">Description</span><input type="text" class="edit-input s-field-${safeId}" data-col="description" value="${valDesc}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">Coût (€)</span><input type="text" class="edit-input s-field-${safeId}" data-col="cout" value="${valCout}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                                <div><span class="edit-label" style="font-size:9px; color:#e74c3c; font-weight:bold;">En Stock</span><input type="number" class="edit-input s-field-${safeId}" data-col="en stock" value="${valStock}" style="padding:4px; margin:0; font-size:11.5px; height:26px; font-weight:bold;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">Seuil Mini</span><input type="number" class="edit-input s-field-${safeId}" data-col="seuil mini" value="${valMini}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">Reste</span><input type="text" class="edit-input s-field-${safeId}" data-col="reste" value="${valReste}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">Pris</span><input type="text" class="edit-input s-field-${safeId}" data-col="pris" value="${valPris}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                                <div><span class="edit-label" style="font-size:9px;">Commande</span><input type="text" class="edit-input s-field-${safeId}" data-col="commande" value="${valCmd}" style="padding:4px; margin:0; font-size:11.5px; height:26px;"></div>
-                                <input type="hidden" class="edit-input s-field-${safeId}" data-col="photo" value="${valPhoto}">
-                            </div>
-                            
-                            <div style="display:flex; gap:8px; margin-top:8px;">
-                                <button onclick="window.deleteStockItemFromServer('${numPiece}', this)" style="background:none; border:1px solid #ccc; color:#e74c3c; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🗑️ Supprimer</button>
-                                <button onclick="window.saveStockItemEdits('${numPiece}', '${safeId}', this)" style="flex-grow:1; background:#16a085; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">💾 Enregistrer les modifications</button>
-                            </div>
-                        </div>
-                        
-                        <div style="flex:1; min-width:130px; max-width:180px; display:flex; align-items:center; justify-content:center; background:#fafbfc; border:1px solid #e1e8ed; border-radius:6px; overflow:hidden; padding:5px; box-sizing:border-box;">
-                            <img src="${parsedImgUrl}" style="max-width:100%; max-height:120px; object-fit:contain; border-radius:4px;" onerror="this.src='https://placehold.co/150x150?text=Image+Introuvable'"/>
-                        </div>`;
-
-                    cardsContainer.appendChild(cardBlock);
-                } catch (err) {
-                    console.error("Erreur d'affichage sur la ligne index : " + i, err);
-                }
-            }
-        };
-
-        window.toggleAddStockForm = function() {
-            let form = document.getElementById('add-stock-form-container');
-            if (form) form.style.display = (form.style.display === 'none') ? 'block' : 'none';
-        };
-
-        window.filterStockItems = function(val) {
-            let search = val.toLowerCase().trim();
-            let cards = document.querySelectorAll('.stock-item-card');
-            
-            cards.forEach(card => {
-                let textContent = card.innerText.toLowerCase();
-                let inputs = card.querySelectorAll('input');
-                let match = textContent.includes(search);
-                
-                if (!match) {
-                    inputs.forEach(inp => {
-                        if (inp.value.toLowerCase().includes(search)) match = true;
-                    });
-                }
-                card.style.display = match ? 'flex' : 'none'; 
-            });
-        };
-
-        window.addStockItemToServer = async function(btn) {
-            let fieldsObj = {}; let inputs = document.querySelectorAll('.new-stock-field'); let hasData = false;
-            inputs.forEach(inp => { let colName = inp.getAttribute('data-col'); let val = inp.value; fieldsObj[colName] = val; if(val.trim() !== "") hasData = true; });
-            if (!hasData) { alert("⚠️ Renseigne au moins une information."); return; }
-
-            let oldText = btn.innerText; btn.innerText = "⏳ Envoi..."; btn.disabled = true;
-
-            try {
-                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "add_stock_item", fields: fieldsObj }) }); let r = await res.json();
-                if (r.status === "success") {
-                    btn.innerText = "✅ Succès !";
-                    let newRow = new Array(window.rawStock[0].length).fill("");
-                    window.rawStock[0].forEach((header, index) => { let colName = header.toString().trim(); if (fieldsObj[colName] !== undefined) newRow[index] = fieldsObj[colName]; });
-                    window.rawStock.push(newRow);
-                    setTimeout(() => { window.renderStockWorkspace(); }, 1200);
-                } else { alert("Erreur: " + r.msg); btn.innerText = oldText; btn.disabled = false; }
-            } catch(e) { alert("Échec de la connexion."); btn.innerText = oldText; btn.disabled = false; }
-        };
-
-        window.saveStockItemEdits = async function(numPiece, safeId, btn) {
-            let fieldsObj = {}; let inputs = document.querySelectorAll(`.s-field-${safeId}`);
-            inputs.forEach(inp => { fieldsObj[inp.getAttribute('data-col')] = inp.value; });
-
-            let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement..."; btn.disabled = true;
-
-            try {
-                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "update_stock_item", idPiece: numPiece, fields: fieldsObj }) }); let r = await res.json();
-                if (r.status === "success") {
-                    btn.innerText = "✅ Enregistré !"; btn.style.background = "#27ae60";
-                    let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
-                    let idxNum = headers.findIndex(h => h.includes("numero") || h === "id"); if (idxNum === -1) idxNum = 0;
-                    
-                    let rowIndex = window.rawStock.findIndex((row, idx) => idx > 0 && row[idxNum].toString().trim() === numPiece.toString().trim());
-                    if (rowIndex !== -1) {
-                        window.rawStock[0].forEach((head, colIdx) => { let cleanHead = head.toString().trim(); let inp = document.querySelector(`.s-field-${safeId}[data-col="${cleanHead}"]`); if (inp) window.rawStock[rowIndex][colIdx] = inp.value; });
-                    }
-                    setTimeout(() => { window.renderStockWorkspace(); }, 1500);
-                } else { alert("Erreur: " + r.msg); btn.innerText = oldText; btn.disabled = false; }
-            } catch(e) { alert("Erreur réseau."); btn.innerText = oldText; btn.disabled = false; }
-        };
-
-        window.deleteStockItemFromServer = async function(numPiece, btn) {
-            if (!confirm("⚠️ Attention : Es-tu sûr de vouloir supprimer définitivement cette pièce du stock ?")) return;
-            let oldText = btn.innerText; btn.innerText = "⏳ Sup..."; btn.disabled = true;
-
-            try {
-                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "delete_stock_item", idPiece: numPiece }) }); let r = await res.json();
-                if (r.status === "success") {
-                    btn.innerText = "🗑️ Supprimé";
-                    let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
-                    let idxNum = headers.findIndex(h => h.includes("numero") || h === "id"); if (idxNum === -1) idxNum = 0;
-                    let rowIndex = window.rawStock.findIndex((row, idx) => idx > 0 && row[idxNum].toString().trim() === numPiece.toString().trim());
-                    if (rowIndex !== -1) window.rawStock.splice(rowIndex, 1);
-                    
-                    let card = btn.closest('.stock-item-card'); if (card) card.remove();
-                    let countSpan = document.querySelector('#stock-workspace h2 span'); if (countSpan) countSpan.innerText = `(${window.rawStock.length - 1} articles)`;
-                } else { alert("Erreur: " + r.msg); btn.innerText = oldText; btn.disabled = false; }
-            } catch(e) { alert("Erreur réseau."); btn.innerText = oldText; btn.disabled = false; }
-        };
-
+              
             /* ========================================================================= */
         /* CHAPITRE 14 : GESTION ET GRAPHIQUES DE L'HISTORIQUE MÉTÉO                 */
         /* ========================================================================= */
