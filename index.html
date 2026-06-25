@@ -1424,17 +1424,34 @@ window.renderStockWorkspace = function() {
                 badgeAlerteHtml = `<span style="background:#e74c3c; color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-weight:bold; vertical-align:middle; margin-left:8px;">⚠️ SEUIL CRITIQUE</span>`;
             }
 
-            // Gestion intelligente du format de l'image (Drive vs AppSheet)
-            let parsedImgUrl = "";
-            if (valPhoto.includes("drive.google.com")) {
-                parsedImgUrl = window.parseDriveUrl(valPhoto);
-            } else if (valPhoto.startsWith("photos/")) {
-                let appName = "maintenanceneige-3822734";
-                parsedImgUrl = `https://www.appsheet.com/template/gettablefileurl?appName=${appName}&tableName=Stock&fileName=${encodeURIComponent(valPhoto)}`;
-            } else {
-                parsedImgUrl = window.parseAppSheetPhotoUrl(valPhoto);
-            }
+            /* ========================================================================= */
+/* TITRE : RECHERCHE DYNAMIQUE DE LA PHOTO CORRESPONDANTE DANS DRIVE         */
+/* ========================================================================= */
 
+// 1. Détermination de l'URL de l'image par défaut (si aucune correspondance n'est trouvée)
+let parsedImgUrl = "https://placehold.co/150x150?text=Pas+de+photo";
+
+// 2. Nettoyage de la référence et du nom du produit pour la recherche textuelle
+let cleanRefKey = valRef.toLowerCase().trim();
+let cleanProdKey = valProd.toLowerCase().trim();
+
+// 3. Vérification si le dictionnaire de photos du Drive contient une correspondance
+if (window.rawObjects && window.rawObjects.drivePhotos) {
+    // On cherche d'abord si un fichier possède le nom exact de la référence (ex: 66000440.jpg)
+    let matchByRef = Object.keys(window.rawObjects.drivePhotos).find(name => name.includes(cleanRefKey) && cleanRefKey !== "");
+    
+    // Si pas de correspondance par référence, on tente de chercher par le nom du produit (ex: joint-r18.png)
+    let matchByProd = Object.keys(window.rawObjects.drivePhotos).find(name => name.includes(cleanProdKey) && cleanProdKey !== "");
+
+    if (matchByRef) {
+        parsedImgUrl = window.rawObjects.drivePhotos[matchByRef]; // Utilisation de la photo correspondante à la référence
+    } else if (matchByProd) {
+        parsedImgUrl = window.rawObjects.drivePhotos[matchByProd]; // Utilisation de la photo correspondante au nom produit
+    }
+} else if (valPhoto !== "") {
+    // Secours : Si une URL manuelle était écrite dans la cellule de l'onglet, on la conserve
+    parsedImgUrl = valPhoto.includes("drive.google.com") ? window.parseDriveUrl(valPhoto) : window.parseAppSheetPhotoUrl(valPhoto);
+}
             let cardBlock = document.createElement('div');
             cardBlock.className = "stock-item-card";
             cardBlock.setAttribute("data-num", numPiece);
