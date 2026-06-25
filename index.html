@@ -216,6 +216,14 @@
                         </div>
                     </div>
                     <div class="theme-block">
+    <label class="radio-card" id="lbl-stock" style="border-radius: 6px; margin-bottom: 8px; border-color: #e1e8ed;">
+        <input type="radio" name="main_theme" value="stock"> 📦 Gestion du Stock
+    </label>
+    <div class="theme-details" id="details-stock" style="display: none; border-color: #16a085;">
+        <div style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:8px;">Inventaire et suivi des pièces</div>
+    </div>
+</div>
+                    <div class="theme-block">
                         <label class="radio-card" id="lbl-entretien_tete" style="border-radius: 6px; margin-bottom: 8px; border-color: #e1e8ed;">
                             <input type="radio" name="main_theme" value="entretien_tete"> 🚿 Entretien Tête Canon
                         </label>
@@ -255,6 +263,7 @@
             <div id="map"></div>
             <div id="atelier-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8; overflow-y:auto; padding:20px; box-sizing:border-box;"></div>
         </div>
+        <div id="stock-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8; overflow-y:auto; padding:20px; box-sizing:border-box;"></div>
                 <div id="right-sidebar">
             <div class="right-header" id="right-header"><span id="right-title">📌 Analyse Détaillée</span><button onclick="window.closeRightSidebar()" style="background:none; border:none; color:#bdc3c7; font-size:28px; cursor:pointer;">&times;</button></div>
             <div class="right-content">
@@ -307,6 +316,32 @@
         window.getTicketsForCanon = function(id) { return window.rawTickets.filter(t => t.idCanon === id); }; 
         window.getActiveTickets = function(id) { return window.getTicketsForCanon(id).filter(t => t.statut.includes('faire') || t.statut.includes('cours')); }; 
         window.getHistoryTickets = function(id) { return window.getTicketsForCanon(id).filter(t => t.statut.includes('fait') || t.statut === '').sort((a,b) => new Date(b.date) - new Date(a.date)); };
+
+            /* ========================================================================= */
+/* TITRE : CONVERTISSEUR D'URL COMPATIBLE AVEC LE STOCKAGE IMAGES APPSHEET  */
+/* ========================================================================= */
+window.parseAppSheetPhotoUrl = function(photoPath) {
+    if (!photoPath || photoPath.trim() === "") return "https://placehold.co/150x150?text=Pas+de+photo";
+    
+    // Si c'est déjà une URL HTTP/HTTPS complète, on la renvoie brute
+    if (photoPath.startsWith("http")) return photoPath;
+    
+    // Nettoyage des slashes initiaux si présents
+    let cleanPath = photoPath.startsWith("/") ? photoPath.substring(1) : photoPath;
+    
+    // Découpage du chemin type : appsheet/data/maintenanceneige-3822734/photos/66000440.jpg
+    let parts = cleanPath.split("/");
+    if (parts.length >= 3 && parts[0].toLowerCase() === "appsheet") {
+        let appName = parts[2]; // Récupère "maintenanceneige-3822734"
+        // On isole tout ce qui se trouve après le nom de l'application pour reconstituer le nom du fichier
+        let fileName = parts.slice(3).join("/"); 
+        
+        // Renvoie l'URL d'affichage direct officielle d'AppSheet via son CDN
+        return `https://www.appsheet.com/template/gettablefileurl?appName=${appName}&tableName=stock&fileName=${encodeURIComponent(fileName)}`;
+    }
+    
+    return "https://placehold.co/150x150?text=Chemin+Invalide";
+};
 
         /* ========================================================================= */
         /* CHAPITRE 3 : MODULE POWER BI & STATISTIQUES GLOBALES                      */
@@ -1733,23 +1768,46 @@ window.saveMultiSuivi = async function(btn) {
             });
             window.webcamLayerGroup.addTo(window.map);
             
-            document.querySelectorAll('input[name="main_theme"]').forEach(r => {
-                r.addEventListener('change', e => {
-                    window.mainTheme = e.target.value;
-                    document.querySelectorAll('.theme-details, .theme-details-hist').forEach(el => el.style.display = 'none');
-                    document.querySelectorAll('.radio-card').forEach(el => { el.style.borderBottomLeftRadius = '6px'; el.style.borderBottomRightRadius = '6px'; el.style.marginBottom = '8px'; el.style.borderColor = '#e1e8ed'; el.style.borderTop = '1px solid #e1e8ed'; });
-                    
-                    let activeDetails = document.getElementById('details-' + window.mainTheme); 
-                    let activeLabel = document.getElementById('lbl-' + window.mainTheme);
-                    
-                    if (activeDetails && activeLabel) { 
-                        activeDetails.style.display = 'block'; 
-                        activeLabel.style.borderBottomLeftRadius = '0'; activeLabel.style.borderBottomRightRadius = '0'; activeLabel.style.marginBottom = '0'; 
-                        if(window.mainTheme === 'historique') activeLabel.style.borderColor = '#2ecc71'; 
-                        else if(window.mainTheme === 'suivi_entretien') activeLabel.style.borderColor = '#27ae60'; 
-                        else if(window.mainTheme === 'entretien_tete') activeLabel.style.borderColor = '#e67e22'; 
-                        else if(window.mainTheme === 'atelier') activeLabel.style.borderColor = '#8e44ad'; 
-                        else activeLabel.style.borderColor = '#3498db'; 
+           /* ========================================================================= */
+/* TITRE : GESTION DYNAMIC DU CHANGEMENT DE THÈME (CARTE / ATELIER / STOCK)  */
+/* ========================================================================= */
+document.querySelectorAll('input[name="main_theme"]').forEach(r => {
+    r.addEventListener('change', e => {
+        window.mainTheme = e.target.value;
+        // 1. On masque tous les panneaux de détails spécifiques
+        document.querySelectorAll('.theme-details, .theme-details-hist').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.radio-card').forEach(el => { 
+            el.style.borderBottomLeftRadius = '6px'; el.style.borderBottomRightRadius = '6px'; 
+            el.style.marginBottom = '8px'; el.style.borderColor = '#e1e8ed'; 
+        });
+        
+        let activeDetails = document.getElementById('details-' + window.mainTheme); 
+        let activeLabel = document.getElementById('lbl-' + window.mainTheme);
+        if (activeDetails && activeLabel) { 
+            activeDetails.style.display = 'block'; 
+            activeLabel.style.borderBottomLeftRadius = '0'; activeLabel.style.borderBottomRightRadius = '0'; activeLabel.style.marginBottom = '0'; 
+            if(window.mainTheme === 'stock') activeLabel.style.borderColor = '#16a085';
+            else if(window.mainTheme === 'atelier') activeLabel.style.borderColor = '#8e44ad';
+            else activeLabel.style.borderColor = '#3498db';
+        }
+        
+        // 2. Routage vers l'espace de travail correspondant
+        if(window.mainTheme === 'atelier') {
+            document.getElementById('map').style.display = 'none'; document.getElementById('atelier-workspace').style.display = 'block'; document.getElementById('stock-workspace').style.display = 'none';
+            window.closeRightSidebar(); if(window.renderAtelierWorkspace) window.renderAtelierWorkspace();
+        } 
+        else if(window.mainTheme === 'stock') {
+            document.getElementById('map').style.display = 'none'; document.getElementById('atelier-workspace').style.display = 'none'; document.getElementById('stock-workspace').style.display = 'block';
+            window.closeRightSidebar(); if(window.renderStockWorkspace) window.renderStockWorkspace();
+        }
+        else {
+            document.getElementById('map').style.display = 'block'; document.getElementById('atelier-workspace').style.display = 'none'; document.getElementById('stock-workspace').style.display = 'none';
+            if(window.mainTheme === 'historique') window.calculateMaxes(); 
+            window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
+        }
+    });
+});
+            else activeLabel.style.borderColor = '#3498db'; 
                     }
                     
                     if(window.mainTheme === 'atelier') {
