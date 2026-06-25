@@ -1427,37 +1427,43 @@ window.renderStockWorkspace = function() {
             /* ========================================================================= */
 /* TITRE : RECHERCHE DYNAMIQUE DE LA PHOTO CORRESPONDANTE DANS DRIVE         */
 /* ========================================================================= */
-            // =========================================================
+                      // =========================================================
             // LIAISON INTELLIGENTE : GOOGLE SHEETS <-> DOSSIER DRIVE
             // =========================================================
             let parsedImgUrl = "https://placehold.co/150x150?text=Pas+de+photo";
             
-            // 1. Extraction du nom de fichier pur depuis le chemin AppSheet
-            // Exemple : "/appsheet/data/photos/68220006.photo.102829.jpg" -> "68220006.photo.102829.jpg"
-            let rawFileName = valPhoto.toString().split('/').pop().toLowerCase().trim();
+            if (valPhoto && valPhoto.trim() !== "") {
+                // 1. On nettoie pour isoler le nom brut. Ex: "/appsheet/.../68220006.photo.123.jpg" -> "68220006.photo.123.jpg"
+                let rawFileName = valPhoto.toString().split('/').pop().toLowerCase().trim();
+                
+                // 2. On extrait uniquement l'ID principal (avant le premier point) -> "68220006"
+                let coreId = rawFileName.split('.')[0]; 
 
-            if (rawFileName !== "") {
-                // 2. On retire l'extension du nom trouvé dans le tableur pour fiabiliser la recherche
-                let cleanFileNameNoExt = rawFileName.split('.').slice(0, -1).join('.');
-                if (cleanFileNameNoExt === "") cleanFileNameNoExt = rawFileName;
-
-                // 3. On fouille dans le dictionnaire Drive envoyé par Google
-                if (window.drivePhotos && window.drivePhotos[rawFileName]) {
-                    // Recherche exacte (avec extension)
-                    parsedImgUrl = window.drivePhotos[rawFileName]; 
-                } else if (window.drivePhotos && window.drivePhotos[cleanFileNameNoExt]) {
-                    // Recherche large (sans extension)
-                    parsedImgUrl = window.drivePhotos[cleanFileNameNoExt]; 
-                } 
-                // Secours 1 : Si la cellule du tableur contient un lien de partage Drive complet collé à la main
-                else if (valPhoto.includes("drive.google.com")) {
-                    parsedImgUrl = window.parseDriveUrl(valPhoto);
-                } 
-                // Secours 2 : Si le fichier n'est pas encore détecté sur Drive, on tente le lien CDN AppSheet
-                else {
-                    parsedImgUrl = `https://www.appsheet.com/template/gettablefileurl?appName=maintenanceneige-3822734&tableName=Stock&fileName=${encodeURIComponent(valPhoto)}`;
+                if (window.drivePhotos) {
+                    let driveKeys = Object.keys(window.drivePhotos);
+                    
+                    // Match Exact
+                    if (window.drivePhotos[rawFileName]) {
+                        parsedImgUrl = window.drivePhotos[rawFileName];
+                    } else {
+                        // Match Intelligent : on cherche si une photo sur ton Drive contient l'ID "68220006"
+                        let fuzzyMatch = driveKeys.find(k => k.includes(coreId) && coreId !== "");
+                        
+                        if (fuzzyMatch) {
+                            parsedImgUrl = window.drivePhotos[fuzzyMatch];
+                        } 
+                        // Secours 1 : Lien écrit à la main
+                        else if (valPhoto.includes("drive.google.com")) {
+                            parsedImgUrl = window.parseDriveUrl(valPhoto);
+                        } 
+                        // Secours 2 : CDN AppSheet classique
+                        else {
+                            parsedImgUrl = `https://www.appsheet.com/template/gettablefileurl?appName=maintenanceneige-3822734&tableName=Stock&fileName=${encodeURIComponent(valPhoto)}`;
+                        }
+                    }
                 }
             }
+            // =========================================================
             // =========================================================
             // =========================================================
             let cardBlock = document.createElement('div');
@@ -1860,10 +1866,12 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
             try { data = JSON.parse(textData); } catch(e) { throw new Error("Format invalide."); }
             
             window.rawGeneral = data.general || []; window.rawHistorique = data.historique || []; window.rawTicketsSheet = data.tickets || [];
-            window.meteoHistData = data.meteo_hist || []; window.meteoFroidData = data.meteo_froid || []; window.suiviEntretienData = data.suivi || []; window.rawAtelier = data.atelier || [];
+                        window.meteoHistData = data.meteo_hist || []; window.meteoFroidData = data.meteo_froid || []; window.suiviEntretienData = data.suivi || []; window.rawAtelier = data.atelier || [];
             
-            // CHARGEMENT DE LA MÉMOIRE GLOBALE POUR LE STOCK
+            // CHARGEMENT DE LA MÉMOIRE GLOBALE (STOCK + DRIVE PHOTOS)
             window.rawStock = data.stock || [];
+            window.drivePhotos = data.drivePhotos || {}; // LA LIGNE MANQUANTE ÉTAIT ICI !
+            console.log("📸 [Diagnostic Drive] Images détectées :", Object.keys(window.drivePhotos).length);
                         // CHARGEMENT DE LA MÉMOIRE GLOBALE POUR LE STOCK ET LES PHOTOS DRIVE
             window.rawStock = data.stock || [];
             window.drivePhotos = data.drivePhotos || {}; // <--- AJOUTE CETTE LIGNE ICI
