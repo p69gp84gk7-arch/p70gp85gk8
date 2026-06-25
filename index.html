@@ -1428,27 +1428,30 @@ window.renderStockWorkspace = function() {
 /* TITRE : RECHERCHE DYNAMIQUE DE LA PHOTO CORRESPONDANTE DANS DRIVE         */
 /* ========================================================================= */
 
-// 1. Détermination de l'URL de l'image par défaut (si aucune correspondance n'est trouvée)
-            // =========================================================
-            // LIAISON INTELLIGENTE : GOOGLE SHEETS <-> DOSSIER DRIVE
-            // =========================================================
+            /* ========================================================================= */
+            /* TITRE : EXTRACTION ET CORRESPONDANCE DES PHOTOS DRIVE (CORRIGÉ)           */
+            /* ========================================================================= */
+            
+            // 1. Initialisation de l'URL par défaut (si le fichier n'est pas trouvé)
             let parsedImgUrl = "https://placehold.co/150x150?text=Pas+de+photo";
             
-            // 1. On nettoie la valeur de la cellule pour isoler juste le nom du fichier
-            // Ex: "photos/66000440.photo.150821.jpg" devient "66000440.photo.150821.jpg"
-            let cleanFileName = valPhoto.split('/').pop().toLowerCase().trim();
+            // 2. Extraction du nom de fichier pur depuis le chemin complet AppSheet
+            // On découpe la chaîne par les lignes de Slashes "/" et on attrape le dernier morceau (.pop())
+            // Exemple : "/appsheet/data/.../68220006.photo.102829.jpg" devient "68220006.photo.102829.jpg"
+            let cleanFileName = valPhoto.toString().split('/').pop().toLowerCase().trim();
 
+            // 3. Vérification de la correspondance avec le dossier Google Drive scanné
             if (cleanFileName !== "") {
-                // 2. On vérifie si ce fichier existe dans le dossier Drive qu'on a scanné
+                // On fouille dans le dictionnaire d'images envoyé par le Google Script
                 if (window.drivePhotos && window.drivePhotos[cleanFileName]) {
-                    // BINGO ! On utilise le lien direct très rapide de Google Drive
+                    // Si le nom correspond à un fichier du dossier, on injecte le lien direct de prévisualisation
                     parsedImgUrl = window.drivePhotos[cleanFileName]; 
                 } 
-                // 3. Secours : Si la case contient déjà un lien Drive complet collé manuellement
+                // Secours 1 : Si la cellule du tableur contient un lien de partage Drive complet collé à la main
                 else if (valPhoto.includes("drive.google.com")) {
                     parsedImgUrl = window.parseDriveUrl(valPhoto);
                 } 
-                // 4. Secours final : On essaie avec AppSheet
+                // Secours 2 : Si le fichier n'est pas encore détecté sur Drive, on tente le lien CDN AppSheet
                 else {
                     parsedImgUrl = `https://www.appsheet.com/template/gettablefileurl?appName=maintenanceneige-3822734&tableName=Stock&fileName=${encodeURIComponent(valPhoto)}`;
                 }
