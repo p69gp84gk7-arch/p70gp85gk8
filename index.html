@@ -1930,7 +1930,7 @@ window.saveMultiSuivi = async function(btn) {
             window.rawGeneral = data.general || []; window.rawHistorique = data.historique || []; window.rawTicketsSheet = data.tickets || [];
             window.meteoHistData = data.meteo_hist || []; window.meteoFroidData = data.meteo_froid || []; window.suiviEntretienData = data.suivi || []; window.rawAtelier = data.atelier || [];
             // AJOUT ESSENTIEL : Récupération des données du stock depuis la réponse Google Apps Script
-            window.rawStock = data.stock || [];
+           window.rawStock = data.stock || [];
 
             window.setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
