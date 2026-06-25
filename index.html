@@ -1720,7 +1720,7 @@ window.saveMultiSuivi = async function(btn) {
         window.changeExtLayerStyle = function(id, newColor, newWeight) { if(window.externalLayers[id]) { if (newColor !== null) window.externalLayers[id].color = newColor; if (newWeight !== null) window.externalLayers[id].weight = parseInt(newWeight); let col = window.externalLayers[id].color; let w = window.externalLayers[id].weight; if(window.externalLayers[id].layer) { window.externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w}); window.externalLayers[id].layer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: col, fillColor: col }); } }); } window.updateLayerDataInDB(id, { color: col, weight: w }); } };
         window.deleteExtLayer = function(id) { window.map.removeLayer(window.externalLayers[id].layer); delete window.externalLayers[id]; window.deleteLayerFromDB(id); window.renderCustomLayersList(); };
 
-        /* ========================================================================= */
+/* ========================================================================= */
         /* CHAPITRE 13 : INITIALISATION (BOOT) ET DATA FETCHING                      */
         /* ========================================================================= */
         window.setStep = function(step, desc) { let elStep = document.getElementById('loading-step'); let elDesc = document.getElementById('loading-desc'); if (elStep) elStep.innerText = "Étape " + step + "/5"; if (elDesc) elDesc.innerText = desc; };
@@ -1735,6 +1735,8 @@ window.saveMultiSuivi = async function(btn) {
             
             window.rawGeneral = data.general || []; window.rawHistorique = data.historique || []; window.rawTicketsSheet = data.tickets || [];
             window.meteoHistData = data.meteo_hist || []; window.meteoFroidData = data.meteo_froid || []; window.suiviEntretienData = data.suivi || []; window.rawAtelier = data.atelier || [];
+            // AJOUT ESSENTIEL : Récupération des données du stock depuis la réponse Google Apps Script
+            window.rawStock = data.stock || [];
 
             window.setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
@@ -1904,70 +1906,70 @@ window.saveMultiSuivi = async function(btn) {
             });
             window.webcamLayerGroup.addTo(window.map);
             
-  /* ========================================================================= */
-/* TITRE : ÉCOUTEUR DE CHANGEMENT DE THÈME ET ROUTAGE DES ESPACES (CORRIGÉ)  */
-/* ========================================================================= */
-document.querySelectorAll('input[name="main_theme"]').forEach(r => {
-    r.addEventListener('change', e => {
-        // Enregistrement du thème sélectionné
-        window.mainTheme = e.target.value;
-        
-        // 1. Nettoyage visuel de toutes les cartes de thèmes du menu
-        document.querySelectorAll('.theme-details, .theme-details-hist').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.radio-card').forEach(el => { 
-            el.style.borderBottomLeftRadius = '6px'; 
-            el.style.borderBottomRightRadius = '6px'; 
-            el.style.marginBottom = '8px'; 
-            el.style.borderColor = '#e1e8ed'; 
-        });
-        
-        // 2. Activation visuelle des bordures du thème sélectionné
-        let activeDetails = document.getElementById('details-' + window.mainTheme); 
-        let activeLabel = document.getElementById('lbl-' + window.mainTheme);
-        
-        if (activeDetails && activeLabel) { 
-            activeDetails.style.display = 'block'; 
-            activeLabel.style.borderBottomLeftRadius = '0'; 
-            activeLabel.style.borderBottomRightRadius = '0'; 
-            activeLabel.style.marginBottom = '0'; 
-            
-            // Attribution des couleurs de bordures spécifiques
-            if(window.mainTheme === 'stock') activeLabel.style.borderColor = '#16a085';
-            else if(window.mainTheme === 'atelier') activeLabel.style.borderColor = '#8e44ad';
-            else activeLabel.style.borderColor = '#3498db';
-        }
-        
-        // 3. Routage exclusif : Affichage de l'espace de travail demandé
-        if(window.mainTheme === 'atelier') {
-            // Vue Atelier : On masque la carte et le stock
-            document.getElementById('map').style.display = 'none'; 
-            document.getElementById('atelier-workspace').style.display = 'block'; 
-            document.getElementById('stock-workspace').style.display = 'none';
-            window.closeRightSidebar(); 
-            if(window.renderAtelierWorkspace) window.renderAtelierWorkspace();
-        } 
-        else if(window.mainTheme === 'stock') {
-            // Vue Stock : On masque la carte et l'atelier
-            document.getElementById('map').style.display = 'none'; 
-            document.getElementById('atelier-workspace').style.display = 'none'; 
-            document.getElementById('stock-workspace').style.display = 'block';
-            window.closeRightSidebar(); 
-            if(window.renderStockWorkspace) window.renderStockWorkspace();
-        }
-        else {
-            // Vue Carte standard : On réaffiche la carte Leaflet et masque les espaces ateliers/stock
-            document.getElementById('map').style.display = 'block'; 
-            document.getElementById('atelier-workspace').style.display = 'none'; 
-            document.getElementById('stock-workspace').style.display = 'none';
-            
-            // Calculs et rafraîchissement des calques de la carte
-            if(window.mainTheme === 'historique') window.calculateMaxes(); 
-            window.updateLegend(); 
-            window.updateMap(); 
-            window.triggerGlobalFilterChart();
-        }
-    }); // Fin de l'événement change
-}); // Fin du forEach
+            /* ========================================================================= */
+            /* TITRE : ÉCOUTEUR DE CHANGEMENT DE THÈME ET ROUTAGE DES ESPACES (CORRIGÉ)  */
+            /* ========================================================================= */
+            document.querySelectorAll('input[name="main_theme"]').forEach(r => {
+                r.addEventListener('change', e => {
+                    // Enregistrement du thème sélectionné
+                    window.mainTheme = e.target.value;
+                    
+                    // 1. Nettoyage visuel de toutes les cartes de thèmes du menu
+                    document.querySelectorAll('.theme-details, .theme-details-hist').forEach(el => el.style.display = 'none');
+                    document.querySelectorAll('.radio-card').forEach(el => { 
+                        el.style.borderBottomLeftRadius = '6px'; 
+                        el.style.borderBottomRightRadius = '6px'; 
+                        el.style.marginBottom = '8px'; 
+                        el.style.borderColor = '#e1e8ed'; 
+                    });
+                    
+                    // 2. Activation visuelle des bordures du thème sélectionné
+                    let activeDetails = document.getElementById('details-' + window.mainTheme); 
+                    let activeLabel = document.getElementById('lbl-' + window.mainTheme);
+                    
+                    if (activeDetails && activeLabel) { 
+                        activeDetails.style.display = 'block'; 
+                        activeLabel.style.borderBottomLeftRadius = '0'; 
+                        activeLabel.style.borderBottomRightRadius = '0'; 
+                        activeLabel.style.marginBottom = '0'; 
+                        
+                        // Attribution des couleurs de bordures spécifiques
+                        if(window.mainTheme === 'stock') activeLabel.style.borderColor = '#16a085';
+                        else if(window.mainTheme === 'atelier') activeLabel.style.borderColor = '#8e44ad';
+                        else activeLabel.style.borderColor = '#3498db';
+                    }
+                    
+                    // 3. Routage exclusif : Affichage de l'espace de travail demandé
+                    if(window.mainTheme === 'atelier') {
+                        // Vue Atelier : On masque la carte et le stock
+                        document.getElementById('map').style.display = 'none'; 
+                        document.getElementById('atelier-workspace').style.display = 'block'; 
+                        document.getElementById('stock-workspace').style.display = 'none';
+                        window.closeRightSidebar(); 
+                        if(window.renderAtelierWorkspace) window.renderAtelierWorkspace();
+                    } 
+                    else if(window.mainTheme === 'stock') {
+                        // Vue Stock : On masque la carte et l'atelier
+                        document.getElementById('map').style.display = 'none'; 
+                        document.getElementById('atelier-workspace').style.display = 'none'; 
+                        document.getElementById('stock-workspace').style.display = 'block';
+                        window.closeRightSidebar(); 
+                        if(window.renderStockWorkspace) window.renderStockWorkspace();
+                    }
+                    else {
+                        // Vue Carte standard : On réaffiche la carte Leaflet et masque les espaces ateliers/stock
+                        document.getElementById('map').style.display = 'block'; 
+                        document.getElementById('atelier-workspace').style.display = 'none'; 
+                        document.getElementById('stock-workspace').style.display = 'none';
+                        
+                        // Calculs et rafraîchissement des calques de la carte
+                        if(window.mainTheme === 'historique') window.calculateMaxes(); 
+                        window.updateLegend(); 
+                        window.updateMap(); 
+                        window.triggerGlobalFilterChart();
+                    }
+                }); // Fin de l'événement change
+            }); // Fin du forEach
 
             document.querySelectorAll('input[name="hist_metric"]').forEach(r => { r.addEventListener('change', e => { window.histMetric = e.target.value; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart(); }); });
             let ssl = document.getElementById('season-slider'); if(ssl) ssl.addEventListener('input', e => { window.histSeasonIdx = parseInt(e.target.value); let sd = document.getElementById('season-display'); if(sd) sd.innerText = window.saisonsList[window.histSeasonIdx]; window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart(); });
