@@ -1427,25 +1427,27 @@ window.renderStockWorkspace = function() {
             /* ========================================================================= */
 /* TITRE : RECHERCHE DYNAMIQUE DE LA PHOTO CORRESPONDANTE DANS DRIVE         */
 /* ========================================================================= */
-
-            /* ========================================================================= */
-            /* TITRE : EXTRACTION ET CORRESPONDANCE DES PHOTOS DRIVE (CORRIGÉ)           */
-            /* ========================================================================= */
-            
-            // 1. Initialisation de l'URL par défaut (si le fichier n'est pas trouvé)
+            // =========================================================
+            // LIAISON INTELLIGENTE : GOOGLE SHEETS <-> DOSSIER DRIVE
+            // =========================================================
             let parsedImgUrl = "https://placehold.co/150x150?text=Pas+de+photo";
             
-            // 2. Extraction du nom de fichier pur depuis le chemin complet AppSheet
-            // On découpe la chaîne par les lignes de Slashes "/" et on attrape le dernier morceau (.pop())
-            // Exemple : "/appsheet/data/.../68220006.photo.102829.jpg" devient "68220006.photo.102829.jpg"
-            let cleanFileName = valPhoto.toString().split('/').pop().toLowerCase().trim();
+            // 1. Extraction du nom de fichier pur depuis le chemin AppSheet
+            // Exemple : "/appsheet/data/photos/68220006.photo.102829.jpg" -> "68220006.photo.102829.jpg"
+            let rawFileName = valPhoto.toString().split('/').pop().toLowerCase().trim();
 
-            // 3. Vérification de la correspondance avec le dossier Google Drive scanné
-            if (cleanFileName !== "") {
-                // On fouille dans le dictionnaire d'images envoyé par le Google Script
-                if (window.drivePhotos && window.drivePhotos[cleanFileName]) {
-                    // Si le nom correspond à un fichier du dossier, on injecte le lien direct de prévisualisation
-                    parsedImgUrl = window.drivePhotos[cleanFileName]; 
+            if (rawFileName !== "") {
+                // 2. On retire l'extension du nom trouvé dans le tableur pour fiabiliser la recherche
+                let cleanFileNameNoExt = rawFileName.split('.').slice(0, -1).join('.');
+                if (cleanFileNameNoExt === "") cleanFileNameNoExt = rawFileName;
+
+                // 3. On fouille dans le dictionnaire Drive envoyé par Google
+                if (window.drivePhotos && window.drivePhotos[rawFileName]) {
+                    // Recherche exacte (avec extension)
+                    parsedImgUrl = window.drivePhotos[rawFileName]; 
+                } else if (window.drivePhotos && window.drivePhotos[cleanFileNameNoExt]) {
+                    // Recherche large (sans extension)
+                    parsedImgUrl = window.drivePhotos[cleanFileNameNoExt]; 
                 } 
                 // Secours 1 : Si la cellule du tableur contient un lien de partage Drive complet collé à la main
                 else if (valPhoto.includes("drive.google.com")) {
@@ -1456,6 +1458,7 @@ window.renderStockWorkspace = function() {
                     parsedImgUrl = `https://www.appsheet.com/template/gettablefileurl?appName=maintenanceneige-3822734&tableName=Stock&fileName=${encodeURIComponent(valPhoto)}`;
                 }
             }
+            // =========================================================
             // =========================================================
             let cardBlock = document.createElement('div');
             cardBlock.className = "stock-item-card";
