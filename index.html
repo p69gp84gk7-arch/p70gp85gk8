@@ -917,235 +917,102 @@
             }, 50);
         };
 /* ========================================================================= */
-/* 1. INTERFACE : INJECTION ET OUVERTURE DU MODAL DE COMPARAISON             */
+/* TITRE SECTION 1 : INITIALISATION ET LECTURE DES DONNÉES DE LA WEBAPP (GET) */
 /* ========================================================================= */
-window.openGlobalCompareModal = function() {
-    let modal = document.getElementById('global-compare-modal');
+
+// Fonction déclencheur pour forcer l'autorisation de l'API Drive si nécessaire
+function autoriserDrive() {
+  DriveApp.getRootFolder();
+}
+
+function doGet(e) {
+  try {
+    var doc = SpreadsheetApp.getActiveSpreadsheet();
+
+    // 1. Fonction interne pour lire les onglets standards de manière flexible
+    function getSheetFlex(keywords, fallbackIndex) {
+      var sheets = doc.getSheets();
+      for (var i = 0; i < sheets.length; i++) {
+        var name = sheets[i].getName().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        for (var k = 0; k < keywords.length; k++) {
+          var keyword = keywords[k].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          if (name.indexOf(keyword) !== -1) {
+            var data = sheets[i].getDataRange().getValues();
+            if (data.length > 1) return data;
+          }
+        }
+      }
+      if (fallbackIndex !== undefined && sheets[fallbackIndex]) {
+        var dataFB = sheets[fallbackIndex].getDataRange().getValues();
+        if (dataFB.length > 1) return dataFB;
+      }
+      return [];
+    }
+
+    // 2. Récupération stricte du tableau de l'onglet Stock
+    var stockData = [];
+    var sheetStock = doc.getSheetByName("stock") || doc.getSheetByName("Stock") || doc.getSheetByName("STOCK");
+    if (sheetStock) {
+      var sData = sheetStock.getDataRange().getValues();
+      if (sData.length > 1) stockData = sData;
+    }
+
+    // FONTIONNALITÉ : Récupération stricte de l'onglet "historique enneigeurs"
+    var historiqueData = [];
+    var sheetHist = doc.getSheetByName("historique enneigeurs") || doc.getSheetByName("Historique Enneigeurs") || doc.getSheetByName("Historique enneigeurs");
+    if (sheetHist) {
+      var hData = sheetHist.getDataRange().getValues();
+      if (hData.length > 1) historiqueData = hData; // On valide que le tableau contient des lignes avant stockage
+    }
+
+    // 3. Super-scanner du dossier Google Drive (gère les sous-dossiers de photos)
+    var folderId = "18WmDCP7JDZ8hvOKck31yyCZ1dt40ZRfp"; 
+    var drivePhotosMapping = {}; 
     
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'global-compare-modal';
-        modal.style = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(44, 62, 80, 0.7); z-index: 9999;
-            display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(4px); font-family: sans-serif; box-sizing: border-box;
-        `;
-        document.body.appendChild(modal);
-    }
-
-    if (!window.historiqueData || window.historiqueData.length <= 1) {
-        modal.innerHTML = `
-            <div style="background:#fff; padding:20px; border-radius:8px; text-align:center; max-width:90%;">
-                <h3 style="color:#e74c3c; margin:0 0 10px 0;">⚠️ Données Historiques Introuvables</h3>
-                <p style="color:#7f8c8d; font-size:13px;">L'onglet historique semble vide ou n'a pas pu être chargé.</p>
-                <button onclick="window.closeGlobalCompareModal()" style="background:#7f8c8d; color:#fff; border:none; padding:8px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">Fermer</button>
-            </div>`;
-        modal.style.display = 'flex';
-        return;
-    }
-
-    let headers = window.historiqueData[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
-    let idxPiste = headers.findIndex(h => h.includes("piste"));
-    let idxSaison = headers.findIndex(h => h.includes("saison") || h.includes("annee"));
-
-    let uniquePistes = new Set();
-    let uniqueSaisons = new Set();
-
-    for (let i = 1; i < window.historiqueData.length; i++) {
-        let row = window.historiqueData[i];
-        if (!row || row.length === 0) continue;
-        if (idxPiste !== -1 && row[idxPiste]) uniquePistes.add(row[idxPiste].toString().trim());
-        if (idxSaison !== -1 && row[idxSaison]) uniqueSaisons.add(row[idxSaison].toString().trim());
-    }
-
-    let optionsPistes = Array.from(uniquePistes).sort().map(p => `<option value="${p}">${p}</option>`).join('');
-    let optionsSaisons = Array.from(uniqueSaisons).sort().map(s => `<option value="${s}">${s}</option>`).join('');
-
-    modal.innerHTML = `
-        <div style="background: #f8f9fa; width: 95%; max-width: 850px; height: 90vh; max-height: 650px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid #ddd;">
-            <div style="background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; font-size: 16px; font-weight: bold;">📊 Analyse Comparée des Consommations</h3>
-                <button onclick="window.closeGlobalCompareModal()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; line-height: 1;">&times;</button>
-            </div>
-            <div style="background: #fff; padding: 12px 15px; border-bottom: 1px solid #e1e8ed; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                <div style="flex: 1; min-width: 130px;">
-                    <span style="font-size: 10px; font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 2px;">📍 SÉLECTION PISTE</span>
-                    <select id="compare-piste" onchange="window.processCompareData()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; font-weight: bold; color: #16a085;">
-                        <option value="">⛷️ Toutes les pistes</option>
-                        ${optionsPistes}
-                    </select>
-                </div>
-                <div style="flex: 1; min-width: 130px;">
-                    <span style="font-size: 10px; font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 2px;">❄️ SÉLECTION SAISON</span>
-                    <select id="compare-saison" onchange="window.processCompareData()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px;">
-                        <option value="">📅 Toutes les saisons</option>
-                        ${optionsSaisons}
-                    </select>
-                </div>
-                <div style="flex: 1; min-width: 130px;">
-                    <span style="font-size: 10px; font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 2px;">📈 MÉTRIQUE ANALYSÉE (ORDONNÉE)</span>
-                    <select id="compare-metric" onchange="window.processCompareData()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; font-weight: bold; color: #2980b9;">
-                        <option value="eau">💧 Volume Eau (m³)</option>
-                        <option value="air">💨 Volume Air (Nm³)</option>
-                        <option value="temps">⏱️ Temps Fonctionnement (h)</option>
-                        <option value="rapport">🔄 Rapport Air / Eau</option>
-                    </select>
-                </div>
-            </div>
-            <div style="flex: 1; padding: 20px; overflow-x: auto; overflow-y: hidden; background: #fff; display: flex; align-items: center; justify-content: center;" id="compare-chart-wrapper">
-                <div id="compare-chart-container" style="width: 100%; min-width: 600px; height: 100%;"></div>
-            </div>
-        </div>`;
-
-    modal.style.display = 'flex';
-    window.processCompareData();
-};
-
-window.closeGlobalCompareModal = function() {
-    let modal = document.getElementById('global-compare-modal');
-    if (modal) modal.style.display = 'none';
-};
-
-/* ========================================================================= */
-/* 2. LOGIQUE : EXTRACTION, FILTRAGE ET TRAITEMENT DES COMPTEURS             */
-/* ========================================================================= */
-window.processCompareData = function() {
-    let selectPiste = document.getElementById('compare-piste') ? document.getElementById('compare-piste').value : "";
-    let selectSaison = document.getElementById('compare-saison') ? document.getElementById('compare-saison').value : "";
-    let selectMetric = document.getElementById('compare-metric') ? document.getElementById('compare-metric').value : "eau";
-
-    let headers = window.historiqueData[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
-    let idxCanon = headers.findIndex(h => h.includes("canon") || h.includes("enneigeur") || h === "id" || h.includes("n°"));
-    let idxPiste = headers.findIndex(h => h.includes("piste"));
-    let idxSaison = headers.findIndex(h => h.includes("saison") || h.includes("annee"));
-    let idxEau = headers.findIndex(h => h.includes("eau") || h.includes("vol"));
-    let idxAir = headers.findIndex(h => h.includes("air"));
-    let idxTemps = headers.findIndex(h => h.includes("temps") || h.includes("duree") || h.includes("heure"));
-
-    let groupedData = {};
-
-    for (let i = 1; i < window.historiqueData.length; i++) {
-        let row = window.historiqueData[i];
-        if (!row || !row[idxCanon]) continue;
-
-        let valCanon = row[idxCanon].toString().trim();
-        let valPiste = idxPiste !== -1 ? row[idxPiste].toString().trim() : "";
-        let valSaison = idxSaison !== -1 ? row[idxSaison].toString().trim() : "";
-
-        if (selectPiste !== "" && valPiste !== selectPiste) continue;
-        if (selectSaison !== "" && valSaison !== selectSaison) continue;
-
-        let e = idxEau !== -1 ? parseFloat(row[idxEau]) || 0 : 0;
-        let a = idxAir !== -1 ? parseFloat(row[idxAir]) || 0 : 0;
-        let t = idxTemps !== -1 ? parseFloat(row[idxTemps]) || 0 : 0;
-
-        if (!groupedData[valCanon]) {
-            groupedData[valCanon] = { eau: 0, air: 0, temps: 0, count: 0 };
-        }
-
-        groupedData[valCanon].eau += e;
-        groupedData[valCanon].air += a;
-        groupedData[valCanon].temps += t;
-        groupedData[valCanon].count += 1;
-    }
-
-    let chartLabels = Object.keys(groupedData).sort();
-    let chartValues = [];
-
-    chartLabels.forEach(canon => {
-        let data = groupedData[canon];
-        if (selectMetric === "eau") {
-            chartValues.push(data.eau);
-        } else if (selectMetric === "air") {
-            chartValues.push(data.air);
-        } else if (selectMetric === "temps") {
-            chartValues.push(data.temps);
-        } else if (selectMetric === "rapport") {
-            let ratio = data.eau > 0 ? (data.air / data.eau) : 0;
-            chartValues.push(parseFloat(ratio.toFixed(2)));
-        }
-    });
-
-    window.renderNativeCompareChart(chartLabels, chartValues, selectMetric);
-};
-
-/* ========================================================================= */
-/* 3. RENDU : DESSIN ET ENVOI DU GRAPHIQUE NATIF SVG                        */
-/* ========================================================================= */
-window.renderNativeCompareChart = function(labels, values, metricName) {
-    let container = document.getElementById('compare-chart-container');
-    if (!container) return;
-
-    if (labels.length === 0) {
-        container.innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:#7f8c8d; font-weight:bold;">📍 Aucune donnée trouvée pour cette sélection de piste/saison.</div>`;
-        return;
-    }
-
-    let width = container.clientWidth || 700;
-    let height = 320;
-    let paddingLeft = 60;
-    let paddingRight = 20;
-    let paddingTop = 30;
-    let paddingBottom = 50;
-
-    let chartWidth = width - paddingLeft - paddingRight;
-    let chartHeight = height - paddingTop - paddingBottom;
-
-    let maxVal = Math.max(...values);
-    if (maxVal === 0) maxVal = 1;
-    maxVal = maxVal * 1.15; 
-
-    let barColor = "#2980b9"; 
-    if (metricName === "air") barColor = "#7f8c8d";
-    if (metricName === "temps") barColor = "#f39c12";
-    if (metricName === "rapport") barColor = "#9b59b6";
-
-    let gridHtml = "";
-    let gridLinesCount = 4;
-    for (let g = 0; g <= gridLinesCount; g++) {
-        let ratio = g / gridLinesCount;
-        let yPos = paddingTop + chartHeight - (ratio * chartHeight);
-        let labelVal = (ratio * maxVal).toFixed(metricName === "rapport" ? 1 : 0);
+    function scanFolder(currentFolder) {
+      var files = currentFolder.getFiles();
+      while (files.hasNext()) {
+        var file = files.next();
+        var rawName = file.getName().toLowerCase().trim(); 
+        var nameWithoutExtension = rawName.split('.').slice(0, -1).join('.');
+        if (nameWithoutExtension === "") nameWithoutExtension = rawName;
         
-        gridHtml += `
-            <line x1="${paddingLeft}" y1="${yPos}" x2="${width - paddingRight}" y2="${yPos}" stroke="#e1e8ed" stroke-width="1" stroke-dasharray="4,4"/>
-            <text x="${paddingLeft - 10}" y="${yPos + 4}" text-anchor="end" fill="#7f8c8d" style="font-size:10px; font-weight:bold;">${labelVal}</text>
-        `;
+        var fileUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w500";
+        drivePhotosMapping[rawName] = fileUrl;
+        drivePhotosMapping[nameWithoutExtension] = fileUrl;
+      }
+      var subFolders = currentFolder.getFolders();
+      while (subFolders.hasNext()) { scanFolder(subFolders.next()); }
     }
 
-    let barsHtml = "";
-    let barSpacing = chartWidth / labels.length;
-    let barWidth = barSpacing * 0.65; 
-
-    for (let i = 0; i < labels.length; i++) {
-        let val = values[i];
-        let label = labels[i];
-
-        let xPos = paddingLeft + (i * barSpacing) + (barSpacing - barWidth) / 2;
-        let barHeight = (val / maxVal) * chartHeight;
-        let yPos = paddingTop + chartHeight - barHeight;
-
-        barsHtml += `
-            <g class="bar-group" cursor="pointer">
-                <title>Canon: ${label}\nValeur: ${val}</title>
-                <rect x="${xPos}" y="${yPos}" width="${barWidth}" height="${barHeight}" fill="${barColor}" rx="3" opacity="0.85">
-                    <animate attributeName="height" from="0" to="${barHeight}" dur="0.4s" fill="freeze" />
-                    <animate attributeName="y" from="${paddingTop + chartHeight}" to="${yPos}" dur="0.4s" fill="freeze" />
-                </rect>
-                <text x="${xPos + barWidth / 2}" y="${paddingTop + chartHeight + 15}" text-anchor="middle" fill="#2c3e50" transform="rotate(25, ${xPos + barWidth / 2}, ${paddingTop + chartHeight + 15})" style="font-size:10px; font-weight:bold;">${label}</text>
-            </g>
-        `;
+    try {
+      var rootFolder = DriveApp.getFolderById(folderId);
+      scanFolder(rootFolder); 
+    } catch (folderError) {
+      Logger.log("Erreur d'accès au dossier Drive: " + folderError.toString());
     }
 
-    container.innerHTML = `
-        <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="overflow:visible;">
-            ${gridHtml}
-            <line x1="${paddingLeft}" y1="${paddingTop}" x2="${paddingLeft}" y2="${paddingTop + chartHeight}" stroke="#bdc3c7" stroke-width="2"/>
-            <line x1="${paddingLeft}" y1="${paddingTop + chartHeight}" x2="${width - paddingRight}" y2="${paddingTop + chartHeight}" stroke="#bdc3c7" stroke-width="2"/>
-            ${barsHtml}
-        </svg>
-    `;
+    // 4. Structuration de la réponse JSON globale envoyée à la WebApp
+    var responseData = {
+      status: "success",
+      general: getSheetFlex(["tableau général", "general"], 0), 
+      historique: historiqueData, // INJECTION : Utilisation du tableau strict "historique enneigeurs"
+      tickets: getSheetFlex(["analyse defauts saison", "ticket", "panne"], 2),
+      meteo_hist: getSheetFlex(["météo", "meteo hist"], undefined),
+      meteo_froid: getSheetFlex(["froid", "gel"], undefined),
+      kmz: getSheetFlex(["kmz", "calque"], undefined),
+      webcams: getSheetFlex(["webcam", "camera"], undefined),
+      suivi: getSheetFlex(["suivi entretient webapp", "suivi", "webapp"], undefined),
+      atelier: getSheetFlex(["atelier", "banc test"], undefined),
+      stock: stockData,
+      drivePhotos: drivePhotosMapping 
+    };
+
+    return ContentService.createTextOutput(JSON.stringify(responseData)).setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
 };
         /* ========================================================================= */
         /* CHAPITRE 9 : ÉDITIONS DES TICKETS DE MAINTENANCE                          */
