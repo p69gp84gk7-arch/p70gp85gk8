@@ -917,240 +917,7 @@
             }, 50);
         };
 
-/* ========================================================================= */
-/* TITRE : INTERFACE DU MODAL DE COMPARAISON DES ENNEIGEURS                  */
-/* ========================================================================= */
-window.openGlobalCompareModal = function() {
-    let modal = document.getElementById('global-compare-modal');
-    
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'global-compare-modal';
-        modal.style = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(44, 62, 80, 0.7); z-index: 9999;
-            display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(4px); font-family: sans-serif; box-sizing: border-box;
-        `;
-        document.body.appendChild(modal);
-    }
 
-    // Sécurité : Si la mémoire globale de l'historique n'est pas encore prête
-    if (!window.historiqueData || window.historiqueData.length <= 1) {
-        modal.innerHTML = `
-            <div style="background:#fff; padding:20px; border-radius:8px; text-align:center; max-width:90%;">
-                <h3 style="color:#e74c3c; margin:0 0 10px 0;">⚠️ Données Historiques Introuvables</h3>
-                <p style="color:#7f8c8d; font-size:13px;">L'onglet 'historique enneigeurs' est vide ou en cours de chargement.</p>
-                <button onclick="window.closeGlobalCompareModal()" style="background:#7f8c8d; color:#fff; border:none; padding:8px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">Fermer</button>
-            </div>`;
-        modal.style.display = 'flex';
-        return;
-    }
-
-    let headers = window.historiqueData[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
-    let idxPiste = headers.findIndex(h => h.includes("piste"));
-    let idxSaison = headers.findIndex(h => h.includes("saison") || h.includes("annee"));
-
-    let uniquePistes = new Set();
-    let uniqueSaisons = new Set();
-
-    for (let i = 1; i < window.historiqueData.length; i++) {
-        let row = window.historiqueData[i];
-        if (!row || row.length === 0) continue;
-        if (idxPiste !== -1 && row[idxPiste]) uniquePistes.add(row[idxPiste].toString().trim());
-        if (idxSaison !== -1 && row[idxSaison]) uniqueSaisons.add(row[idxSaison].toString().trim());
-    }
-
-    let optionsPistes = Array.from(uniquePistes).sort().map(p => `<option value="${p}">${p}</option>`).join('');
-    let optionsSaisons = Array.from(uniqueSaisons).sort().map(s => `<option value="${s}">${s}</option>`).join('');
-
-    modal.innerHTML = `
-        <div style="background: #f8f9fa; width: 95%; max-width: 850px; height: 90vh; max-height: 650px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid #ddd;">
-            <div style="background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; font-size: 16px; font-weight: bold;">📊 Analyse Comparée des Consommations</h3>
-                <button onclick="window.closeGlobalCompareModal()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; line-height: 1;">&times;</button>
-            </div>
-            <div style="background: #fff; padding: 12px 15px; border-bottom: 1px solid #e1e8ed; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                <div style="flex: 1; min-width: 130px;">
-                    <span style="font-size: 10px; font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 2px;">📍 SÉLECTION PISTE</span>
-                    <select id="compare-piste" onchange="window.processCompareData()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; font-weight: bold; color: #16a085;">
-                        <option value="">⛷️ Toutes les pistes</option>
-                        ${optionsPistes}
-                    </select>
-                </div>
-                <div style="flex: 1; min-width: 130px;">
-                    <span style="font-size: 10px; font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 2px;">❄️ SÉLECTION SAISON</span>
-                    <select id="compare-saison" onchange="window.processCompareData()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px;">
-                        <option value="">📅 Toutes les saisons</option>
-                        ${optionsSaisons}
-                    </select>
-                </div>
-                <div style="flex: 1; min-width: 130px;">
-                    <span style="font-size: 10px; font-weight: bold; color: #7f8c8d; display: block; margin-bottom: 2px;">📈 MÉTRIQUE ANALYSÉE</span>
-                    <select id="compare-metric" onchange="window.processCompareData()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; font-weight: bold; color: #2980b9;">
-                        <option value="eau">💧 Volume Eau (m³)</option>
-                        <option value="air">💨 Volume Air (Nm³)</option>
-                        <option value="temps">⏱️ Temps Fonctionnement (h)</option>
-                        <option value="rapport">🔄 Rapport Air / Eau</option>
-                    </select>
-                </div>
-            </div>
-            <div style="flex: 1; padding: 20px; overflow-x: auto; overflow-y: hidden; background: #fff; display: flex; align-items: center; justify-content: center;" id="compare-chart-wrapper">
-                <div id="compare-chart-container" style="width: 100%; min-width: 600px; height: 100%;"></div>
-            </div>
-        </div>`;
-
-    modal.style.display = 'flex';
-    window.processCompareData();
-};
-
-window.closeGlobalCompareModal = function() {
-    let modal = document.getElementById('global-compare-modal');
-    if (modal) modal.style.display = 'none';
-};
-
-/* ========================================================================= */
-/* TITRE : COMPILATION MATHÉMATIQUE DES VALEURS PAR ENNEIGEUR                */
-/* ========================================================================= */
-window.processCompareData = function() {
-    let selectPiste = document.getElementById('compare-piste') ? document.getElementById('compare-piste').value : "";
-    let selectSaison = document.getElementById('compare-saison') ? document.getElementById('compare-saison').value : "";
-    let selectMetric = document.getElementById('compare-metric') ? document.getElementById('compare-metric').value : "eau";
-
-    if (!window.historiqueData) return;
-
-    let headers = window.historiqueData[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
-    let idxCanon = headers.findIndex(h => h.includes("canon") || h.includes("enneigeur") || h === "id" || h.includes("n°"));
-    let idxPiste = headers.findIndex(h => h.includes("piste"));
-    let idxSaison = headers.findIndex(h => h.includes("saison") || h.includes("annee"));
-    let idxEau = headers.findIndex(h => h.includes("eau") || h.includes("vol"));
-    let idxAir = headers.findIndex(h => h.includes("air"));
-    let idxTemps = headers.findIndex(h => h.includes("temps") || h.includes("duree") || h.includes("heure"));
-
-    let groupedData = {};
-
-    for (let i = 1; i < window.historiqueData.length; i++) {
-        let row = window.historiqueData[i];
-        if (!row || !row[idxCanon]) continue;
-
-        let valCanon = row[idxCanon].toString().trim();
-        let valPiste = idxPiste !== -1 ? row[idxPiste].toString().trim() : "";
-        let valSaison = idxSaison !== -1 ? row[idxSaison].toString().trim() : "";
-
-        if (selectPiste !== "" && valPiste !== selectPiste) continue;
-        if (selectSaison !== "" && valSaison !== selectSaison) continue;
-
-        let e = idxEau !== -1 ? parseFloat(row[idxEau]) || 0 : 0;
-        let a = idxAir !== -1 ? parseFloat(row[idxAir]) || 0 : 0;
-        let t = idxTemps !== -1 ? parseFloat(row[idxTemps]) || 0 : 0;
-
-        if (!groupedData[valCanon]) {
-            groupedData[valCanon] = { eau: 0, air: 0, temps: 0, count: 0 };
-        }
-
-        groupedData[valCanon].eau += e;
-        groupedData[valCanon].air += a;
-        groupedData[valCanon].temps += t;
-        groupedData[valCanon].count += 1;
-    }
-
-    let chartLabels = Object.keys(groupedData).sort();
-    let chartValues = [];
-
-    chartLabels.forEach(canon => {
-        let data = groupedData[canon];
-        if (selectMetric === "eau") {
-            chartValues.push(data.eau);
-        } else if (selectMetric === "air") {
-            chartValues.push(data.air);
-        } else if (selectMetric === "temps") {
-            chartValues.push(data.temps);
-        } else if (selectMetric === "rapport") {
-            let ratio = data.eau > 0 ? (data.air / data.eau) : 0;
-            chartValues.push(parseFloat(ratio.toFixed(2)));
-        }
-    });
-
-    window.renderNativeCompareChart(chartLabels, chartValues, selectMetric);
-};
-
-/* ========================================================================= */
-/* TITRE : CONVERSION ET AGENCEMENT DU GRAPHIQUE INTERACTIF SVG              */
-/* ========================================================================= */
-window.renderNativeCompareChart = function(labels, values, metricName) {
-    let container = document.getElementById('compare-chart-container');
-    if (!container) return;
-
-    if (labels.length === 0) {
-        container.innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:#7f8c8d; font-weight:bold;">📍 Aucune donnée trouvée pour cette sélection de piste/saison.</div>`;
-        return;
-    }
-
-    let width = container.clientWidth || 700;
-    let height = 320;
-    let paddingLeft = 60;
-    let paddingRight = 20;
-    let paddingTop = 30;
-    let paddingBottom = 50;
-
-    let chartWidth = width - paddingLeft - paddingRight;
-    let chartHeight = height - paddingTop - paddingBottom;
-
-    let maxVal = Math.max(...values);
-    if (maxVal === 0) maxVal = 1;
-    maxVal = maxVal * 1.15; 
-
-    let barColor = "#2980b9"; 
-    if (metricName === "air") barColor = "#7f8c8d";
-    if (metricName === "temps") barColor = "#f39c12";
-    if (metricName === "rapport") barColor = "#9b59b6";
-
-    let gridHtml = "";
-    let gridLinesCount = 4;
-    for (let g = 0; g <= gridLinesCount; g++) {
-        let ratio = g / gridLinesCount;
-        let yPos = paddingTop + chartHeight - (ratio * chartHeight);
-        let labelVal = (ratio * maxVal).toFixed(metricName === "rapport" ? 1 : 0);
-        
-        gridHtml += `
-            <line x1="${paddingLeft}" y1="${yPos}" x2="${width - paddingRight}" y2="${yPos}" stroke="#e1e8ed" stroke-width="1" stroke-dasharray="4,4"/>
-            <text x="${paddingLeft - 10}" y="${yPos + 4}" text-anchor="end" fill="#7f8c8d" style="font-size:10px; font-weight:bold;">${labelVal}</text>
-        `;
-    }
-
-    let barsHtml = "";
-    let barSpacing = chartWidth / labels.length;
-    let barWidth = barSpacing * 0.65; 
-
-    for (let i = 0; i < labels.length; i++) {
-        let val = values[i];
-        let label = labels[i];
-
-        let xPos = paddingLeft + (i * barSpacing) + (barSpacing - barWidth) / 2;
-        let barHeight = (val / maxVal) * chartHeight;
-        let yPos = paddingTop + chartHeight - barHeight;
-
-        barsHtml += `
-            <g class="bar-group" cursor="pointer">
-                <title>Canon: ${label}\nValeur: ${val}</title>
-                <rect x="${xPos}" y="${yPos}" width="${barWidth}" height="${barHeight}" fill="${barColor}" rx="3" opacity="0.85">
-                    <animate attributeName="height" from="0" to="${barHeight}" dur="0.4s" fill="freeze" />
-                    <animate attributeName="y" from="${paddingTop + chartHeight}" to="${yPos}" dur="0.4s" fill="freeze" />
-                </rect>
-                <text x="${xPos + barWidth / 2}" y="${paddingTop + chartHeight + 15}" text-anchor="middle" fill="#2c3e50" transform="rotate(25, ${xPos + barWidth / 2}, ${paddingTop + chartHeight + 15})" style="font-size:10px; font-weight:bold;">${label}</text>
-            </g>
-        `;
-    }
-
-    container.innerHTML = `
-        <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="overflow:visible;">
-            ${gridHtml}
-            <line x1="${paddingLeft}" y1="${paddingTop}" x2="${paddingLeft}" y2="${paddingTop + chartHeight}" stroke="#bdc3c7" stroke-width="2"/>
-            <line x1="${paddingLeft}" y1="${paddingTop + chartHeight}" x2="${width - paddingRight}" y2="${paddingTop + chartHeight}" stroke="#bdc3c7" stroke-width="2"/>
-            ${barsHtml}
-        </svg>
-    `;
-};
         /* ========================================================================= */
         /* CHAPITRE 9 : ÉDITIONS DES TICKETS DE MAINTENANCE                          */
         /* ========================================================================= */
@@ -2397,7 +2164,135 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
             let vmin = document.getElementById('val-min'); if(vmin) vmin.innerText = 0; 
             let vmax = document.getElementById('val-max'); if(vmax) vmax.innerText = Math.round(window.absoluteMaxes[window.histMetric]) || 1;
         };
+        /* ========================================================================= */
+        /* TITRE : MODULE DE COMPARAISON DES SAISONS (V2 - CÔTE À CÔTE)              */
+        /* ========================================================================= */
+        
+        // 1. Ouverture du modal et remplissage automatique des menus déroulants
+        window.openGlobalCompareModal = function(show) {
+            let modal = document.getElementById('compare-modal');
+            if (!modal) return;
+            if (!show) { modal.style.display = 'none'; return; }
 
+            // Extraction des pistes existantes depuis les canons fusionnés
+            let pistesSet = new Set();
+            window.snowCannons.features.forEach(f => {
+                let piste = window.getV(f.properties, window.keyPiste);
+                if (piste && piste !== "N/A") pistesSet.add(piste);
+            });
+            
+            // Remplissage du menu Piste
+            let selPiste = document.getElementById('comp-piste');
+            if (selPiste) {
+                let optsPiste = Array.from(pistesSet).sort().map(p => `<option value="${p}">${p}</option>`).join('');
+                selPiste.innerHTML = `<option value="all">⛷️ Toutes les pistes</option>${optsPiste}`;
+            }
+
+            // Remplissage des menus Saisons
+            let saisons = window.saisonsList || [];
+            let optsSaisons = saisons.map(s => `<option value="${s}">Saison ${s}</option>`).join('');
+            let selS1 = document.getElementById('comp-s1');
+            let selS2 = document.getElementById('comp-s2');
+            
+            if (selS1) selS1.innerHTML = optsSaisons;
+            if (selS2) {
+                selS2.innerHTML = optsSaisons;
+                // Si on a au moins 2 saisons, on sélectionne une saison différente par défaut pour le comparatif
+                if (saisons.length > 1) selS2.selectedIndex = 1; 
+            }
+
+            modal.style.display = 'flex';
+            window.renderGlobalComparison(); // Lancement immédiat du graphique
+        };
+
+        // 2. Filtrage, croisement des données et dessin du graphique double
+        window.renderGlobalComparison = function() {
+            let selPiste = document.getElementById('comp-piste').value;
+            let metric = document.getElementById('comp-metric').value; // 'eau', 'air', 'temps'
+            let s1 = document.getElementById('comp-s1').value;
+            let s2 = document.getElementById('comp-s2').value;
+
+            // Filtrage des canons par piste choisie
+            let canons = window.snowCannons.features.filter(f => {
+                if (selPiste === "all") return true;
+                return window.getV(f.properties, window.keyPiste) === selPiste;
+            });
+
+            // Tri par numéro de canon pour un affichage propre en abscisse
+            canons.sort((a, b) => parseInt(a.properties.id) - parseInt(b.properties.id));
+
+            let labels = [];
+            let dataS1 = [];
+            let dataS2 = [];
+
+            // Extraction des valeurs pour les 2 saisons sélectionnées
+            canons.forEach(f => {
+                let p = f.properties;
+                labels.push(p.id);
+
+                let val1 = 0; let val2 = 0;
+                if (p.historique[s1]) val1 = p.historique[s1][metric] || 0;
+                if (p.historique[s2]) val2 = p.historique[s2][metric] || 0;
+
+                dataS1.push(val1);
+                dataS2.push(val2);
+            });
+
+            // Modification de l'interface : On masque les deux petits graphiques de l'ancienne version
+            document.querySelectorAll('.comp-chart-box').forEach(el => el.style.display = 'none');
+            
+            // Création d'un conteneur unique et grand format pour le graphique côte à côte
+            let chartBox = document.querySelector('.comp-body');
+            let mainContainer = document.getElementById('main-comp-chart-container');
+            if (!mainContainer) {
+                mainContainer = document.createElement('div');
+                mainContainer.id = 'main-comp-chart-container';
+                mainContainer.className = 'comp-chart-box';
+                mainContainer.style.height = '450px';
+                mainContainer.style.position = 'relative';
+                mainContainer.style.display = 'block';
+                mainContainer.innerHTML = '<canvas id="main-comp-canvas"></canvas>';
+                chartBox.appendChild(mainContainer);
+            }
+            mainContainer.style.display = 'block';
+
+            let canvas = document.getElementById('main-comp-canvas');
+            if (window.chartInstances['global-compare']) {
+                window.chartInstances['global-compare'].destroy();
+            }
+
+            // Design des couleurs en fonction du fluide analysé
+            let metricLabel = metric === 'eau' ? 'Volume Eau (m³)' : (metric === 'air' ? 'Volume Air' : 'Temps de fonctionnement (h)');
+            let colorS1 = '#3498db'; let colorS2 = '#2c3e50'; // Eau : Bleu clair vs Bleu foncé
+            if (metric === 'air') { colorS1 = '#f1c40f'; colorS2 = '#e67e22'; } // Air : Jaune vs Orange
+            if (metric === 'temps') { colorS1 = '#2ecc71'; colorS2 = '#27ae60'; } // Temps : Vert clair vs Vert foncé
+
+            // Dessin via Chart.js avec double dataset
+            window.chartInstances['global-compare'] = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: `Saison ${s1}`, data: dataS1, backgroundColor: colorS1, borderRadius: 4 },
+                        { label: `Saison ${s2}`, data: dataS2, backgroundColor: colorS2, borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false }, // Survol groupe les 2 barres
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 13, weight: 'bold' } } },
+                        title: { display: true, text: `Comparatif ${metricLabel} | ${selPiste === 'all' ? 'Toutes les pistes' : 'Piste : ' + selPiste}`, font: { size: 14 } },
+                        zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } }
+                    },
+                    scales: {
+                        x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45, font: {size: 10} } },
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        };
         window.addEventListener('DOMContentLoaded', async () => {
             if(window.bootAttempt > 0) return; window.bootAttempt = 1;
             try {
