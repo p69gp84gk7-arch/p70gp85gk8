@@ -525,7 +525,7 @@
                 if(r.status === "success") { mSave.dragging.disable(); mSave.wcData.lat = parseFloat(nLat); mSave.wcData.lng = parseFloat(nLng); mSave.wcData.icon = nIco; mSave.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">${nIco}</div>`, iconSize: [24,24], iconAnchor: [12,12] })); window.openSingleWebcam(nom); } else { alert("Erreur"); btn.innerText = "✅ Sauver"; btn.disabled = false; }
             } catch(e) { alert("Échec"); btn.disabled = false; }
         };
-        /* ========================================================================= */
+               /* ========================================================================= */
         /* CHAPITRE 5 : GESTION DE L'INTERFACE ET DE LA CARTE (LEAFLET)              */
         /* ========================================================================= */
         window.toggleRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(!sb) return; if(sb.classList.contains('open')) sb.classList.remove('open'); else { sb.classList.add('open'); if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) window.triggerGlobalFilterChart(); else window.renderSelectionPanel(); } };
@@ -597,6 +597,53 @@
                     p._isVisible = false; if (window.map.hasLayer(layer)) window.map.removeLayer(layer);
                 } else {
                     p._isVisible = true; if (!window.map.hasLayer(layer)) window.map.addLayer(layer);
+                    
+                    /* ========================================================================= */
+                    /* NOUVEAUTÉ : RENDU DES ICÔNES PERSONNALISÉES (THÈME : TYPE DE CANON)       */
+                    /* ========================================================================= */
+                    if (window.mainTheme === 'type') {
+                        // 1. On récupère le nom du type de canon en minuscules
+                        let typeCanon = window.getV(p, window.keyType).toLowerCase().trim();
+                        
+                        // 2. On vérifie si une image portant exactement ce nom existe dans le Drive
+                        let iconUrl = null;
+                        if (window.driveIcons && window.driveIcons[typeCanon]) {
+                            iconUrl = window.driveIcons[typeCanon];
+                        }
+                        
+                        // 3. Si l'image existe, on l'affiche sur la carte !
+                        if (iconUrl) {
+                            let imageSize = 40; // Taille de l'image (en pixels)
+                            let zIdx = window.currentlyEditingId === p.id ? 2000 : (window.selectedCannonsMap.has(p.id) ? 1000 : 0);
+                            layer.setZIndexOffset(zIdx);
+                            
+                            // Style visuel pour repérer si le canon est sélectionné/cliqué
+                            let isSelected = window.selectedCannonsMap.has(p.id) || window.currentlyEditingId === p.id;
+                            let highlightStyle = isSelected ? "border: 2px solid #e74c3c; border-radius: 50%; background-color: rgba(255,255,255,0.7);" : "";
+                            
+                            // Construction du HTML de l'icône et du petit badge numéro
+                            let imageHtml = `
+                                <div style="position:relative; width:${imageSize}px; height:${imageSize}px;">
+                                    <div style="background:url('${iconUrl}') center/contain no-repeat; width:100%; height:100%; filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.5)); transition: transform 0.2s; cursor:pointer; ${highlightStyle}"></div>
+                                    <div style="position:absolute; bottom:-10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:white; font-size:9px; padding:1px 4px; border-radius:4px; font-weight:bold; white-space:nowrap; pointer-events:none;">${p.id}</div>
+                                </div>`;
+                            
+                            layer.setIcon(L.divIcon({ 
+                                className: 'custom-cannon-icon', 
+                                html: imageHtml, 
+                                iconSize: [imageSize, imageSize], 
+                                iconAnchor: [imageSize/2, imageSize/2] 
+                            }));
+                            
+                            layer.setOpacity(1); 
+                            if(layer._icon) { layer._icon.style.opacity = '1'; }
+                            
+                            // On stoppe l'exécution de la boucle pour ne pas dessiner la pastille de couleur classique
+                            return; 
+                        }
+                    }
+                    /* ========================================================================= */
+
                     let rad = 12; let ratio = 0; let bgStr = ""; let iconChar = p.id; let lh = '24px';
                     let remarkBadge = ""; 
                     
@@ -1948,12 +1995,14 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
     // 💡 LE PONT POUR LE GRAPHIQUE : On copie rawHistorique dans historiqueData
     window.historiqueData = window.rawHistorique; 
     
-    // CHARGEMENT DU STOCK ET DE L'API DRIVE (Nettoyé des doublons)
+       // CHARGEMENT DU STOCK ET DES API DRIVE
     window.rawStock = data.stock || [];
     window.drivePhotos = data.drivePhotos || {}; 
+    window.driveIcons = data.driveIcons || {}; // 👈 NOUVELLE LIGNE POUR LES IMAGES DE CANONS
     
     // DIAGNOSTICS CONSOLE
-    console.log("📸 [Diagnostic Drive] Images détectées :", Object.keys(window.drivePhotos).length);
+    console.log("📸 [Diagnostic Drive] Photos Stock :", Object.keys(window.drivePhotos).length);
+    console.log("📍 [Diagnostic Drive] Icônes Canons :", Object.keys(window.driveIcons).length); // 👈 PERMET DE VÉRIFIER
     console.log("📈 [Diagnostic Historique] Lignes chargées :", window.rawHistorique.length);
 
     window.setStep(2, "Analyse du Tableau Général...");
