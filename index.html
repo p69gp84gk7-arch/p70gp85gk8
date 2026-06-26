@@ -1012,13 +1012,14 @@
                 } else { alert("Erreur Google"); window.renderSelectionPanel(); }
             } catch(e) { alert("Échec réseau."); window.renderSelectionPanel(); }
         };
-         /* ========================================================================= */
+/* ========================================================================= */
 /* CHAPITRE 10 : MODULE ATELIER ET BANC D'ESSAIS                             */
 /* ========================================================================= */
+
 window.renderAtelierWorkspace = function() {
     let ws = document.getElementById('atelier-workspace');
     if(!ws) return;
-    
+
     ws.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #8e44ad; margin-bottom:15px;">
             <h2 style="color:#2c3e50; margin:0;">🧰 Banc d'Essais</h2>
@@ -1045,7 +1046,7 @@ window.renderAtelierWorkspace = function() {
 
     let listeAFaire = []; let listeValidee = [];
     canonsEnAtelier.forEach(idCanon => { if (idsValides.has(idCanon)) listeValidee.push(idCanon); else listeAFaire.push(idCanon); });
-    
+
     listeAFaire.sort((a, b) => parseInt(a) - parseInt(b));
     listeValidee.sort((a, b) => parseInt(a) - parseInt(b));
     let orderedCanons = [...listeAFaire, ...listeValidee];
@@ -1056,17 +1057,12 @@ window.renderAtelierWorkspace = function() {
             <span style="color:#27ae60; font-weight:bold;">${listeValidee.length} archivé(s) (en bas de liste)</span>
         </div>`;
 
-    let mapsToInitialize = [];
-
     orderedCanons.forEach(idCanon => {
         let feature = window.snowCannons.features.find(f => f.properties.id == idCanon); if(!feature) return;
 
-        let p = feature.properties; 
-        let piste = window.getV(p, window.keyPiste); 
-        let safeId = idCanon.replace(/[^a-zA-Z0-9]/g, ""); 
-        let estValide = idsValides.has(idCanon);
+        let p = feature.properties; let piste = window.getV(p, window.keyPiste); let safeId = idCanon.replace(/[^a-zA-Z0-9]/g, ""); let estValide = idsValides.has(idCanon);
         let existingData = {};
-        
+
         if (estValide) {
             let headersAtelier = window.rawAtelier[0].map(h => h.toString().trim());
             let idxIdAtelier = headersAtelier.findIndex(h => h.toLowerCase() === "id" || h.toLowerCase().includes("n°"));
@@ -1076,6 +1072,7 @@ window.renderAtelierWorkspace = function() {
 
         const getVal = (col) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : "";
 
+        // LOGIQUE CLARINETTE / 2VAR
         let typeVannePrincipale = window.getV(p, "Type de vanne").toUpperCase();
         let valVanneAd = (window.getV(p, "vanne additio") || "").toLowerCase();
 
@@ -1084,37 +1081,13 @@ window.renderAtelierWorkspace = function() {
         else if (valVanneAd.includes("2var")) defaultVanne = "var_double";
         else if (valVanneAd.includes("var")) defaultVanne = "var";
 
-        let suiviRow = window.suiviEntretienData.find(row => row[0] == idCanon);
-        let photoUrlBrute = suiviRow && suiviRow[6] ? suiviRow[6].toString().trim() : "";
-        let photoDisplayHtml = "";
-        
-        if (photoUrlBrute !== "") {
-            let directImgUrl = window.parseDriveUrl(photoUrlBrute);
-            photoDisplayHtml = `
-                <div style="margin-top:10px; margin-bottom:10px; text-align:center;">
-                    <span class="edit-label" style="display:block; text-align:left; margin-bottom:4px;">📷 Image Référence (Google Drive) :</span>
-                    <a href="${photoUrlBrute}" target="_blank">
-                        <img src="${directImgUrl}" style="max-width:100%; max-height:220px; border-radius:6px; border:1px solid #ddd; box-shadow:0 2px 5px rgba(0,0,0,0.1);" alt="Photo Terrain"/>
-                    </a>
-                </div>`;
-        }
-
-        let lng = feature.geometry.coordinates[0];
-        let lat = feature.geometry.coordinates[1];
-        let mapContainerHtml = "";
-        
-        if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-            mapContainerHtml = `<div id="minimap-${safeId}" style="width:100%; height:130px; border-radius:6px; margin-bottom:12px; border:1px solid #ccc; box-shadow:inset 0 1px 3px rgba(0,0,0,0.2); z-index:5;"></div>`;
-            mapsToInitialize.push({ id: `minimap-${safeId}`, lat: lat, lng: lng, idCanon: idCanon });
-        }
-
         let calcR18Nitrile = 0, calcR18Ptfe = 0, calcPtfeR3 = 0;
         let calcR11Nitrile = 0, calcR11Ptfe = 0, calcPtfeVar = 0;
 
         if (typeVannePrincipale === "YA") { calcR18Nitrile = 2; calcR18Ptfe = 4; calcPtfeR3 = 1; }
         else if (typeVannePrincipale === "YB") { calcR18Nitrile = 3; calcR18Ptfe = 1; calcPtfeR3 = 1; }
-        
-        if (defaultVanne === "v2000") { calcR18Nitrile += 6; calcR18Ptfe += 2; calcPtfeR3 += 2; } 
+
+        if (defaultVanne === "v2000") { calcR18Nitrile += 6; calcR18Ptfe += 2; calcPtfeR3 += 2; }
         else if (defaultVanne === "var" || defaultVanne === "var_double") {
             let multiplicateur = (defaultVanne === "var_double") ? 2 : 1;
             calcR11Nitrile = 6 * multiplicateur; calcR11Ptfe = 2 * multiplicateur; calcPtfeVar = 2 * multiplicateur;
@@ -1136,7 +1109,7 @@ window.renderAtelierWorkspace = function() {
 
         let formHtml = `
             <div style="padding:10px; background:#fdfdfe;">
-                <div style="background:#f4f9f9; border-left:4px solid #3498db; padding:10px; border-radius:4px; margin-bottom:12px; border:1px solid #e1e8ed; border-left-width:4px;">
+                <div style="background:#f4f9f9; border-left:4px solid #3498db; padding:10px; border-radius:4px; margin-bottom:12px; border:1px solid #e1e8ed;">
                     <h4 style="margin:0 0 8px 0; color:#2980b9; font-size:12px;">🔵 VANNE PRINCIPALE</h4>
                     <div style="font-size:11px; font-weight:bold; color:#7f8c8d; margin-bottom:4px;">[Test 1] Avant Intervention :</div>
                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:6px; margin-bottom:8px;">
@@ -1178,7 +1151,7 @@ window.renderAtelierWorkspace = function() {
                         <div><span class="edit-label">Pression 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
                     </div>
                     <div style="display:grid; grid-template-columns: 2fr 1fr; gap:6px; margin-top:6px;">
-                        <div><span class="edit-label">Pièces VAR utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 1 utilisés" value="${getVal('pièces var 1 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                        <div><span class="edit-label">Pièces VAR utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var utilisés" value="${getVal('pièces var utilisés')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
                         <div><span class="edit-label">VAR (1) prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
                     </div>
                 </div>
@@ -1191,7 +1164,7 @@ window.renderAtelierWorkspace = function() {
                         <div><span class="edit-label">Press 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var" value="${getVal('test pression 1 var')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                         <div><span class="edit-label">Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1) bis" value="${getVal('test elec VAR (1) bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                         <div><span class="edit-label">Press 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                        <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 1 utilisés" value="${getVal('pièces var 1 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var utilisés" value="${getVal('pièces var utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                         <div><span class="edit-label">VAR 1 Prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                     </div>
                     <div style="font-weight:bold; font-size:10px; color:#ba4a00; text-transform:uppercase; margin-bottom:2px;">• Perche 2 (VAR 2)</div>
@@ -1200,7 +1173,7 @@ window.renderAtelierWorkspace = function() {
                         <div><span class="edit-label">Press 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var (2)" value="${getVal('test pression 1 var (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                         <div><span class="edit-label">Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (2) bis" value="${getVal('test elec VAR (2) bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                         <div><span class="edit-label">Press 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var (2)" value="${getVal('test pression 2 var (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                        <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var 2 utilisés" value="${getVal('pièces var 2 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                        <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var utilisés bis" value="${getVal('pièces var utilisés bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                         <div><span class="edit-label">VAR 2 Prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (2) prête" value="${getVal('VAR (2) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                     </div>
                 </div>
@@ -1248,104 +1221,38 @@ window.renderAtelierWorkspace = function() {
             </div>
         `;
 
-                // NOUVEAUTÉ : Recherche de l'icône Drive du canon pour l'Atelier
+        // =========================================================
+        // RECHERCHE ROBUSTE DE L'IMAGE DU CANON POUR L'ENTÊTE
+        // =========================================================
         let typeCanonAtelier = window.getV(p, window.keyType).toLowerCase().trim();
-        let imageAtelierHtml = "📍"; // Icône par défaut
+        let imageAtelierHtml = "⚙️"; // Icône "roue crantée" par défaut si pas d'image
+        
         if (window.driveIcons && window.driveIcons[typeCanonAtelier]) {
-            imageAtelierHtml = `<img src="${window.driveIcons[typeCanonAtelier]}" style="height:40px; width:auto; vertical-align:middle; margin-right:10px; filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.3));">`;
+            imageAtelierHtml = `<img src="${window.driveIcons[typeCanonAtelier]}" style="height:35px; width:auto; vertical-align:middle; margin-right:8px; filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.3)); border-radius:4px;">`;
         }
-
+        
         let card = document.createElement('div');
         card.className = "atelier-card";
         
         if (estValide) { card.style.borderLeftColor = "#27ae60"; card.style.background = "#f4fdf7"; }
 
+        // Injection du HTML final
         card.innerHTML = `
-            <h3 style="display:flex; align-items:center;">
+            <h3 style="display:flex; align-items:center; flex-wrap:wrap; font-size:15px;">
                 ${imageAtelierHtml} Canon N° ${idCanon} 
-                ${estValide ? '<span style="background:#27ae60; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:8px; font-weight:bold; line-height:1.2;">✅ ARCHIVÉ</span>' : ''}
+                ${estValide ? '<span style="background:#27ae60; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:8px; font-weight:bold;">✅ ARCHIVÉ</span>' : ''}
                 <span style="font-size:12px; font-weight:normal; color:#888; margin-left:auto;">Piste: ${piste}</span>
             </h3>
-            ${mapContainerHtml}
-            ${photoDisplayHtml}
-            <details class="atelier-sub-details" style="margin-bottom:6px;"><summary>⚙️ 1. Caractéristiques Techniques (Général)</summary>
+            <details class="atelier-sub-details" style="margin-bottom:6px;"><summary>⚙️ 1. Caractéristiques Techniques</summary>
                 <div class="atelier-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:6px; padding:10px;">${techHtml}</div>
-                <div style="padding:0 10px 10px 10px;"><button onclick="window.saveAtelierTechRow('${idCanon}','${safeId}',this)" style="width:100%; background:#2c3e50; color:white; border:none; padding:6px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:11px;">💾 Mettre à jour les données techniques</button></div>
+                <div style="padding:0 10px 10px 10px;"><button onclick="window.saveAtelierTechRow('${idCanon}','${safeId}',this)" style="width:100%; background:#2c3e50; color:white; border:none; padding:6px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:11px;">💾 Mettre à jour</button></div>
             </details>
-            <details class="atelier-sub-details" style="margin-bottom:6px;"><summary>🕒 2. Rapports d'anomalies de la ligne (Tickets)</summary>${histHtml}</details>
+            <details class="atelier-sub-details" style="margin-bottom:6px;"><summary>🕒 2. Rapports d'anomalies (Tickets)</summary>${histHtml}</details>
             <details class="atelier-sub-details" open><summary>📝 3. Fiche d'Essai d'étanchéité & Hydraulique</summary>${formHtml}</details>
         `;
         ws.appendChild(card);
     });
-
-    setTimeout(() => {
-        mapsToInitialize.forEach(mapData => {
-            let container = document.getElementById(mapData.id);
-            if (!container) return;
-            let miniMap = L.map(mapData.id, { zoomControl: false, attributionControl: false, dragging: false, touchZoom: false, scrollWheelZoom: false }).setView([mapData.lat, mapData.lng], 16);
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(miniMap);
-            L.marker([mapData.lat, mapData.lng]).addTo(miniMap);
-        });
-    }, 200);
 };
-
-window.filterAtelierCanons = function(val) {
-    let search = val.toLowerCase().trim();
-    let cards = document.querySelectorAll('.atelier-card');
-    cards.forEach(card => {
-        let title = card.querySelector('h3').innerText.toLowerCase();
-        card.style.display = title.includes(search) ? 'block' : 'none';
-    });
-};
-
-window.saveAtelierTechRow = async function(idCanon, safeId, btn) {
-    let fields = {};
-    document.querySelectorAll(`.tech-field-${safeId}`).forEach(inp => { fields[inp.getAttribute('data-head')] = inp.value; });
-    let pl = { action: "update_general", idCanon: idCanon, lat: 0, lng: 0, fields: fields }; 
-    let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement..."; btn.disabled = true;
-    try {
-        let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(pl) }); let r = await res.json();
-        if(r.status === "success") { 
-            btn.innerText = "✅ Succès !"; 
-            let feat = window.snowCannons.features.find(f => f.properties.id == idCanon);
-            if(feat) { Object.keys(fields).forEach(k => { let obj = feat.properties.fullData.find(x => x.k.toLowerCase().trim() === k.toLowerCase().trim()); if(obj) obj.v = fields[k]; }); }
-            setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000); 
-        } else { alert("Erreur serveur"); btn.disabled = false; btn.innerText = oldText; }
-    } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
-};
-
-window.handleSelectVanne = function(safeId, val) {
-    let bVar = document.getElementById(`bloc-var-${safeId}`); let bVarDbl = document.getElementById(`bloc-var-double-${safeId}`); let bV2000 = document.getElementById(`bloc-v2000-${safeId}`);
-    if (bVar) bVar.style.display = (val === 'var') ? 'block' : 'none';
-    if (bVarDbl) bVarDbl.style.display = (val === 'var_double') ? 'block' : 'none';
-    if (bV2000) bV2000.style.display = (val === 'v2000') ? 'block' : 'none';
-};
-
-window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
-    let fieldsObj = {}; let canonData = window.snowCannons.features.find(f => f.properties.id == idCanon); let p = canonData ? canonData.properties : null;
-    let valVanneAd = p ? window.getV(p, "vanne additio") : "";
-    let isDouble = valVanneAd.toLowerCase().includes("2var") ? "oui" : (p ? window.getV(p, "abris double") : "");
-
-    fieldsObj["id"] = idCanon; fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; fieldsObj["abris double"] = isDouble; 
-    fieldsObj["type"] = p ? window.getV(p, "Type de vanne") : ""; fieldsObj["vanne additionnelle"] = valVanneAd; fieldsObj["type vanne AD 1"] = valVanneAd; 
-    
-    document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
-        if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
-        fieldsObj[inp.getAttribute('data-col')] = inp.value;
-    });
-
-    let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement & Synchro..."; btn.disabled = true;
-    try {
-        let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); let r = await res.json();
-        if(r.status === "success") {
-            btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
-            if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
-            let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); let rowData = new Array(headersAtelier.length).fill(""); rowData[headersAtelier.indexOf("id")] = idCanon; window.rawAtelier.push(rowData);
-            setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
-        } else { alert("Erreur Apps Script"); btn.disabled = false; btn.innerText = oldText; }
-    } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
-};
-
 /* ========================================================================= */
 /* CHAPITRE 13 : GESTION DE L'INVENTAIRE ET DU STOCK (COMPLET & SÉCURISÉ)    */
 /* ========================================================================= */
