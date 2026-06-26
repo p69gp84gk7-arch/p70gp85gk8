@@ -555,7 +555,7 @@
             if (window.mainTheme === 'suivi_entretien') { if(elSuivi) elSuivi.innerHTML = `<div class="legend-item"><div class="color-box" style="background:#e74c3c;"></div> Défaut en cours</div><div class="legend-item"><div class="color-box" style="background:#9b59b6;"></div> Préventif Usine</div><div class="legend-item"><div class="color-box" style="background:#27ae60;"></div> Déconnecté</div><div class="legend-item"><div class="color-box" style="background:#f1c40f;"></div> Connecté (⚡)</div><div class="legend-item"><div style="background:#e67e22; color:white; width:14px; height:14px; border-radius:50%; font-size:10px; font-weight:bold; text-align:center; line-height:14px; border:1px solid #ccc;">!</div> Remarque présente</div><div class="legend-item" style="font-size:10px; color:#7f8c8d; margin-top:5px;"><i>Mélange de couleurs si multi-statuts.</i></div>`; }
             else if (window.mainTheme === 'entretien_tete') { let elEntretien = document.getElementById('legend-entretien_tete'); if (elEntretien) { elEntretien.innerHTML = `<div class="legend-item"><div class="color-box" style="background:#e67e22;"></div> Buses changées / OK</div><div class="legend-item"><div class="color-box" style="background:#bdc3c7;"></div> À faire</div>`; } }
             else if (window.mainTheme === 'defauts' && elDef) { elDef.innerHTML = `<div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'urgent')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #e74c3c;"></div> Urgent (À faire)</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'encours')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #f39c12;"></div> En cours</div><div class="legend-item" onmouseenter="window.highlightLegend('defauts', 'ras')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: #bdc3c7;"></div> RAS</div>`; }
-            else if (window.mainTheme === 'type') { let elTy = document.getElementById('legend-type'); let h = ''; Object.keys(window.technoColors).sort().forEach(k => { let color = window.technoColors[k]; if(["demak lenko", "demac lenko"].includes(k)) color = "#0000FF"; else if(["sufag", "street", "taurus", "taurax", "peak"].includes(k)) color = "#008000"; if(k === "n/a" || k === "") return; h += `<div class="legend-item" onmouseenter="window.highlightLegend('type', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${color};"></div> ${k.toUpperCase()}</div>`; }); if(elTy) elTy.innerHTML = h; }
+            else if (window.mainTheme === 'type') { let elTy = document.getElementById('legend-type'); let h = '';  Object.keys(window.technoColors).sort().forEach(k => {  let color = window.technoColors[k];  if(["demak lenko", "demac lenko"].includes(k)) color = "#0000FF"; else if(["sufag", "street", "taurus", "taurax", "peak"].includes(k)) color = "#008000"; if(k === "n/a" || k === "") return;  let iconHtml = `<div class="color-box" style="background: ${color};"></div>`;if (window.driveIcons && window.driveIcons[k]) { iconHtml = `<div style="width:20px; height:20px; background:url('${window.driveIcons[k]}') center/contain no-repeat; margin-right:5px; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));"></div>`; } h += `<div class="legend-item" onmouseenter="window.highlightLegend('type', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()">${iconHtml} ${k.toUpperCase()}</div>`;  }); if(elTy) elTy.innerHTML = h; }
             else if (window.mainTheme === 'repeteur') { let h=''; Object.keys(window.repColors).sort().forEach(k => { h += `<div class="legend-item" onmouseenter="window.highlightLegend('repeteur', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.repColors[k]};"></div> Répéteur ${k}</div>`; }); let elRep = document.getElementById('legend-repeteur'); if(elRep) elRep.innerHTML = h; }
             else if (window.mainTheme === 'transfo') { let h=''; Object.keys(window.transfoColors).sort().forEach(k => { h += `<div class="legend-item" onmouseenter="window.highlightLegend('transfo', '${k.replace(/'/g, "\\'")}')" onmouseleave="window.resetHighlight()"><div class="color-box" style="background: ${window.transfoColors[k]};"></div> Transfo ${k}</div>`; }); let elTr = document.getElementById('legend-transfo'); if(elTr) elTr.innerHTML = h; }
             else if (window.mainTheme === 'historique') { let hL = document.getElementById('legend-historique'); if(!hL) return; if (window.histMetric === 'eau') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #add8e6, #2980b9);"></div><div class="legend-labels"><span>0 m³</span><span>Max</span></div>`; else if (window.histMetric === 'air') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #fadb5e, #d35400);"></div><div class="legend-labels"><span>0</span><span>Max</span></div>`; else if (window.histMetric === 'temps') hL.innerHTML = `<div class="gradient-bar" style="background: linear-gradient(to right, #abebc6, #27ae60);"></div><div class="legend-labels"><span>0 h</span><span>Max</span></div>`; }
@@ -1248,14 +1248,23 @@ window.renderAtelierWorkspace = function() {
             </div>
         `;
 
+                // NOUVEAUTÉ : Recherche de l'icône Drive du canon pour l'Atelier
+        let typeCanonAtelier = window.getV(p, window.keyType).toLowerCase().trim();
+        let imageAtelierHtml = "📍"; // Icône par défaut
+        if (window.driveIcons && window.driveIcons[typeCanonAtelier]) {
+            imageAtelierHtml = `<img src="${window.driveIcons[typeCanonAtelier]}" style="height:40px; width:auto; vertical-align:middle; margin-right:10px; filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.3));">`;
+        }
+
         let card = document.createElement('div');
         card.className = "atelier-card";
+        
         if (estValide) { card.style.borderLeftColor = "#27ae60"; card.style.background = "#f4fdf7"; }
 
         card.innerHTML = `
-            <h3>📍 Canon N° ${idCanon} 
-                ${estValide ? '<span style="background:#27ae60; color:white; font-size:9px; padding:2px 6px; border-radius:10px; vertical-align:middle; margin-left:8px; font-weight:bold;">✅ ARCHIVÉ</span>' : ''}
-                <span style="font-size:12px; font-weight:normal; color:#888; float:right;">Piste: ${piste}</span>
+            <h3 style="display:flex; align-items:center;">
+                ${imageAtelierHtml} Canon N° ${idCanon} 
+                ${estValide ? '<span style="background:#27ae60; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:8px; font-weight:bold; line-height:1.2;">✅ ARCHIVÉ</span>' : ''}
+                <span style="font-size:12px; font-weight:normal; color:#888; margin-left:auto;">Piste: ${piste}</span>
             </h3>
             ${mapContainerHtml}
             ${photoDisplayHtml}
