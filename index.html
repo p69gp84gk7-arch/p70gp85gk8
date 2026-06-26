@@ -1781,8 +1781,8 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
         window.changeExtLayerStyle = function(id, newColor, newWeight) { if(window.externalLayers[id]) { if (newColor !== null) window.externalLayers[id].color = newColor; if (newWeight !== null) window.externalLayers[id].weight = parseInt(newWeight); let col = window.externalLayers[id].color; let w = window.externalLayers[id].weight; if(window.externalLayers[id].layer) { window.externalLayers[id].layer.setStyle({color: col, fillColor: col, weight: w}); window.externalLayers[id].layer.eachLayer(function (layer) { if (layer instanceof L.CircleMarker) { layer.setStyle({ color: col, fillColor: col }); } }); } window.updateLayerDataInDB(id, { color: col, weight: w }); } };
         window.deleteExtLayer = function(id) { window.map.removeLayer(window.externalLayers[id].layer); delete window.externalLayers[id]; window.deleteLayerFromDB(id); window.renderCustomLayersList(); };
               
-            /* ========================================================================= */
-        /* CHAPITRE 14 : GESTION ET GRAPHIQUES DE L'HISTORIQUE MÉTÉO                 */
+                /* ========================================================================= */
+        /* CHAPITRE 14 : GESTION ET GRAPHIQUES DE L'HISTORIQUE MÉTÉO (ROBUSTE)       */
         /* ========================================================================= */
         window.openMeteoHistoryModal = function(show) {
             let m = document.getElementById('meteo-history-modal');
@@ -1794,17 +1794,28 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
             let selectMetric = document.getElementById('meteo-metric');
             if(selectMetric) {
                 let data = window.meteoHistData;
+                
+                // Vérification si des données météo ont bien été reçues
                 if(data && data.length > 0) {
                     let headers = data[0];
                     let optionsHTML = "";
+                    
+                    // Parcours de toutes les colonnes pour alimenter le menu
                     headers.forEach((h, i) => {
                         let cleanH = h.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                        if (cleanH.includes("temperature max") || cleanH.includes("temp max") || cleanH.includes("t max") || cleanH.includes("humidite") || cleanH === "hygrometrie") {
+                        
+                        // On exclut uniquement les colonnes de temps (Axe X), on garde tout le reste (Axe Y)
+                        if (cleanH !== 'date' && !cleanH.includes('heure') && !cleanH.includes('time') && cleanH !== "") {
                             optionsHTML += `<option value="${i}">${h}</option>`;
                         }
                     });
-                    if (optionsHTML === "") optionsHTML = `<option value="">-- Colonnes Temp. Max / Humidité introuvables --</option>`;
+                    
+                    if (optionsHTML === "") {
+                        optionsHTML = `<option value="">-- Aucune colonne de données trouvée --</option>`;
+                    }
                     selectMetric.innerHTML = optionsHTML;
+                } else {
+                    selectMetric.innerHTML = `<option value="">-- Onglet météo vide ou introuvable --</option>`;
                 }
             }
             window.renderMeteoHistoryChart();
@@ -1812,37 +1823,51 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
 
         window.renderMeteoHistoryChart = function() {
             let data = window.meteoHistData;
+            let canvasBox = document.getElementById('meteo-history-canvas');
+            if(!canvasBox) return;
+            
+            let ctx = canvasBox.getContext('2d');
+            
             if(!data || data.length < 2) {
-                let canvasBox = document.getElementById('meteo-history-canvas');
-                if(canvasBox) {
-                    let ctx = canvasBox.getContext('2d'); ctx.clearRect(0, 0, canvasBox.width, canvasBox.height);
-                    ctx.font = "14px sans-serif"; ctx.fillStyle = "#7f8c8d"; ctx.fillText("Aucune donnée d'historique météo disponible dans le Google Sheet.", 20, 50);
-                }
+                ctx.clearRect(0, 0, canvasBox.width, canvasBox.height);
+                ctx.font = "bold 14px sans-serif"; ctx.fillStyle = "#e74c3c"; 
+                ctx.fillText("⚠️ Aucune donnée reçue de l'onglet météo.", 20, 50);
                 return;
             }
             
-            let canvas = document.getElementById('meteo-history-canvas'); if(!canvas) return;
-            let metricIdx = parseInt(document.getElementById('meteo-metric').value); if(isNaN(metricIdx)) return;
+            let metricIdx = parseInt(document.getElementById('meteo-metric').value); 
+            if(isNaN(metricIdx)) {
+                ctx.clearRect(0, 0, canvasBox.width, canvasBox.height);
+                ctx.font = "bold 14px sans-serif"; ctx.fillStyle = "#e74c3c"; 
+                ctx.fillText("⚠️ Veuillez sélectionner une donnée à analyser.", 20, 50);
+                return;
+            }
             
             let chartType = document.getElementById('meteo-chart-type').value || 'line';
             let metricLabel = data[0][metricIdx];
             
+            // Recherche automatique de la colonne Date
             let headersList = data[0].map(h => h.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim());
-            let dateIdx = headersList.findIndex(h => h === 'date' || h.includes('date') || h.includes('heure'));
+            let dateIdx = headersList.findIndex(h => h === 'date' || h.includes('date') || h.includes('heure') || h.includes('time'));
             if (dateIdx === -1) dateIdx = 0; 
             
             let labels = []; let values = [];
             for(let i = 1; i < data.length; i++) {
                 let rawDate = data[i][dateIdx]; let rawVal = data[i][metricIdx];
                 if(rawDate == null || rawDate === "") continue;
+                
                 let rawStr = String(rawDate).trim(); let displayLabel = rawStr; 
                 
+                // Formatage de la date
                 let matchFr = rawStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2})[:hH](\d{1,2})(?::(\d{1,2}))?)?/);
                 if (matchFr) {
                     let day = parseInt(matchFr[1], 10); let month = parseInt(matchFr[2], 10); let year = parseInt(matchFr[3], 10);
                     let hr = matchFr[4] ? parseInt(matchFr[4], 10) : null; let min = matchFr[5] ? parseInt(matchFr[5], 10) : null;
                     let formattedDate = String(day).padStart(2, '0') + '/' + String(month).padStart(2, '0') + '/' + year;
-                    if (hr !== null && min !== null) { let formattedTime = String(hr).padStart(2, '0') + ':' + String(min).padStart(2, '0'); displayLabel = [formattedDate, formattedTime]; } else { displayLabel = formattedDate; }
+                    if (hr !== null && min !== null) { 
+                        let formattedTime = String(hr).padStart(2, '0') + ':' + String(min).padStart(2, '0'); 
+                        displayLabel = [formattedDate, formattedTime]; 
+                    } else { displayLabel = formattedDate; }
                 } else {
                     let parsedDate = new Date(rawDate);
                     if (!isNaN(parsedDate.getTime()) && parsedDate.getFullYear() > 1970) {
@@ -1851,15 +1876,44 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
                         if(t === "00:00") displayLabel = d; else displayLabel = [d, t];
                     }
                 }
-                labels.push(displayLabel); values.push(parseFloat(rawVal) || 0);
+                labels.push(displayLabel); 
+                
+                // Nettoyage de la valeur : remplace les virgules par des points et garde uniquement les chiffres
+                let cleanVal = String(rawVal).replace(',', '.').replace(/[^0-9.-]/g, '');
+                values.push(parseFloat(cleanVal) || 0);
             }
             
             if(window.chartInstances['meteo-hist-chart']) window.chartInstances['meteo-hist-chart'].destroy();
             
-            window.chartInstances['meteo-hist-chart'] = new Chart(canvas.getContext('2d'), {
+            window.chartInstances['meteo-hist-chart'] = new Chart(ctx, {
                 type: chartType,
-                data: { labels: labels, datasets: [{ label: metricLabel, data: values, backgroundColor: chartType === 'line' ? 'rgba(22, 160, 133, 0.15)' : '#1abc9c', borderColor: '#16a085', borderWidth: 2, fill: chartType === 'line', tension: 0.2, pointRadius: labels.length > 80 ? 0 : 3, pointHoverRadius: 6 }] },
-                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true }, grid: { display: false } }, y: { type: 'linear', display: true, ticks: { font: { size: 10 } } } }, plugins: { legend: { position: 'top', labels: { font: { size: 11, weight: 'bold' } } }, zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } } }
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: metricLabel, 
+                        data: values, 
+                        backgroundColor: chartType === 'line' ? 'rgba(52, 152, 219, 0.2)' : '#3498db', 
+                        borderColor: '#2980b9', 
+                        borderWidth: 2, 
+                        fill: chartType === 'line', 
+                        tension: 0.3, 
+                        pointRadius: labels.length > 80 ? 0 : 3, 
+                        pointHoverRadius: 6 
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    interaction: { mode: 'index', intersect: false }, 
+                    scales: { 
+                        x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 15 }, grid: { display: false } }, 
+                        y: { type: 'linear', display: true, ticks: { font: { size: 10 } } } 
+                    }, 
+                    plugins: { 
+                        legend: { position: 'top', labels: { font: { size: 12, weight: 'bold' } } }, 
+                        zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } 
+                    } 
+                }
             });
         };
 
