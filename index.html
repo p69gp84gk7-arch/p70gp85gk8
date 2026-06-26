@@ -916,7 +916,31 @@
                 window.chartInstances['global-filter-chart'] = new Chart(ctx.getContext('2d'), { type: chartType, data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: chartColors, borderRadius: chartType==='bar'?4:0 }] }, options: chartOptions, plugins: chartPlugins });
             }, 50);
         };
+/* ========================================================================= */
+/* TITRE : GESTION DU MODAL DE COMPARAISON GLOBAL                            */
+/* ========================================================================= */
 
+// Fonction pour ouvrir la fenêtre de comparaison
+window.openGlobalCompareModal = function() {
+    let compareModal = document.getElementById('compare-modal'); // Remplace par l'ID exact de ton modal si différent
+    
+    if (compareModal) {
+        compareModal.style.display = 'flex'; // Affiche le modal
+        console.log("✅ Modal de comparaison ouvert.");
+    } else {
+        console.error("⚠️ Erreur : L'élément HTML du modal de comparaison est introuvable.");
+        alert("La fenêtre de comparaison n'a pas pu s'ouvrir.");
+    }
+};
+
+// Fonction pour fermer la fenêtre de comparaison
+window.closeGlobalCompareModal = function() {
+    let compareModal = document.getElementById('compare-modal'); 
+    
+    if (compareModal) {
+        compareModal.style.display = 'none'; // Masque le modal
+    }
+};
         /* ========================================================================= */
         /* CHAPITRE 9 : ÉDITIONS DES TICKETS DE MAINTENANCE                          */
         /* ========================================================================= */
