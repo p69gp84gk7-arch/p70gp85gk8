@@ -1414,8 +1414,8 @@ window.renderPieceBadges = function(hiddenId, container) {
                             <div><span class="edit-label">Commentaire de clôture</span><input type="text" class="edit-input b-field-${safeId}" data-col="Commentaire" value="${getVal('Commentaire')}" placeholder="Remarques de fin d'essai..." style="padding:4px; margin-bottom:0; font-size:11px; height:26px;"></div>
                         </div>
 
-                        <button onclick="window.saveAtelierBancRow('${idCanon}', '${safeId}', this)" style="width:100%; margin-top:12px; background:${estValide ? '#27ae60' : '#8e44ad'}; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,0.15);">
-                            ${estValide ? '🔄 Mettre à jour le rapport d\\'Essai' : '🚀 Archiver ce rapport de Banc d\\'Essais'}
+                                                <button onclick="window.saveAtelierBancRow('${idCanon}', '${safeId}', this)" style="width:100%; margin-top:12px; background:${estValide ? '#27ae60' : '#8e44ad'}; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                            ${estValide ? "🔄 Mettre à jour le rapport d'Essai" : "🚀 Archiver ce rapport de Banc d'Essais"}
                         </button>
                     </div>
                 `;
