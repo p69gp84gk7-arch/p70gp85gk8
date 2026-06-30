@@ -1423,17 +1423,29 @@
             fieldsObj["id"] = idCanon; fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; fieldsObj["abris double"] = isDouble; 
             fieldsObj["type"] = p ? window.getV(p, "Type de vanne") : ""; fieldsObj["vanne additionnelle"] = valVanneAd; fieldsObj["type vanne AD 1"] = valVanneAd; 
             
+           let allPiecesAtelier = [];
             document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
                 if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
-                fieldsObj[inp.getAttribute('data-col')] = inp.value;
+                let colName = inp.getAttribute('data-col');
+                fieldsObj[colName] = inp.value;
+                
+                // ---> INTERCEPTION DES CHAMPS DE PIÈCES <---
+                if (colName.includes('pièces') && inp.value.trim() !== "") {
+                    allPiecesAtelier.push(inp.value.trim());
+                }
             });
 
             let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement & Synchro..."; btn.disabled = true;
             try {
                 let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); let r = await res.json();
                 if(r.status === "success") {
+                    // ---> DÉCLENCHEMENT DU DÉCOMPTE STOCK <---
+                    if (allPiecesAtelier.length > 0) {
+                        window.deduireStockLocalEtServeur(allPiecesAtelier.join(', '));
+                    }
+                    // -----------------------------------------
+
                     btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
-                    if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
                     let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); let rowData = new Array(headersAtelier.length).fill(""); rowData[headersAtelier.indexOf("id")] = idCanon; window.rawAtelier.push(rowData);
                     setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
                 } else { alert("Erreur Apps Script"); btn.disabled = false; btn.innerText = oldText; }
@@ -1812,7 +1824,89 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
         } else { alert("Erreur: " + r.msg); btn.innerText = oldText; btn.disabled = false; }
     } catch(e) { alert("Erreur réseau."); btn.innerText = oldText; btn.disabled = false; }
 };
+/* ========================================================================= */
+/* TITRE : DÉCOMPTE AUTOMATIQUE DU STOCK SUITE À UNE INTERVENTION            */
+/* ========================================================================= */
+window.deduireStockLocalEtServeur = async function(piecesString) {
+    if (!piecesString || piecesString.trim() === "") return;
 
+    // 1. Découpage de la liste des badges (séparés par des virgules)
+    let pieces = piecesString.split(',').map(s => s.trim()).filter(s => s !== "");
+    if (pieces.length === 0) return;
+
+    // 2. Identification des colonnes dynamiques du stock
+    let headers = window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "");
+    let idxNum = headers.findIndex(h => h.includes("numero") || h === "id"); if (idxNum === -1) idxNum = 0;
+    let idxRef = headers.findIndex(h => h === "ref");
+    let idxProd = headers.findIndex(h => h === "produit");
+    let idxPris = headers.findIndex(h => h === "pris");
+    let idxStock = headers.findIndex(h => h.includes("stock"));
+    let idxReste = headers.findIndex(h => h === "reste");
+
+    if (idxPris === -1) {
+        console.warn("DÉCOMPTE ANNULÉ : Colonne 'pris' introuvable dans le stock.");
+        return; 
+    }
+
+    // 3. Boucle de décompte pour chaque badge
+    for (let pieceEntry of pieces) {
+        // Extraction du nom de la pièce et de la quantité via Regex (ex: "Joint R18 x2")
+        let match = pieceEntry.match(/^(.*?)\s+x(\d+)$/);
+        let nomPiece = pieceEntry;
+        let qte = 1;
+        
+        if (match) {
+            nomPiece = match[1].trim();
+            qte = parseInt(match[2], 10) || 1;
+        }
+
+        // 4. Recherche de l'article dans les données locales du stock
+        let rowIndex = window.rawStock.findIndex((row, idx) => {
+            if (idx === 0) return false;
+            let ref = (idxRef !== -1 && row[idxRef]) ? row[idxRef].toString().trim() : "";
+            let prod = (idxProd !== -1 && row[idxProd]) ? row[idxProd].toString().trim() : "";
+            let optionValue = ref ? `[${ref}] ${prod}` : prod;
+            return optionValue === nomPiece || prod === nomPiece; // Match par le badge exact ou le nom
+        });
+
+        // 5. Incrémentation, MàJ locale et envoi au serveur Google
+        if (rowIndex !== -1) {
+            let row = window.rawStock[rowIndex];
+            let currentPris = parseFloat(row[idxPris]) || 0;
+            let newPris = currentPris + qte;
+            let numPiece = row[idxNum].toString().trim();
+
+            // Mise à jour de la Data locale
+            row[idxPris] = newPris;
+            let fieldsObj = {};
+            fieldsObj[window.rawStock[0][idxPris].toString().trim()] = newPris;
+
+            if (idxStock !== -1 && idxReste !== -1) {
+                let stock = parseFloat(row[idxStock]) || 0;
+                let newReste = stock - newPris;
+                row[idxReste] = newReste;
+                fieldsObj[window.rawStock[0][idxReste].toString().trim()] = newReste;
+            }
+
+            // Envoi de la requête de MàJ en fond (silencieuse)
+            try {
+                fetch(GOOGLE_API_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ 
+                        action: "update_stock_item", 
+                        idPiece: numPiece, 
+                        fields: fieldsObj 
+                    }) 
+                });
+            } catch(e) { console.error("Échec de la MàJ du stock en arrière-plan", e); }
+        }
+    }
+    
+    // Rafraichissement visuel si l'onglet stock est ouvert (sécurité)
+    if (window.mainTheme === 'stock' && window.renderStockWorkspace) {
+        setTimeout(() => { window.renderStockWorkspace(); }, 800);
+    }
+};
         /* ========================================================================= */
         /* CHAPITRE 11 : MAINTENANCE AVANCÉE ET MODULE "BUSES"                       */
         /* ========================================================================= */
@@ -1885,9 +1979,16 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
             let oldText = btn.innerText; btn.innerText = "⏳ Transmission..."; btn.disabled = true;
             try {
                 let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "add_ticket", fields: fieldsObj }) }); let r = await res.json();
-                if(r.status === "success") {
+               if(r.status === "success") {
+                    // ---> DÉCLENCHEMENT DU DÉCOMPTE STOCK <---
+                    if (pieces && pieces.trim() !== "") {
+                        window.deduireStockLocalEtServeur(pieces);
+                    }
+                    // -----------------------------------------
+
                     btn.innerText = "🚀 Ticket Archivé !"; btn.style.background = "#27ae60"; window.rawTickets.push({ statut: etat.toLowerCase(), date: dateStr, idCanon: idCanon, defaut: defaut, fullData: Object.keys(fieldsObj).map(k => ({k: k, v: fieldsObj[k]})) });
                     setTimeout(() => { btn.innerText = oldText; btn.disabled = false; btn.style.background = "#c0392b"; window.renderSelectionPanel(); window.updateMap(); window.triggerGlobalFilterChart(); }, 2000);
+                }
                 } else { alert("Erreur serveur Sheets : " + (r.msg || "Inconnue")); btn.innerText = oldText; btn.disabled = false; }
             } catch(e) { alert("Erreur réseau"); btn.innerText = oldText; btn.disabled = false; }
         };
