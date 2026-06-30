@@ -1226,7 +1226,19 @@
                     if (rowData) headersAtelier.forEach((h, i) => { existingData[h.toLowerCase().trim()] = rowData[i]; });
                 }
 
-                const getVal = (col) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : "";
+               // ---> CORRECTEUR DE LECTURE (TOLÉRANCE ORTHOGRAPHIQUE) <---
+                const getVal = (col) => {
+                    let colLow = col.toLowerCase().trim();
+                    if (existingData[colLow] !== undefined) return existingData[colLow];
+                    
+                    let fuzzyCol = colLow.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
+                    for (let key in existingData) {
+                        let fuzzyKey = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
+                        if (fuzzyKey === fuzzyCol) return existingData[key];
+                    }
+                    return "";
+                };
+                // -----------------------------------------------------------
 
                 // LOGIQUE CLARINETTE / 2VAR
                 let typeVannePrincipale = window.getV(p, "Type de vanne").toUpperCase();
@@ -1519,19 +1531,34 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
                 let colNameRaw = inp.getAttribute('data-col');
                 let colNameLower = colNameRaw.toLowerCase().trim();
                 
+                // Sécurité anti-doublon (ignore l'ancien champ texte si présent)
                 if (colNameLower.includes('pièces') && inp.type === 'text') return;
 
                 let newVal = inp.value.trim();
                 
                 // ---> CORRECTEUR D'EN-TÊTE INTELLIGENT <---
-                // Force l'utilisation de la casse exacte du Google Sheet pour éviter les rejets silencieux
-                let exactHeaderIndex = headersAtelierLower.indexOf(colNameLower);
-                let finalKey = (exactHeaderIndex !== -1) ? originalHeaders[exactHeaderIndex] : colNameRaw;
+                let finalKey = colNameRaw;
+                let finalKeyLower = colNameLower;
                 
+                let matchedHeader = originalHeaders.find(h => {
+                    let hLow = h.toLowerCase().trim();
+                    if (hLow === colNameLower) return true;
+                    // Tolérance orthographique
+                    let fuzzyH = hLow.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
+                    let fuzzyC = colNameLower.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
+                    return fuzzyH === fuzzyC;
+                });
+                
+                if (matchedHeader) {
+                    finalKey = matchedHeader; // Le vrai nom exact pour Google
+                    finalKeyLower = matchedHeader.toLowerCase().trim(); // Pour la lecture du diff
+                }
+
                 fieldsObj[finalKey] = newVal;
                 
-                if (colNameLower.includes('pièces')) {
-                    let oldVal = oldData[colNameLower] || "";
+                // ---> CALCUL DU DIFF CORRIGÉ <---
+                if (finalKeyLower.includes('pièces')) {
+                    let oldVal = oldData[finalKeyLower] || "";
                     let oldArr = oldVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
                     let newArr = newVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
                     
@@ -1540,9 +1567,9 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
                     
                     newArr.forEach(pi => {
                         if (oldMap[pi] > 0) { 
-                            oldMap[pi]--; 
+                            oldMap[pi]--; // La pièce y était déjà, on l'ignore
                         } else { 
-                            piecesAddedList.push(pi);
+                            piecesAddedList.push(pi); // C'est une nouvelle pièce !
                         }
                     });
                 }
