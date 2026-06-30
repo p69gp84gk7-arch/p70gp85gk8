@@ -1486,7 +1486,7 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
             fieldsObj["vanne additionnelle"] = valVanneAd; 
             fieldsObj["type vanne AD 1"] = valVanneAd; 
             
-            let piecesAddedList = []; // Pour stocker UNIQUEMENT les nouvelles pièces (le Diff)
+            let piecesAddedList = []; 
 
             // 1. On récupère les ANCIENNES valeurs du cache local pour faire la différence
             let oldData = {};
@@ -1504,11 +1504,16 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
             document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
                 if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
                 let colName = inp.getAttribute('data-col');
+                
+                // ---> SÉCURITÉ ANTI-DOUBLON <---
+                // Si l'ancien champ texte traîne encore dans le code HTML, on l'ignore !
+                if (colName.toLowerCase().includes('pièces') && inp.type === 'text') return;
+
                 let newVal = inp.value.trim();
                 fieldsObj[colName] = newVal;
                 
                 // ---> CALCUL DU DIFF POUR LE STOCK (ATELIER) <---
-                if (colName.includes('pièces')) {
+                if (colName.toLowerCase().includes('pièces')) {
                     let oldVal = oldData[colName.toLowerCase()] || "";
                     let oldArr = oldVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
                     let newArr = newVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
@@ -1539,7 +1544,7 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
 
                     btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
                     
-                    // ---> MISE A JOUR DU CACHE LOCAL (Empêche le retour à l'ancienne valeur) <---
+                    // ---> MISE A JOUR DU CACHE LOCAL <---
                     if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
                     let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); 
                     let idxIdAtelier = headersAtelier.findIndex(h => h === "id" || h.includes("n°"));
