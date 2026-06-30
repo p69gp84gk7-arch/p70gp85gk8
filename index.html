@@ -1471,23 +1471,58 @@
             if (bV2000) bV2000.style.display = (val === 'v2000') ? 'block' : 'none';
         };
 
-        window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
-            let fieldsObj = {}; let canonData = window.snowCannons.features.find(f => f.properties.id == idCanon); let p = canonData ? canonData.properties : null;
+window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
+            let fieldsObj = {}; 
+            let canonData = window.snowCannons.features.find(f => f.properties.id == idCanon); 
+            let p = canonData ? canonData.properties : null;
             let valVanneAd = p ? window.getV(p, "vanne additio") : "";
             let isDouble = valVanneAd.toLowerCase().includes("2var") ? "oui" : (p ? window.getV(p, "abris double") : "");
 
-            fieldsObj["id"] = idCanon; fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; fieldsObj["abris double"] = isDouble; 
-            fieldsObj["type"] = p ? window.getV(p, "Type de vanne") : ""; fieldsObj["vanne additionnelle"] = valVanneAd; fieldsObj["type vanne AD 1"] = valVanneAd; 
+            fieldsObj["id"] = idCanon; 
+            fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; 
+            fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; 
+            fieldsObj["abris double"] = isDouble; 
+            fieldsObj["type"] = p ? window.getV(p, "Type de vanne") : ""; 
+            fieldsObj["vanne additionnelle"] = valVanneAd; 
+            fieldsObj["type vanne AD 1"] = valVanneAd; 
             
-           let allPiecesAtelier = [];
+            let piecesAddedList = []; // Pour stocker UNIQUEMENT les nouvelles pièces (le Diff)
+
+            // 1. On récupère les ANCIENNES valeurs du cache local pour faire la différence
+            let oldData = {};
+            if (window.rawAtelier && window.rawAtelier.length > 0) {
+                let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim());
+                let idxIdAtelier = headersAtelier.findIndex(h => h === "id" || h.includes("n°"));
+                if (idxIdAtelier === -1) idxIdAtelier = 0;
+                let rowAtelier = window.rawAtelier.find(r => r[idxIdAtelier] == idCanon);
+                if (rowAtelier) {
+                    headersAtelier.forEach((h, i) => { oldData[h] = rowAtelier[i] ? rowAtelier[i].toString().trim() : ""; });
+                }
+            }
+
+            // 2. On scanne le formulaire actuel
             document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
                 if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
                 let colName = inp.getAttribute('data-col');
-                fieldsObj[colName] = inp.value;
+                let newVal = inp.value.trim();
+                fieldsObj[colName] = newVal;
                 
-                // ---> INTERCEPTION DES CHAMPS DE PIÈCES <---
-                if (colName.includes('pièces') && inp.value.trim() !== "") {
-                    allPiecesAtelier.push(inp.value.trim());
+                // ---> CALCUL DU DIFF POUR LE STOCK (ATELIER) <---
+                if (colName.includes('pièces')) {
+                    let oldVal = oldData[colName.toLowerCase()] || "";
+                    let oldArr = oldVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
+                    let newArr = newVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
+                    
+                    let oldMap = {};
+                    oldArr.forEach(pi => oldMap[pi] = (oldMap[pi]||0) + 1);
+                    
+                    newArr.forEach(pi => {
+                        if (oldMap[pi] > 0) { 
+                            oldMap[pi]--; // La pièce y était déjà, on l'ignore
+                        } else { 
+                            piecesAddedList.push(pi); // C'est une nouvelle pièce !
+                        }
+                    });
                 }
             });
 
@@ -1495,14 +1530,41 @@
             try {
                 let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); let r = await res.json();
                 if(r.status === "success") {
-                    // ---> DÉCLENCHEMENT DU DÉCOMPTE STOCK <---
-                    if (allPiecesAtelier.length > 0) {
-                        window.deduireStockLocalEtServeur(allPiecesAtelier.join(', '));
+                    
+                    // ---> DÉCLENCHEMENT DU DÉCOMPTE STOCK (DIFF SEULEMENT) <---
+                    if (piecesAddedList.length > 0) {
+                        window.deduireStockLocalEtServeur(piecesAddedList.join(', '));
                     }
                     // -----------------------------------------
 
                     btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
-                    let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); let rowData = new Array(headersAtelier.length).fill(""); rowData[headersAtelier.indexOf("id")] = idCanon; window.rawAtelier.push(rowData);
+                    
+                    // ---> MISE A JOUR DU CACHE LOCAL (Empêche le retour à l'ancienne valeur) <---
+                    if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
+                    let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); 
+                    let idxIdAtelier = headersAtelier.findIndex(h => h === "id" || h.includes("n°"));
+                    if (idxIdAtelier === -1) idxIdAtelier = 0;
+                    
+                    let rowIndex = window.rawAtelier.findIndex((row, idx) => idx > 0 && row[idxIdAtelier] == idCanon);
+                    let rowData;
+                    
+                    if (rowIndex !== -1) {
+                        rowData = window.rawAtelier[rowIndex]; // On met à jour la ligne existante
+                    } else {
+                        rowData = new Array(headersAtelier.length).fill(""); 
+                        rowData[idxIdAtelier] = idCanon; 
+                        window.rawAtelier.push(rowData); // Ou on la crée si elle n'existe pas
+                    }
+                    
+                    // Injection dynamique des nouvelles valeurs pour l'affichage visuel
+                    Object.keys(fieldsObj).forEach(k => {
+                        let colIdx = headersAtelier.indexOf(k.toLowerCase().trim());
+                        if (colIdx !== -1) {
+                            rowData[colIdx] = fieldsObj[k];
+                        }
+                    });
+                    // -------------------------------------------------------------------------------
+
                     setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
                 } else { alert("Erreur Apps Script"); btn.disabled = false; btn.innerText = oldText; }
             } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
