@@ -1988,7 +1988,6 @@ window.deduireStockLocalEtServeur = async function(piecesString) {
 
                     btn.innerText = "🚀 Ticket Archivé !"; btn.style.background = "#27ae60"; window.rawTickets.push({ statut: etat.toLowerCase(), date: dateStr, idCanon: idCanon, defaut: defaut, fullData: Object.keys(fieldsObj).map(k => ({k: k, v: fieldsObj[k]})) });
                     setTimeout(() => { btn.innerText = oldText; btn.disabled = false; btn.style.background = "#c0392b"; window.renderSelectionPanel(); window.updateMap(); window.triggerGlobalFilterChart(); }, 2000);
-                }
                 } else { alert("Erreur serveur Sheets : " + (r.msg || "Inconnue")); btn.innerText = oldText; btn.disabled = false; }
             } catch(e) { alert("Erreur réseau"); btn.innerText = oldText; btn.disabled = false; }
         };
