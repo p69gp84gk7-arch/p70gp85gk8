@@ -343,8 +343,9 @@
 /* ========================================================================= */
         /* TITRE : GESTION DYNAMIQUE DES PIÈCES UTILISÉES (AJOUT/SUPPRESSION)        */
         /* ========================================================================= */
-        window.buildPiecesUI = function(idHidden, classNames, dataCol, label, val) {
+       window.buildPiecesUI = function(idHidden, classNames, dataCol, label, val) {
             let dataAttr = dataCol ? `data-col="${dataCol}"` : '';
+            let safeVal = val ? val.toString().replace(/"/g, '&quot;') : ''; // Sécurité guillemets
             return `
             <div style="background:rgba(0,0,0,0.02); padding:6px; border-radius:4px; border:1px solid #e1e8ed; width:100%; box-sizing:border-box;">
                 <span class="edit-label">${label}</span>
@@ -354,7 +355,7 @@
                     <button type="button" onclick="window.addPieceToField('${idHidden}', 'sel-${idHidden}', 'qte-${idHidden}')" style="background:#16a085; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; padding:0 12px; height:28px;">+</button>
                 </div>
                 <div id="badges-${idHidden}" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:4px;"></div>
-                <input type="hidden" id="${idHidden}" class="${classNames}" ${dataAttr} value="${val || ''}">
+                <input type="hidden" id="${idHidden}" class="${classNames}" ${dataAttr} value="${safeVal}">
                 <img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" onload="window.renderPieceBadges('${idHidden}', document.getElementById('badges-${idHidden}'))" style="display:none;">
             </div>`;
         };
@@ -391,7 +392,7 @@
             window.renderPieceBadges(hiddenId, badgesContainer);
         };
 
-       window.renderPieceBadges = function(hiddenId, container) {
+window.renderPieceBadges = function(hiddenId, container) {
             let hidden = document.getElementById(hiddenId);
             if(!hidden || !container) return;
             let currentList = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(s => s !== "") : [];
@@ -422,7 +423,7 @@
                     
                     if (rowIndex !== -1) {
                         let resteActuel = parseFloat(window.rawStock[rowIndex][idxReste]) || 0;
-                        // Si la quantité demandée fait tomber le stock à moins de 0
+                        // Si la quantité demandée fait tomber le stock en négatif
                         if (resteActuel - qteDemandee < 0) {
                             badgeColor = '#e74c3c'; // Rouge alerte
                             warningLabel = '⚠️ ';
@@ -1167,7 +1168,7 @@
         /* CHAPITRE 10 : MODULE ATELIER ET BANC D'ESSAIS                             */
         /* ========================================================================= */
 
-                window.renderAtelierWorkspace = function() {
+               window.renderAtelierWorkspace = function() {
             let ws = document.getElementById('atelier-workspace');
             if(!ws) return;
             
@@ -1226,11 +1227,10 @@
                     if (rowData) headersAtelier.forEach((h, i) => { existingData[h.toLowerCase().trim()] = rowData[i]; });
                 }
 
-               // ---> CORRECTEUR DE LECTURE (TOLÉRANCE ORTHOGRAPHIQUE) <---
+                // LECTURE TOLÉRANTE POUR RÉCUPÉRER LES ANCIENNES PIÈCES
                 const getVal = (col) => {
                     let colLow = col.toLowerCase().trim();
                     if (existingData[colLow] !== undefined) return existingData[colLow];
-                    
                     let fuzzyCol = colLow.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
                     for (let key in existingData) {
                         let fuzzyKey = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
@@ -1238,9 +1238,7 @@
                     }
                     return "";
                 };
-                // -----------------------------------------------------------
 
-                // LOGIQUE CLARINETTE / 2VAR
                 let typeVannePrincipale = window.getV(p, "Type de vanne").toUpperCase();
                 let valVanneAd = (window.getV(p, "vanne additio") || "").toLowerCase();
 
@@ -1249,7 +1247,6 @@
                 else if (valVanneAd.includes("2var")) defaultVanne = "var_double";
                 else if (valVanneAd.includes("var")) defaultVanne = "var";
 
-                // LOGIQUE PHOTO DE RÉFÉRENCE TERRAIN
                 let suiviRow = window.suiviEntretienData.find(row => row[0] == idCanon);
                 let photoUrlBrute = suiviRow && suiviRow[6] ? suiviRow[6].toString().trim() : "";
                 let photoDisplayHtml = "";
@@ -1265,29 +1262,23 @@
                         </div>`;
                 }
 
-                // =========================================================
-                // RECHERCHE ROBUSTE DE L'IMAGE DU CANON (Titre + Carte)
-                // =========================================================
                 let typeCanonAtelier = window.getV(p, window.keyType).toLowerCase().trim();
                 let iconUrlAtelier = (window.driveIcons && window.driveIcons[typeCanonAtelier]) ? window.driveIcons[typeCanonAtelier] : null;
 
-                let imageAtelierHtml = "⚙️"; // Icône "roue crantée" par défaut si pas d'image
+                let imageAtelierHtml = "⚙️"; 
                 if (iconUrlAtelier) {
                     imageAtelierHtml = `<img src="${iconUrlAtelier}" style="height:35px; width:auto; vertical-align:middle; margin-right:8px; filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.3)); border-radius:4px;">`;
                 }
 
-                // LOGIQUE MINI-CARTE GPS
                 let lng = feature.geometry.coordinates[0];
                 let lat = feature.geometry.coordinates[1];
                 let mapContainerHtml = "";
                 
                 if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
                     mapContainerHtml = `<div id="minimap-${safeId}" style="width:100%; height:130px; border-radius:6px; margin-bottom:12px; border:1px solid #ccc; box-shadow:inset 0 1px 3px rgba(0,0,0,0.2); z-index:5;"></div>`;
-                    // On ajoute l'url de l'icône dans la liste d'initialisation de la carte
                     mapsToInitialize.push({ id: `minimap-${safeId}`, lat: lat, lng: lng, idCanon: idCanon, iconUrl: iconUrlAtelier });
                 }
 
-                // CALCUL DES CONSOMMABLES
                 let calcR18Nitrile = 0, calcR18Ptfe = 0, calcPtfeR3 = 0;
                 let calcR11Nitrile = 0, calcR11Ptfe = 0, calcPtfeVar = 0;
 
@@ -1303,7 +1294,6 @@
 
                 const getConsommable = (col, autoCalc) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : (autoCalc > 0 ? autoCalc : "");
 
-                // GÉNÉRATION DES DONNÉES TECHNIQUES
                 let headersGen = window.rawGeneral[0] || []; let techHtml = "";
                 headersGen.forEach(h => {
                     if(h.toLowerCase().includes('xy') || h.toLowerCase().includes('gps') || h.toLowerCase() === 'id') return;
@@ -1311,13 +1301,11 @@
                     techHtml += `<div><span class="edit-label">${h}</span><input type="text" class="edit-input tech-field-${safeId}" data-head="${h}" value="${val}" style="margin-bottom:0; padding:4px; font-size:11px; height:26px;"></div>`;
                 });
 
-                // HISTORIQUE TICKETS
                 let hist = window.getHistoryTickets(idCanon); let histHtml = `<div style="padding:10px; background:#fff; font-size:12px;">`;
                 if(hist.length === 0) histHtml += `<span style="color:#7f8c8d; font-style:italic;">Aucune panne enregistrée.</span>`;
                 else hist.forEach(t => { histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${t.date}</b> : <span style="color:#e74c3c;">${t.defaut}</span></div>`; });
                 histHtml += `</div>`;
 
-                // FORMULAIRE HYDRAULIQUE
                 let formHtml = `
                     <div style="padding:10px; background:#fdfdfe;">
                         <div style="background:#f4f9f9; border-left:4px solid #3498db; padding:10px; border-radius:4px; margin-bottom:12px; border:1px solid #e1e8ed;">
@@ -1362,7 +1350,7 @@
                                 <div><span class="edit-label">Pression 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
                             </div>
                             <div style="display:grid; grid-template-columns: 2fr 1fr; gap:6px; margin-top:6px;">
-                              <div style="grid-column: 1 / -1;">${window.buildPiecesUI('var1-pieces-'+safeId, 'edit-input b-field-'+safeId, 'pièces var 1 utilisés', 'Pièces VAR 1 (Stock)', getVal('pièces var 1 utilisés'))}</div>
+                                <div style="grid-column: 1 / -1;">${window.buildPiecesUI('var1-pieces-'+safeId, 'edit-input b-field-'+safeId, 'pièces var 1 utilisés', 'Pièces VAR 1 (Stock)', getVal('pièces var 1 utilisés'))}</div>
                                 <div><span class="edit-label">VAR (1) prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
                             </div>
                         </div>
@@ -1427,7 +1415,7 @@
                         </div>
 
                         <button onclick="window.saveAtelierBancRow('${idCanon}', '${safeId}', this)" style="width:100%; margin-top:12px; background:${estValide ? '#27ae60' : '#8e44ad'}; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,0.15);">
-                            ${estValide ? '🔄 Mettre à jour le rapport d\'Essai' : '🚀 Archiver ce rapport de Banc d\'Essais'}
+                            ${estValide ? '🔄 Mettre à jour le rapport d\\'Essai' : '🚀 Archiver ce rapport de Banc d\\'Essais'}
                         </button>
                     </div>
                 `;
@@ -1478,7 +1466,6 @@
                         });
                         L.marker([mapData.lat, mapData.lng], { icon: customIcon }).addTo(miniMap);
                     } else {
-                        // Point bleu classique si aucune image n'est trouvée
                         L.marker([mapData.lat, mapData.lng]).addTo(miniMap);
                     }
                 });
@@ -1500,65 +1487,62 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
             let valVanneAd = p ? window.getV(p, "vanne additio") : "";
             let isDouble = valVanneAd.toLowerCase().includes("2var") ? "oui" : (p ? window.getV(p, "abris double") : "");
 
-            fieldsObj["id"] = idCanon; 
-            fieldsObj["N° de vanne"] = p ? window.getV(p, "N° de vanne") : ""; 
-            fieldsObj["piste"] = p ? window.getV(p, window.keyPiste) : ""; 
-            fieldsObj["abris double"] = isDouble; 
-            fieldsObj["type"] = p ? window.getV(p, "Type de vanne") : ""; 
-            fieldsObj["vanne additionnelle"] = valVanneAd; 
-            fieldsObj["type vanne AD 1"] = valVanneAd; 
+            // 1. Récupération des EN-TÊTES EXACTS du Google Sheet pour forcer la correspondance
+            let originalHeaders = window.rawAtelier && window.rawAtelier.length > 0 ? window.rawAtelier[0] : [];
+            
+            // Fonction de tolérance absolue (efface accents, minuscules, erreurs de frappe)
+            const getExactHeader = (colName) => {
+                let colLow = colName.toLowerCase().trim();
+                let exact = originalHeaders.find(h => h.toLowerCase().trim() === colLow);
+                if (exact) return exact; // Trouvé directement
+                
+                let fuzzyC = colLow.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
+                exact = originalHeaders.find(h => {
+                    let fuzzyH = h.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
+                    return fuzzyH === fuzzyC;
+                });
+                return exact || colName; // Retourne le nom exact si trouvé, sinon le nom brut
+            };
+
+            fieldsObj[getExactHeader("id")] = idCanon; 
+            fieldsObj[getExactHeader("N° de vanne")] = p ? window.getV(p, "N° de vanne") : ""; 
+            fieldsObj[getExactHeader("piste")] = p ? window.getV(p, window.keyPiste) : ""; 
+            fieldsObj[getExactHeader("abris double")] = isDouble; 
+            fieldsObj[getExactHeader("type")] = p ? window.getV(p, "Type de vanne") : ""; 
+            fieldsObj[getExactHeader("vanne additionnelle")] = valVanneAd; 
+            fieldsObj[getExactHeader("type vanne AD 1")] = valVanneAd; 
             
             let piecesAddedList = []; 
-
-            // 1. Récupération des données brutes avec les entêtes EXACTS du Sheets
             let oldData = {};
-            let originalHeaders = window.rawAtelier && window.rawAtelier.length > 0 ? window.rawAtelier[0] : [];
-            let headersAtelierLower = originalHeaders.map(h => h.toString().toLowerCase().trim());
-            let idxIdAtelier = headersAtelierLower.findIndex(h => h === "id" || h.includes("n°"));
+            let idxIdAtelier = originalHeaders.findIndex(h => h.toLowerCase().trim() === "id" || h.toLowerCase().includes("n°"));
             if (idxIdAtelier === -1) idxIdAtelier = 0;
 
             if (window.rawAtelier && window.rawAtelier.length > 0) {
                 let rowAtelier = window.rawAtelier.find(r => r[idxIdAtelier] == idCanon);
                 if (rowAtelier) {
-                    headersAtelierLower.forEach((h, i) => { oldData[h] = rowAtelier[i] ? rowAtelier[i].toString().trim() : ""; });
+                    originalHeaders.forEach((h, i) => { oldData[h] = rowAtelier[i] ? rowAtelier[i].toString().trim() : ""; });
                 }
             }
 
-            // 2. Scan du formulaire
+            // 2. Scan du formulaire (avec la nouvelle sécurité anti-doublon)
             document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
                 if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
                 
                 let colNameRaw = inp.getAttribute('data-col');
                 let colNameLower = colNameRaw.toLowerCase().trim();
                 
-                // Sécurité anti-doublon (ignore l'ancien champ texte si présent)
-                if (colNameLower.includes('pièces') && inp.type === 'text') return;
+                // SÉCURITÉ : on ignore l'ancien champ texte s'il traîne
+                if (colNameLower.includes('pièces') && inp.tagName.toLowerCase() !== 'input') return; 
+                if (colNameLower.includes('pièces') && inp.type === 'text') return; 
 
                 let newVal = inp.value.trim();
+                let exactKey = getExactHeader(colNameRaw); // On force la clé exacte !
                 
-                // ---> CORRECTEUR D'EN-TÊTE INTELLIGENT <---
-                let finalKey = colNameRaw;
-                let finalKeyLower = colNameLower;
+                fieldsObj[exactKey] = newVal;
                 
-                let matchedHeader = originalHeaders.find(h => {
-                    let hLow = h.toLowerCase().trim();
-                    if (hLow === colNameLower) return true;
-                    // Tolérance orthographique
-                    let fuzzyH = hLow.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
-                    let fuzzyC = colNameLower.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
-                    return fuzzyH === fuzzyC;
-                });
-                
-                if (matchedHeader) {
-                    finalKey = matchedHeader; // Le vrai nom exact pour Google
-                    finalKeyLower = matchedHeader.toLowerCase().trim(); // Pour la lecture du diff
-                }
-
-                fieldsObj[finalKey] = newVal;
-                
-                // ---> CALCUL DU DIFF CORRIGÉ <---
-                if (finalKeyLower.includes('pièces')) {
-                    let oldVal = oldData[finalKeyLower] || "";
+                // CALCUL DU DIFF DE STOCK
+                if (colNameLower.includes('pièces')) {
+                    let oldVal = oldData[exactKey] || "";
                     let oldArr = oldVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
                     let newArr = newVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
                     
@@ -1567,45 +1551,38 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
                     
                     newArr.forEach(pi => {
                         if (oldMap[pi] > 0) { 
-                            oldMap[pi]--; // La pièce y était déjà, on l'ignore
+                            oldMap[pi]--; 
                         } else { 
-                            piecesAddedList.push(pi); // C'est une nouvelle pièce !
+                            piecesAddedList.push(pi);
                         }
                     });
                 }
             });
 
-            let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement & Synchro..."; btn.disabled = true;
+            let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement..."; btn.disabled = true;
             try {
-                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); let r = await res.json();
+                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); 
+                let r = await res.json();
+                
                 if(r.status === "success") {
-                    
-                    // ON DÉDUIT UNIQUEMENT SI L'ENREGISTREMENT SHEET EST UN SUCCÈS
+                    // On ne déduit le stock QUE si Google confirme l'enregistrement
                     if (piecesAddedList.length > 0) {
                         window.deduireStockLocalEtServeur(piecesAddedList.join(', '));
                     }
 
                     btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
                     
-                    // Mise à jour de la mémoire locale avec les bonnes clés
                     if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); originalHeaders = ["id"]; idxIdAtelier = 0; }
                     
                     let rowIndex = window.rawAtelier.findIndex((row, idx) => idx > 0 && row[idxIdAtelier] == idCanon);
                     let rowData;
+                    if (rowIndex !== -1) { rowData = window.rawAtelier[rowIndex]; } 
+                    else { rowData = new Array(originalHeaders.length).fill(""); rowData[idxIdAtelier] = idCanon; window.rawAtelier.push(rowData); }
                     
-                    if (rowIndex !== -1) {
-                        rowData = window.rawAtelier[rowIndex]; 
-                    } else {
-                        rowData = new Array(originalHeaders.length).fill(""); 
-                        rowData[idxIdAtelier] = idCanon; 
-                        window.rawAtelier.push(rowData); 
-                    }
-                    
+                    // MàJ Mémoire locale
                     Object.keys(fieldsObj).forEach(k => {
                         let colIdx = originalHeaders.indexOf(k);
-                        if (colIdx !== -1) {
-                            rowData[colIdx] = fieldsObj[k];
-                        }
+                        if (colIdx !== -1) rowData[colIdx] = fieldsObj[k];
                     });
 
                     setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
