@@ -818,7 +818,7 @@
                             </div>
                             <span class="edit-label">Intervention effectuée</span><textarea id="nt-interv-${p.id}" class="edit-input" rows="1" placeholder="Travaux réalisés..." style="padding:6px; margin-bottom:8px;"></textarea>
                             <div style="display:flex; gap:5px;">
-                                <div style="flex:1;"><span class="edit-label">Pièces utilisées</span><input type="text" id="nt-pieces-${p.id}" class="edit-input" placeholder="Ex: Joint R18..." style="padding:6px; margin-bottom:8px;"></div>
+                                <div style="flex:1;">${window.buildPiecesUI('nt-pieces-' + p.id, 'edit-input', '', 'Pièces utilisées (Stock)', '')}</div>
                                 <div style="flex:1;"><span class="edit-label">Photos (Lien)</span><input type="text" id="nt-photos-${p.id}" class="edit-input" placeholder="Lien drive..." style="padding:6px; margin-bottom:8px;"></div>
                             </div>
                             <span class="edit-label">Remarque terrain</span><textarea id="nt-remarque-${p.id}" class="edit-input" rows="1" placeholder="Notes additionnelles..." style="padding:6px; margin-bottom:8px;"></textarea>
@@ -1231,7 +1231,7 @@
                             </div>
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:8px; background:rgba(0,0,0,0.02); padding:6px; border-radius:4px;">
                                 <div><span class="edit-label">Maintenance effectuée</span><input type="text" class="edit-input b-field-${safeId}" data-col="maintenance effectué" value="${getVal('maintenance effectué')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
-                                <div><span class="edit-label">Pièces utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces utilisés" value="${getVal('pièces utilisés')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                                <div style="grid-column: 1 / -1;">${window.buildPiecesUI('at1-pieces-'+safeId, 'edit-input b-field-'+safeId, 'pièces utilisés', 'Pièces utilisées (Stock)', getVal('pièces utilisés'))}</div>
                             </div>
                             <div style="font-size:11px; font-weight:bold; color:#27ae60; margin-bottom:4px;">[Test 2] Après Intervention :</div>
                             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:6px;">
@@ -1261,7 +1261,7 @@
                                 <div><span class="edit-label">Pression 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
                             </div>
                             <div style="display:grid; grid-template-columns: 2fr 1fr; gap:6px; margin-top:6px;">
-                                <div><span class="edit-label">Pièces VAR utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var utilisés" value="${getVal('pièces var utilisés')}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
+                               <div style="grid-column: 1 / -1;">${window.buildPiecesUI('at1-pieces-'+safeId, 'edit-input b-field-'+safeId, 'pièces utilisés', 'Pièces utilisées (Stock)', getVal('pièces utilisés'))}</div>
                                 <div><span class="edit-label">VAR (1) prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:26px;"></div>
                             </div>
                         </div>
@@ -1274,7 +1274,7 @@
                                 <div><span class="edit-label">Press 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var" value="${getVal('test pression 1 var')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                                 <div><span class="edit-label">Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (1) bis" value="${getVal('test elec VAR (1) bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                                 <div><span class="edit-label">Press 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var" value="${getVal('test pression 2 var')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 1</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var utilisés" value="${getVal('pièces var utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                                <div style="grid-column: 1 / -1;">${window.buildPiecesUI('vard1-pieces-'+safeId, 'edit-input b-field-'+safeId, 'pièces var utilisés', 'Pièces VAR 1 (Stock)', getVal('pièces var utilisés'))}</div>
                                 <div><span class="edit-label">VAR 1 Prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (1) prête" value="${getVal('VAR (1) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                             </div>
                             <div style="font-weight:bold; font-size:10px; color:#ba4a00; text-transform:uppercase; margin-bottom:2px;">• Perche 2 (VAR 2)</div>
@@ -1283,7 +1283,7 @@
                                 <div><span class="edit-label">Press 1 [Avant]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 1 var (2)" value="${getVal('test pression 1 var (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                                 <div><span class="edit-label">Élec 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test elec VAR (2) bis" value="${getVal('test elec VAR (2) bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                                 <div><span class="edit-label">Press 2 [Après]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression 2 var (2)" value="${getVal('test pression 2 var (2)')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
-                                <div style="grid-column: span 3;"><span class="edit-label">Pièces VAR 2</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces var utilisés bis" value="${getVal('pièces var utilisés bis')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                               <div style="grid-column: 1 / -1;">${window.buildPiecesUI('vard2-pieces-'+safeId, 'edit-input b-field-'+safeId, 'pièces var utilisés bis', 'Pièces VAR 2 (Stock)', getVal('pièces var utilisés bis'))}</div>
                                 <div><span class="edit-label">VAR 2 Prête</span><input type="text" class="edit-input b-field-${safeId}" data-col="VAR (2) prête" value="${getVal('VAR (2) prête') || 'OUI'}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                             </div>
                         </div>
@@ -1298,7 +1298,7 @@
                                 <div><span class="edit-label">Press Eau C3 [1]</span><input type="text" class="edit-input b-field-${safeId}" data-col="test pression eau v2000 c3" value="${getVal('test pression eau v2000 c3')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                             </div>
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
-                                <div><span class="edit-label">Pièces V2000 utilisées</span><input type="text" class="edit-input b-field-${safeId}" data-col="pièces v2000 utilisés" value="${getVal('pièces v2000 utilisés')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
+                               <div style="grid-column: 1 / -1;">${window.buildPiecesUI('v2000-pieces-'+safeId, 'edit-input b-field-'+safeId, 'pièces v2000 utilisés', 'Pièces V2000 utilisées (Stock)', getVal('pièces v2000 utilisés'))}</div>
                                 <div><span class="edit-label">Commentaire V2000</span><input type="text" class="edit-input b-field-${safeId}" data-col="commentaire v2000" value="${getVal('commentaire v2000')}" style="padding:4px; margin:0; font-size:11px; height:24px;"></div>
                             </div>
                             <div style="font-weight:bold; font-size:10px; color:#27ae60; margin-bottom:2px;">[Test 2] Après Intervention :</div>
