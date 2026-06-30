@@ -391,14 +391,47 @@
             window.renderPieceBadges(hiddenId, badgesContainer);
         };
 
-        window.renderPieceBadges = function(hiddenId, container) {
+       window.renderPieceBadges = function(hiddenId, container) {
             let hidden = document.getElementById(hiddenId);
             if(!hidden || !container) return;
             let currentList = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(s => s !== "") : [];
             
+            // On identifie les colonnes du stock pour lire le Reste
+            let headers = window.rawStock && window.rawStock.length > 0 ? window.rawStock[0].map(h => h ? h.toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "") : [];
+            let idxRef = headers.findIndex(h => h === "ref");
+            let idxProd = headers.findIndex(h => h === "produit");
+            let idxReste = headers.findIndex(h => h === "reste");
+            
             container.innerHTML = currentList.map((item, idx) => {
-                return `<span style="background:#16a085; color:white; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; display:flex; align-items:center; gap:5px;">
-                            ${item} 
+                let badgeColor = '#16a085'; // Vert classique
+                let warningLabel = '';
+                
+                // On extrait le nom de la pièce et la quantité pour interroger le stock
+                let match = item.match(/^(.*?)\s+x(\d+)$/);
+                let nomPiece = match ? match[1].trim() : item.trim();
+                let qteDemandee = match ? parseInt(match[2]) : 1;
+                
+                if (idxReste !== -1) {
+                    let rowIndex = window.rawStock.findIndex((row, i) => {
+                        if (i === 0) return false;
+                        let ref = (idxRef !== -1 && row[idxRef]) ? row[idxRef].toString().trim() : "";
+                        let prod = (idxProd !== -1 && row[idxProd]) ? row[idxProd].toString().trim() : "";
+                        let optionValue = ref ? `[${ref}] ${prod}` : prod;
+                        return optionValue === nomPiece || prod === nomPiece;
+                    });
+                    
+                    if (rowIndex !== -1) {
+                        let resteActuel = parseFloat(window.rawStock[rowIndex][idxReste]) || 0;
+                        // Si la quantité demandée fait tomber le stock à moins de 0
+                        if (resteActuel - qteDemandee < 0) {
+                            badgeColor = '#e74c3c'; // Rouge alerte
+                            warningLabel = '⚠️ ';
+                        }
+                    }
+                }
+                
+                return `<span style="background:${badgeColor}; color:white; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; display:flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(0,0,0,0.2);">
+                            ${warningLabel}${item} 
                             <span onclick="window.removePieceFromField('${hiddenId}', ${idx})" style="cursor:pointer; background:rgba(255,255,255,0.3); border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; font-size:9px;">✕</span>
                         </span>`;
             }).join('');
@@ -1448,29 +1481,6 @@
             });
         };
 
-        window.saveAtelierTechRow = async function(idCanon, safeId, btn) {
-            let fields = {};
-            document.querySelectorAll(`.tech-field-${safeId}`).forEach(inp => { fields[inp.getAttribute('data-head')] = inp.value; });
-            let pl = { action: "update_general", idCanon: idCanon, lat: 0, lng: 0, fields: fields }; 
-            let oldText = btn.innerText; btn.innerText = "⏳ Enregistrement..."; btn.disabled = true;
-            try {
-                let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify(pl) }); let r = await res.json();
-                if(r.status === "success") { 
-                    btn.innerText = "✅ Succès !"; 
-                    let feat = window.snowCannons.features.find(f => f.properties.id == idCanon);
-                    if(feat) { Object.keys(fields).forEach(k => { let obj = feat.properties.fullData.find(x => x.k.toLowerCase().trim() === k.toLowerCase().trim()); if(obj) obj.v = fields[k]; }); }
-                    setTimeout(() => { btn.innerText = oldText; btn.disabled = false; }, 2000); 
-                } else { alert("Erreur serveur"); btn.disabled = false; btn.innerText = oldText; }
-            } catch(e) { alert("Erreur réseau"); btn.disabled = false; btn.innerText = oldText; }
-        };
-
-        window.handleSelectVanne = function(safeId, val) {
-            let bVar = document.getElementById(`bloc-var-${safeId}`); let bVarDbl = document.getElementById(`bloc-var-double-${safeId}`); let bV2000 = document.getElementById(`bloc-v2000-${safeId}`);
-            if (bVar) bVar.style.display = (val === 'var') ? 'block' : 'none';
-            if (bVarDbl) bVarDbl.style.display = (val === 'var_double') ? 'block' : 'none';
-            if (bV2000) bV2000.style.display = (val === 'v2000') ? 'block' : 'none';
-        };
-
 window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
             let fieldsObj = {}; 
             let canonData = window.snowCannons.features.find(f => f.properties.id == idCanon); 
@@ -1488,33 +1498,40 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
             
             let piecesAddedList = []; 
 
-            // 1. On récupère les ANCIENNES valeurs du cache local pour faire la différence
+            // 1. Récupération des données brutes avec les entêtes EXACTS du Sheets
             let oldData = {};
+            let originalHeaders = window.rawAtelier && window.rawAtelier.length > 0 ? window.rawAtelier[0] : [];
+            let headersAtelierLower = originalHeaders.map(h => h.toString().toLowerCase().trim());
+            let idxIdAtelier = headersAtelierLower.findIndex(h => h === "id" || h.includes("n°"));
+            if (idxIdAtelier === -1) idxIdAtelier = 0;
+
             if (window.rawAtelier && window.rawAtelier.length > 0) {
-                let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim());
-                let idxIdAtelier = headersAtelier.findIndex(h => h === "id" || h.includes("n°"));
-                if (idxIdAtelier === -1) idxIdAtelier = 0;
                 let rowAtelier = window.rawAtelier.find(r => r[idxIdAtelier] == idCanon);
                 if (rowAtelier) {
-                    headersAtelier.forEach((h, i) => { oldData[h] = rowAtelier[i] ? rowAtelier[i].toString().trim() : ""; });
+                    headersAtelierLower.forEach((h, i) => { oldData[h] = rowAtelier[i] ? rowAtelier[i].toString().trim() : ""; });
                 }
             }
 
-            // 2. On scanne le formulaire actuel
+            // 2. Scan du formulaire
             document.querySelectorAll(`.b-field-${safeId}`).forEach(inp => {
                 if (inp.closest('div[id^="bloc-"]') && inp.closest('div[id^="bloc-"]').style.display === 'none') return;
-                let colName = inp.getAttribute('data-col');
                 
-                // ---> SÉCURITÉ ANTI-DOUBLON <---
-                // Si l'ancien champ texte traîne encore dans le code HTML, on l'ignore !
-                if (colName.toLowerCase().includes('pièces') && inp.type === 'text') return;
+                let colNameRaw = inp.getAttribute('data-col');
+                let colNameLower = colNameRaw.toLowerCase().trim();
+                
+                if (colNameLower.includes('pièces') && inp.type === 'text') return;
 
                 let newVal = inp.value.trim();
-                fieldsObj[colName] = newVal;
                 
-                // ---> CALCUL DU DIFF POUR LE STOCK (ATELIER) <---
-                if (colName.toLowerCase().includes('pièces')) {
-                    let oldVal = oldData[colName.toLowerCase()] || "";
+                // ---> CORRECTEUR D'EN-TÊTE INTELLIGENT <---
+                // Force l'utilisation de la casse exacte du Google Sheet pour éviter les rejets silencieux
+                let exactHeaderIndex = headersAtelierLower.indexOf(colNameLower);
+                let finalKey = (exactHeaderIndex !== -1) ? originalHeaders[exactHeaderIndex] : colNameRaw;
+                
+                fieldsObj[finalKey] = newVal;
+                
+                if (colNameLower.includes('pièces')) {
+                    let oldVal = oldData[colNameLower] || "";
                     let oldArr = oldVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
                     let newArr = newVal.split(',').map(s=>s.trim()).filter(s=>s!=="");
                     
@@ -1523,9 +1540,9 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
                     
                     newArr.forEach(pi => {
                         if (oldMap[pi] > 0) { 
-                            oldMap[pi]--; // La pièce y était déjà, on l'ignore
+                            oldMap[pi]--; 
                         } else { 
-                            piecesAddedList.push(pi); // C'est une nouvelle pièce !
+                            piecesAddedList.push(pi);
                         }
                     });
                 }
@@ -1536,39 +1553,33 @@ window.saveAtelierBancRow = async function(idCanon, safeId, btn) {
                 let res = await fetch(GOOGLE_API_URL, { method: 'POST', body: JSON.stringify({ action: "save_atelier", fields: fieldsObj }) }); let r = await res.json();
                 if(r.status === "success") {
                     
-                    // ---> DÉCLENCHEMENT DU DÉCOMPTE STOCK (DIFF SEULEMENT) <---
+                    // ON DÉDUIT UNIQUEMENT SI L'ENREGISTREMENT SHEET EST UN SUCCÈS
                     if (piecesAddedList.length > 0) {
                         window.deduireStockLocalEtServeur(piecesAddedList.join(', '));
                     }
-                    // -----------------------------------------
 
                     btn.innerText = "✅ Rapport Enregistré !"; btn.style.background = "#27ae60";
                     
-                    // ---> MISE A JOUR DU CACHE LOCAL <---
-                    if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); }
-                    let headersAtelier = window.rawAtelier[0].map(h => h.toString().toLowerCase().trim()); 
-                    let idxIdAtelier = headersAtelier.findIndex(h => h === "id" || h.includes("n°"));
-                    if (idxIdAtelier === -1) idxIdAtelier = 0;
+                    // Mise à jour de la mémoire locale avec les bonnes clés
+                    if(window.rawAtelier.length === 0) { window.rawAtelier.push(["id"]); originalHeaders = ["id"]; idxIdAtelier = 0; }
                     
                     let rowIndex = window.rawAtelier.findIndex((row, idx) => idx > 0 && row[idxIdAtelier] == idCanon);
                     let rowData;
                     
                     if (rowIndex !== -1) {
-                        rowData = window.rawAtelier[rowIndex]; // On met à jour la ligne existante
+                        rowData = window.rawAtelier[rowIndex]; 
                     } else {
-                        rowData = new Array(headersAtelier.length).fill(""); 
+                        rowData = new Array(originalHeaders.length).fill(""); 
                         rowData[idxIdAtelier] = idCanon; 
-                        window.rawAtelier.push(rowData); // Ou on la crée si elle n'existe pas
+                        window.rawAtelier.push(rowData); 
                     }
                     
-                    // Injection dynamique des nouvelles valeurs pour l'affichage visuel
                     Object.keys(fieldsObj).forEach(k => {
-                        let colIdx = headersAtelier.indexOf(k.toLowerCase().trim());
+                        let colIdx = originalHeaders.indexOf(k);
                         if (colIdx !== -1) {
                             rowData[colIdx] = fieldsObj[k];
                         }
                     });
-                    // -------------------------------------------------------------------------------
 
                     setTimeout(() => { window.renderAtelierWorkspace(); }, 1500);
                 } else { alert("Erreur Apps Script"); btn.disabled = false; btn.innerText = oldText; }
