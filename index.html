@@ -340,7 +340,69 @@
             if (id) return "https://lh3.googleusercontent.com/d/" + id;
             return url;
         };
+/* ========================================================================= */
+        /* TITRE : GESTION DYNAMIQUE DES PIÈCES UTILISÉES (AJOUT/SUPPRESSION)        */
+        /* ========================================================================= */
+        window.buildPiecesUI = function(idHidden, classNames, dataCol, label, val) {
+            let dataAttr = dataCol ? `data-col="${dataCol}"` : '';
+            return `
+            <div style="background:rgba(0,0,0,0.02); padding:6px; border-radius:4px; border:1px solid #e1e8ed; width:100%; box-sizing:border-box;">
+                <span class="edit-label">${label}</span>
+                <div style="display:flex; gap:5px; margin-bottom:5px;">
+                    <input type="text" id="sel-${idHidden}" list="dl-stock-list" placeholder="Sélectionner..." class="edit-input" style="padding:6px; margin:0; flex:3; font-size:11px; height:28px;">
+                    <input type="number" id="qte-${idHidden}" value="1" min="1" class="edit-input" style="padding:6px; margin:0; flex:1; font-size:11px; height:28px;">
+                    <button type="button" onclick="window.addPieceToField('${idHidden}', 'sel-${idHidden}', 'qte-${idHidden}')" style="background:#16a085; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; padding:0 12px; height:28px;">+</button>
+                </div>
+                <div id="badges-${idHidden}" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:4px;"></div>
+                <input type="hidden" id="${idHidden}" class="${classNames}" ${dataAttr} value="${val || ''}">
+                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" onload="window.renderPieceBadges('${idHidden}', document.getElementById('badges-${idHidden}'))" style="display:none;">
+            </div>`;
+        };
 
+        window.addPieceToField = function(hiddenId, selId, qteId) {
+            let sel = document.getElementById(selId);
+            let qte = document.getElementById(qteId);
+            let hidden = document.getElementById(hiddenId);
+            let badgesContainer = document.getElementById('badges-' + hiddenId);
+            
+            if (!sel || !qte || !hidden || !badgesContainer || sel.value.trim() === "") return;
+            
+            let piece = sel.value.trim().replace(/,/g, ''); // Sécurité : on retire les virgules du nom pour ne pas casser le tableau
+            let quantite = parseInt(qte.value) || 1;
+            let pieceEntry = piece + " x" + quantite;
+            
+            let currentList = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(s => s !== "") : [];
+            currentList.push(pieceEntry);
+            hidden.value = currentList.join(', ');
+            
+            sel.value = ""; qte.value = "1";
+            window.renderPieceBadges(hiddenId, badgesContainer);
+        };
+
+        window.removePieceFromField = function(hiddenId, index) {
+            let hidden = document.getElementById(hiddenId);
+            let badgesContainer = document.getElementById('badges-' + hiddenId);
+            if (!hidden || !badgesContainer) return;
+            
+            let currentList = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(s => s !== "") : [];
+            currentList.splice(index, 1);
+            hidden.value = currentList.join(', ');
+            
+            window.renderPieceBadges(hiddenId, badgesContainer);
+        };
+
+        window.renderPieceBadges = function(hiddenId, container) {
+            let hidden = document.getElementById(hiddenId);
+            if(!hidden || !container) return;
+            let currentList = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(s => s !== "") : [];
+            
+            container.innerHTML = currentList.map((item, idx) => {
+                return `<span style="background:#16a085; color:white; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; display:flex; align-items:center; gap:5px;">
+                            ${item} 
+                            <span onclick="window.removePieceFromField('${hiddenId}', ${idx})" style="cursor:pointer; background:rgba(255,255,255,0.3); border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; font-size:9px;">✕</span>
+                        </span>`;
+            }).join('');
+        };
         /* ========================================================================= */
         /* CHAPITRE 3 : MODULE POWER BI & STATISTIQUES GLOBALES                      */
         /* ========================================================================= */
