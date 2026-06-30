@@ -2157,6 +2157,41 @@ window.deleteStockItemFromServer = async function(numPiece, btn) {
             let dlContainer = document.getElementById('datalists-container');
             if (dlContainer) { let dlHtml = ""; for(let header in window.columnValuesSets) { let safeId = "dl-" + header.replace(/[^a-zA-Z0-9]/g, '-'); dlHtml += `<datalist id="${safeId}">${Array.from(window.columnValuesSets[header]).sort().map(v=>`<option value="${v}">`).join('')}</datalist>`; } dlContainer.innerHTML = dlHtml; }
 
+/* ========================================================================= */
+            /* TITRE : GÉNÉRATION DE LA LISTE DE STOCK POUR LES INTERVENTIONS            */
+            /* ========================================================================= */
+            // 1. Création de la balise datalist pour le stock
+            let stockDatalistHtml = `<datalist id="dl-stock-list">`;
+            
+            // 2. Vérification que le stock est bien chargé et non vide
+            if (window.rawStock && window.rawStock.length > 1) {
+                let headersStock = window.rawStock[0].map(h => (h||"").toString().toLowerCase().trim());
+                let idxRef = headersStock.findIndex(h => h === "ref");
+                let idxProd = headersStock.findIndex(h => h === "produit");
+
+                // 3. Boucle sur chaque article du stock pour l'ajouter aux options
+                for (let i = 1; i < window.rawStock.length; i++) {
+                    let row = window.rawStock[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    let ref = (idxRef !== -1 && row[idxRef]) ? row[idxRef].toString().trim() : "";
+                    let prod = (idxProd !== -1 && row[idxProd]) ? row[idxProd].toString().trim() : "";
+                    
+                    // 4. Ajout de l'option avec le format "Référence - Produit"
+                    if (prod) {
+                        let optionValue = ref ? `[${ref}] ${prod}` : prod;
+                        stockDatalistHtml += `<option value="${optionValue.replace(/"/g, '&quot;')}"></option>`;
+                    }
+                }
+            }
+            stockDatalistHtml += `</datalist>`;
+            
+            // 5. Injection de la liste dans le conteneur global des datalists
+            if (dlContainer) { 
+                dlContainer.innerHTML += stockDatalistHtml; 
+            }
+            /* ========================================================================= */
+            
             let sld = document.getElementById('season-slider');
             if (window.saisonsList.length > 0 && sld) { sld.max = window.saisonsList.length - 1; sld.value = window.histSeasonIdx; let sdisp = document.getElementById('season-display'); if(sdisp) sdisp.innerText = window.saisonsList[window.histSeasonIdx]; }
 
