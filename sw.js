@@ -17,7 +17,7 @@
 /* cache intermédiaire ne ferait que masquer l'état réel de la synchro.         */
 /* =========================================================================== */
 
-const SW_VERSION = '5.9.0';
+const SW_VERSION = '5.9.1';
 const SHELL = 'gmao-shell-' + SW_VERSION;
 const LIBS  = 'gmao-libs-'  + SW_VERSION;
 const TILES = 'gmao-tiles-v1';
@@ -47,7 +47,13 @@ const LIB_URLS = [
     'https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+    // Lecteur PDF : les documents du Drive sont désormais affichés par l'application elle-même
+    // (l'aperçu Google réclame un cookie de session, bloqué sur iPhone). Mis en cache dès
+    // l'installation, sinon une notice consultée au chalet redeviendrait illisible en haut des
+    // pistes après chaque mise à jour.
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 ];
 
 const CDN_HOSTS  = ['unpkg.com', 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];
