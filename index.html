@@ -24,7 +24,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.9.0";
+        window.APP_VERSION = "5.9.1";
         window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; let fw = document.getElementById('flake-wrap'); if(fw) fw.style.display='none'; let pc = document.getElementById('loading-pct'); if(pc) pc.style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('error-box')) { document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } } else alert("🛑 CRASH : "+msg); };
         window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
         window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
@@ -1713,8 +1713,8 @@
                 let html = "";
                 Object.keys(window.drivePdfsData).sort().forEach(name => {
                     let fileId = window.drivePdfsData[name];
-                    let previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
-                    html += `<div class="pdf-item" data-name="${name.toLowerCase().replace(/"/g, '&quot;')}" onclick="window.previewPdf('${previewUrl}', this)" style="background:#fff; border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; cursor:pointer; font-size:12px; font-weight:bold; color:#2c3e50; transition:0.2s;" onmouseover="this.style.background='#fdf5e6'" onmouseout="this.style.background='#fff'">📄 ${name.replace('.pdf', '')}</div>`;
+                    let nomSur = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    html += `<div class="pdf-item" data-fileid="${fileId}" data-name="${name.toLowerCase().replace(/"/g, '&quot;')}" onclick="window.previewPdf('${fileId}', '${nomSur}', this)" style="background:#fff; border:1px solid #ddd; padding:10px; border-radius:6px; margin-bottom:8px; cursor:pointer; font-size:12px; font-weight:bold; color:#2c3e50; transition:0.2s;" onmouseover="this.style.background='#fdf5e6'" onmouseout="this.style.background='#fff'">📄 ${name.replace('.pdf', '')}</div>`;
                 });
                 list.innerHTML = html;
             }
@@ -1738,12 +1738,205 @@
             wrap.style.display = (wrap.style.display === 'none') ? 'flex' : 'none';
         };
 
-        window.previewPdf = function(url, btnElement) {
+        /* ------------------------------------------------------------------------- */
+        /* CHAPITRE 2.B.3 — LECTURE DES DOCUMENTS SANS COMPTE GOOGLE                  */
+        /*                                                                           */
+        /* L'aperçu Drive (drive.google.com/file/d/…/preview) affiché dans un cadre   */
+        /* réclame le cookie de session Google. Sur iPhone ce cookie est un cookie    */
+        /* TIERS, que Safari bloque : le document ne s'ouvre pas et Google répond     */
+        /* « Impossible d'accéder à votre compte ». Aucun réglage de l'application    */
+        /* n'y change quoi que ce soit — c'est le navigateur qui refuse.              */
+        /*                                                                           */
+        /* On récupère donc les octets du PDF par Apps Script, qui s'exécute au nom   */
+        /* du propriétaire du Drive et n'a besoin d'aucun cookie côté téléphone. Le   */
+        /* document est ensuite affiché dans l'application, et gardé en base locale : */
+        /* une fiche technique consultée au chalet reste lisible en haut des pistes.  */
+        /* ------------------------------------------------------------------------- */
+        window.PDF_CACHE_MAX = 12;          // documents gardés hors réseau, du plus récent au plus ancien
+        window.pdfActuel = null;
+
+        window.estIOS = function() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        };
+        window.b64VersOctets = function(b64) {
+            let bin = atob(b64), u8 = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+            return u8;
+        };
+
+        window.pdfCacheLire = function(fileId) { return window.idbGet("snapshot", "pdf:" + fileId); };
+        window.pdfCacheEcrire = async function(fileId, nom, b64) {
+            try {
+                await window.idbPut("snapshot", { key: "pdf:" + fileId, at: Date.now(), nom: nom, b64: b64 });
+                // On borne le cache : sinon la bibliothèque entière finirait sur le téléphone.
+                let tout = await window.idbGetAll("snapshot");
+                let pdfs = (tout || []).filter(function(x) { return x.key && x.key.indexOf('pdf:') === 0; })
+                                       .sort(function(a, b) { return b.at - a.at; });
+                for (let i = window.PDF_CACHE_MAX; i < pdfs.length; i++) await window.idbDelete("snapshot", pdfs[i].key);
+            } catch (e) {}
+        };
+        window.pdfCacheVider = async function(btn) {
+            let tout = await window.idbGetAll("snapshot");
+            let n = 0;
+            for (let x of (tout || [])) if (x.key && x.key.indexOf('pdf:') === 0) { await window.idbDelete("snapshot", x.key); n++; }
+            if (btn) { btn.innerHTML = n + " document(s) effacé(s)"; btn.disabled = true; }
+        };
+
+        // Chargement de la bibliothèque de rendu, à la demande : elle ne pèse sur le démarrage de
+        // personne, et le service worker la garde dès la première ouverture d'un document.
+        window.pdfJsPret = null;
+        window.chargerPdfJs = function() {
+            if (window.pdfJsPret) return window.pdfJsPret;
+            window.pdfJsPret = new Promise(function(resolve, reject) {
+                if (window.pdfjsLib) { resolve(window.pdfjsLib); return; }
+                let sc = document.createElement('script');
+                sc.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+                sc.onload = function() {
+                    if (!window.pdfjsLib) { reject(new Error("pdf.js indisponible")); return; }
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+                    resolve(window.pdfjsLib);
+                };
+                sc.onerror = function() { reject(new Error("lecteur PDF non téléchargeable")); };
+                document.head.appendChild(sc);
+            }).catch(function(e) { window.pdfJsPret = null; throw e; });
+            return window.pdfJsPret;
+        };
+
+        window.pdfEtat = function(txt, couleur) {
+            let e = document.getElementById('pdf-etat');
+            if (e) { e.innerHTML = txt; e.style.color = couleur || '#7f8c8d'; }
+        };
+
+        window.previewPdf = async function(fileId, nom, btnElement) {
             document.querySelectorAll('#pdf-list .pdf-item').forEach(d => d.style.borderLeft = "1px solid #ddd");
-            btnElement.style.borderLeft = "4px solid #8e44ad";
-            let container = document.getElementById('pdf-viewer-container');
-            container.innerHTML = `<iframe src="${url}" width="100%" height="100%" frameborder="0" allow="autoplay"></iframe>`;
+            if (btnElement) btnElement.style.borderLeft = "4px solid #8e44ad";
             if (window.innerWidth <= 768) { let wrap = document.getElementById('pdf-list-wrap'); if (wrap) wrap.style.display = 'none'; }
+
+            let container = document.getElementById('pdf-viewer-container'); if (!container) return;
+            if (window.pdfActuel && window.pdfActuel.url) { try { URL.revokeObjectURL(window.pdfActuel.url); } catch (e) {} }
+            window.pdfActuel = { fileId: fileId, nom: nom, url: null, octets: null };
+
+            container.style.display = 'flex'; container.style.flexDirection = 'column';
+            container.style.justifyContent = 'flex-start'; container.style.alignItems = 'stretch';
+            container.innerHTML = `
+                <div style="flex:0 0 auto; background:#fff; border-bottom:1px solid #ddd; padding:8px 10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="flex:1 1 140px; min-width:0; font-size:12px; font-weight:bold; color:#2c3e50; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📄 ${window.prodEsc(nom.replace(/\.pdf$/i, ''))}</span>
+                    <button id="pdf-btn-ouvrir" onclick="window.ouvrirPdfSysteme()" disabled style="background:#8e44ad; color:#fff; border:none; padding:7px 12px; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-up-right-from-square"></i> Ouvrir</button>
+                    <button onclick="window.previewPdf('${fileId}', '${nom.replace(/'/g, "\\'")}', null)" title="Retélécharger" style="background:#ecf0f1; border:1px solid #ccc; padding:7px 10px; border-radius:5px; font-size:12px; cursor:pointer;">↻</button>
+                </div>
+                <div id="pdf-etat" style="flex:0 0 auto; padding:7px 10px; font-size:11px; color:#7f8c8d; background:#f8fafc; border-bottom:1px solid #eef2f5;">Chargement du document…</div>
+                <div id="pdf-pages" style="flex:1; overflow:auto; background:#ececec; padding:10px; -webkit-overflow-scrolling:touch;"></div>`;
+
+            // 1. Copie locale d'abord : instantanée, et disponible sans réseau.
+            let b64 = null, origine = "";
+            try {
+                let c = await window.pdfCacheLire(fileId);
+                if (c && c.b64) { b64 = c.b64; origine = "copie locale du " + window.fmtSnapshotDate(c.at); }
+            } catch (e) {}
+            if (!b64) {
+                window.pdfEtat("Téléchargement depuis le Drive…");
+                try {
+                    let res = await window.apiPost({ action: "get_drive_file", fileId: fileId });
+                    let r = await res.json();
+                    if (r.status !== "success" || !r.base64) throw new Error(r.msg || "réponse inattendue");
+                    b64 = r.base64; origine = "téléchargé à l'instant";
+                    window.pdfCacheEcrire(fileId, nom, b64);
+                } catch (e) {
+                    // « Failed to fetch » ne veut rien dire pour qui est en haut d'une piste : on
+                    // nomme la cause réelle.
+                    let reseau = /failed to fetch|networkerror|load failed|offline|timeout/i.test(e.message || '');
+                    window.pdfEtat("<b>Document indisponible.</b> " +
+                        (reseau ? "Le serveur ne répond pas." : window.prodEsc(e.message)) +
+                        "<br><span style='color:#95a5a6;'>Sans réseau, seuls les documents déjà ouverts au moins une fois restent lisibles. Ouvrez-les au chalet : ils repartent avec vous.</span>", '#c0392b');
+                    return;
+                }
+            }
+
+            let octets = window.b64VersOctets(b64);
+            let blob = new Blob([octets], { type: 'application/pdf' });
+            let url = URL.createObjectURL(blob);
+            window.pdfActuel = { fileId: fileId, nom: nom, url: url, octets: octets };
+            let btn = document.getElementById('pdf-btn-ouvrir'); if (btn) btn.disabled = false;
+            let ko = Math.round(octets.length / 1024);
+            window.pdfEtat((ko > 1024 ? (ko / 1024).toFixed(1).replace('.', ',') + " Mo" : ko + " ko") + " · " + origine + " · rendu en cours…");
+
+            // 2. Rendu dans l'application. Le cadre classique ne convient pas à l'iPhone, qui n'affiche
+            //    pas les PDF en cadre : on dessine les pages nous-mêmes.
+            try {
+                let pdfjs = await window.chargerPdfJs();
+                await window.rendrePdf(pdfjs, octets, ko, origine);
+            } catch (e) {
+                let zone = document.getElementById('pdf-pages');
+                if (zone) {
+                    if (window.estIOS()) {
+                        zone.innerHTML = `<div style="padding:20px; text-align:center; font-size:13px; color:#555;">
+                            Le lecteur intégré n'a pas pu être chargé.<br><br>
+                            <button onclick="window.ouvrirPdfSysteme()" style="background:#8e44ad; color:#fff; border:none; padding:12px 20px; border-radius:6px; font-size:14px; font-weight:bold; cursor:pointer;">Ouvrir le document</button>
+                            <div style="margin-top:10px; font-size:11px; color:#95a5a6;">Le document est déjà téléchargé : il s'ouvre dans le lecteur du téléphone.</div></div>`;
+                    } else {
+                        zone.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none;"></iframe>`;
+                    }
+                }
+                window.pdfEtat((ko > 1024 ? (ko / 1024).toFixed(1).replace('.', ',') + " Mo" : ko + " ko") + " · " + origine, '#7f8c8d');
+            }
+        };
+
+        // Dessin des pages. Chaque page n'est peinte qu'en approchant de l'écran : un manuel de
+        // 200 pages s'ouvre alors aussi vite qu'une fiche d'une page.
+        window.rendrePdf = async function(pdfjs, octets, ko, origine) {
+            let zone = document.getElementById('pdf-pages'); if (!zone) return;
+            // pdf.js s'approprie le tableau d'octets : on lui en donne une copie, sinon la mise en
+            // cache et une seconde ouverture retrouveraient un tampon vidé.
+            let doc = await pdfjs.getDocument({ data: octets.slice(0) }).promise;
+            zone.innerHTML = "";
+            let largeur = Math.max(280, zone.clientWidth - 22);
+            let dpr = Math.min(window.devicePixelRatio || 1, 2);
+            let cadres = [];
+            for (let i = 1; i <= doc.numPages; i++) {
+                let page = await doc.getPage(i);
+                let vue = page.getViewport({ scale: 1 });
+                let ech = largeur / vue.width;
+                let h = Math.round(vue.height * ech);
+                let cv = document.createElement('canvas');
+                cv.style.cssText = "display:block; margin:0 auto 12px; background:#fff; box-shadow:0 1px 6px rgba(0,0,0,0.25); width:" +
+                                   largeur + "px; height:" + h + "px;";
+                cv.width = Math.round(largeur * dpr); cv.height = Math.round(h * dpr);
+                zone.appendChild(cv);
+                cadres.push({ cv: cv, page: page, ech: ech, fait: false });
+            }
+            let peindre = function(c) {
+                if (c.fait) return; c.fait = true;
+                let vp = c.page.getViewport({ scale: c.ech * dpr });
+                c.page.render({ canvasContext: c.cv.getContext('2d'), viewport: vp });
+            };
+            if (window.IntersectionObserver) {
+                let obs = new IntersectionObserver(function(entrees) {
+                    entrees.forEach(function(e) {
+                        if (!e.isIntersecting) return;
+                        let c = cadres.find(function(x) { return x.cv === e.target; });
+                        if (c) { peindre(c); obs.unobserve(e.target); }
+                    });
+                }, { root: zone, rootMargin: "400px" });
+                cadres.forEach(function(c) { obs.observe(c.cv); });
+            } else {
+                cadres.forEach(peindre);
+            }
+            cadres.slice(0, 2).forEach(peindre);      // les premières pages tout de suite
+            window.pdfEtat(doc.numPages + " page(s) · " +
+                (ko > 1024 ? (ko / 1024).toFixed(1).replace('.', ',') + " Mo" : ko + " ko") + " · " + origine);
+        };
+
+        window.ouvrirPdfSysteme = function() {
+            let p = window.pdfActuel; if (!p || !p.url) return;
+            // Un lien cliqué plutôt que window.open : les navigateurs mobiles bloquent l'ouverture
+            // programmée d'un onglet, et une application installée n'a pas de barre d'adresse.
+            let a = document.createElement('a');
+            a.href = p.url; a.target = '_blank'; a.rel = 'noopener';
+            a.download = /\.pdf$/i.test(p.nom) ? p.nom : p.nom + '.pdf';
+            document.body.appendChild(a); a.click();
+            setTimeout(function() { a.remove(); }, 1000);
         };
 
         /* ========================================================================= */
@@ -6618,6 +6811,14 @@
             else lignes.push("<b>Cache application :</b> " + (navigator.serviceWorker && navigator.serviceWorker.controller ? "actif" + (window.swVersion ? " (v" + window.swVersion + ")" : "") : "en cours d'activation…"));
             lignes.push("<b>Tuiles en cache :</b> " + (window.tilesCount || 0).toLocaleString('fr-FR') +
                 (window.storageUsage ? " · " + Math.round(window.storageUsage / 1048576) + " Mo utilisés au total" : ""));
+            // Documents gardés hors réseau : un document déjà consulté reste lisible en montagne.
+            try {
+                let tout = await window.idbGetAll("snapshot");
+                let pdfs = (tout || []).filter(function(x) { return x.key && x.key.indexOf('pdf:') === 0; });
+                let mo = pdfs.reduce(function(t, x) { return t + (x.b64 ? x.b64.length * 0.75 : 0); }, 0) / 1048576;
+                lignes.push("<b>Documents hors réseau :</b> " + pdfs.length + " sur " + window.PDF_CACHE_MAX +
+                    (pdfs.length ? " · " + mo.toFixed(1).replace('.', ',') + " Mo <button onclick=\"window.pdfCacheVider(this)\" style='background:#ecf0f1; border:1px solid #ccc; padding:2px 7px; border-radius:4px; font-size:10px; cursor:pointer;'>vider</button>" : ""));
+            } catch (e) {}
             if (window.swUpdateReady) lignes.push("<b style='color:#e67e22;'>Une mise à jour est prête</b> — fermez puis rouvrez l'application.");
             st.innerHTML = lignes.join("<br>");
 
