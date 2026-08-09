@@ -5,6 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GMAO Maintenance Neige</title>
 
+    <!-- Taille de l'affichage sur téléphone : la largeur déclarée ci-dessus est réécrite ICI,
+         avant que la moindre ligne de la page ne soit lue. C'est une contrainte de Safari et non
+         un raffinement : changer cette balise APRÈS le rendu laisse iOS afficher la nouvelle mise
+         en page tout en conservant l'ancienne géométrie pour les touchers — les champs ne sont
+         alors plus en face du doigt. Le réglage est relu du stockage local, seule source
+         disponible aussi tôt.
+         Le suffixe ne contient PLUS « initial-scale=1.0 » : une échelle initiale imposée oblige
+         le navigateur à retenir au minimum la largeur de l'écran, et annulait purement et
+         simplement la largeur demandée. Le zoom n'avait donc aucun effet, ni sur les caractères
+         ni sur les boutons. Sans échelle initiale, le navigateur ajuste lui-même. -->
+    <script>
+    (function() {
+        try {
+            var r = JSON.parse(localStorage.getItem('gmao_settings_v5') || '{}');
+            var f = parseFloat(r.zoomMobile);
+            if (isNaN(f) || f < 1 || f > 2) f = 1.15;              // 115 % par défaut : l'affichage d'origine était trop fin
+            if (f === 1) return;
+            var sw = (screen && screen.width) || 0, sh = (screen && screen.height) || 0;
+            // Largeur physique de l'appareil, jamais celle de la page : la relire serait circulaire.
+            var base = (!sw || !sh) ? 0 : ((innerHeight >= innerWidth) ? Math.min(sw, sh) : Math.max(sw, sh));
+            if (!base || base > 900) return;                        // au-delà, c'est un ordinateur
+            document.querySelector('meta[name="viewport"]').setAttribute('content',
+                'width=' + Math.round(base / f) + ', user-scalable=no, viewport-fit=cover');
+        } catch (e) {}
+    })();
+    </script>
+
     <!-- Installation en application autonome (icône sur l'écran d'accueil, ouverture sans navigateur).
          apple-touch-icon et apple-mobile-web-app-* sont indispensables : iOS ignore le manifeste. -->
     <link rel="manifest" href="manifest.webmanifest">
@@ -24,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.9.2";
+        window.APP_VERSION = "5.9.3";
         window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; let fw = document.getElementById('flake-wrap'); if(fw) fw.style.display='none'; let pc = document.getElementById('loading-pct'); if(pc) pc.style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('error-box')) { document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } } else alert("🛑 CRASH : "+msg); };
         window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
         window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
@@ -149,6 +176,24 @@
         #qr-scan-mire{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(70vw,300px);
             height:min(70vw,300px);border:3px solid rgba(255,255,255,0.85);border-radius:16px;pointer-events:none;
             box-shadow:0 0 0 100vmax rgba(0,0,0,0.35);}
+        /* Le QR affiché en grand. Sa taille physique à l'écran est le premier facteur de réussite
+           d'une lecture : à 260 px, un trajet un peu long ne laisse que 2,5 px par module, moins
+           que ce qu'un appareil photo peut restituer. On occupe donc l'écran. */
+        #route-qr-plein{position:fixed;inset:0;z-index:9400;background:#fff;display:none;
+            flex-direction:column;align-items:center;justify-content:center;gap:14px;
+            padding:calc(12px + var(--safe-top)) 12px calc(12px + var(--safe-bottom));}
+        #route-qr-plein.open{display:flex;}
+        /* Hauteur ET largeur imposées, et surtout flex:0 0 auto : membre d'une colonne flexible,
+           le SVG se laissait écraser par les textes qui l'entourent et sortait en 338×290 au lieu
+           d'un carré plein écran — soit trois fois moins de pixels par module que prévu. */
+        #route-qr-plein svg{width:max(240px,min(94vw,calc(100vh - 180px)));height:max(240px,min(94vw,calc(100vh - 180px)));
+            flex:0 0 auto;display:block;}
+        #route-qr-plein .qr-titre{font-size:14px;font-weight:bold;color:#2c3e50;text-align:center;}
+        #route-qr-plein .qr-info{font-size:11px;color:#7f8c8d;text-align:center;line-height:1.6;}
+        #route-qr-plein .qr-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+        #route-qr-plein .qr-actions button{border:none;padding:11px 16px;border-radius:6px;font-size:13px;
+            font-weight:bold;cursor:pointer;background:#34495e;color:#fff;}
+        #route-qr-plein .qr-actions button.gris{background:#ecf0f1;color:#555;border:1px solid #ccc;}
         #route-print{display:none;}
         @media print{
             body.printing-route > *{display:none !important;}
@@ -331,6 +376,16 @@
             #print-panel { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
             #print-page-preview-modal { right: 0 !important; }
 
+            /* Cibles tactiles. Deux raisons, dont une invisible : sous 16 px, Safari zoome tout seul
+               sur le champ dès qu'on le touche, décale la page et repose le doigt ailleurs — c'est
+               une des façons dont « le champ n'est pas en face du toucher ». Le plancher de hauteur,
+               lui, est simplement ce qu'il faut pour viser avec des gants. */
+            input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+            select, textarea { font-size: 16px !important; }
+            input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+            select { min-height: 38px; }
+            button { min-height: 34px; }
+
             .draggable-window { position: fixed !important; top: var(--safe-top) !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; min-width: 0 !important; min-height: 0 !important; border-radius: 0 !important; transform: none !important; }
             .resize-handle { display: none !important; }
 
@@ -499,7 +554,7 @@
         }
 
         @media print {
-            #topbar, #mobile-dock, #sidebar, #right-sidebar, #print-panel, #loading-overlay, #pdf-modal, #settings-panel, #production-panel, #bi-meteo-modal, #compare-modal, #meteo-history-modal, #calendar-modal, .resizer, .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
+            #topbar, #mobile-dock, #sidebar, #right-sidebar, #print-panel, #loading-overlay, #pdf-modal, #settings-panel, #route-qr-plein, #qr-scan, #production-panel, #bi-meteo-modal, #compare-modal, #meteo-history-modal, #calendar-modal, .resizer, .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
             body, html { overflow: visible !important; height: auto !important; }
             #app-container { padding-top: 0 !important; height: auto !important; }
             #map-container, #atelier-workspace, #stock-workspace, #theme-list-workspace, #production-workspace { display: none !important; }
@@ -632,7 +687,7 @@
                 <summary style="padding:10px; font-weight:bold; cursor:pointer; background:#f8f9fa; outline:none;"><i class="fa-solid fa-mobile-screen"></i> Taille de l'affichage (téléphone)</summary>
                 <div style="padding:15px;">
                     <div id="set-zoom-boutons" style="display:flex; gap:6px;"></div>
-                    <p style="font-size:11px; color:#888; margin:10px 0 0;">Agrandit toute l'application d'un coup — textes, boutons et panneaux — sans rien déformer. Sans effet sur ordinateur.</p>
+                    <p style="font-size:11px; color:#888; margin:10px 0 0;">Agrandit toute l'application d'un coup — textes, boutons et panneaux — sans rien déformer. L'application se recharge pour appliquer la nouvelle taille. Sans effet sur ordinateur.</p>
                 </div>
             </details>
             <details class="panel-section" open style="margin-bottom:10px; border:1px solid #eee; border-radius:6px; background:#fff;">
@@ -2064,9 +2119,13 @@
             { f: 1.3,  nom: "130 %", aide: "Confortable avec des gants" },
             { f: 1.45, nom: "145 %", aide: "Très gros caractères" }
         ];
-        window.VIEWPORT_SUFFIXE = ", initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+        window.VIEWPORT_SUFFIXE = ", user-scalable=no, viewport-fit=cover";
         window.zoomMobileActuel = function() {
             let f = parseFloat((window.appSettings || {}).zoomMobile);
+            /* Repli sur le stockage : appelée avant que les réglages ne soient chargés, cette
+               fonction renverrait la valeur par défaut et ferait croire à un désaccord avec la
+               balise posée par l'entête — qui, elle, a lu la bonne valeur. */
+            if (isNaN(f)) { try { f = parseFloat(JSON.parse(localStorage.getItem('gmao_settings_v5') || '{}').zoomMobile); } catch (e) {} }
             return (isNaN(f) || f < 1 || f > 2) ? 1.15 : f;      // 115 % par défaut : le réglage d'origine était trop fin
         };
         /* Largeur de l'appareil en pixels CSS, lue sur l'ÉCRAN et non sur la page. Mesurer
@@ -2078,23 +2137,43 @@
             if (!sw || !sh) return window.innerWidth || 0;
             return (window.innerHeight >= window.innerWidth) ? Math.min(sw, sh) : Math.max(sw, sh);
         };
+        // Le rechargement passe par ici, et non par location.reload directement : cette propriété
+        // est verrouillée par le navigateur, impossible à observer autrement qu'en la traversant.
+        window.rechargerApp = function() { location.reload(); };
+        // Chaîne exacte que l'entête a posée. Sert à vérifier, jamais à réécrire après coup.
+        window.viewportVoulu = function() {
+            let f = window.zoomMobileActuel(), base = window.largeurAppareil();
+            if (!base || base > 900 || f === 1) return 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+            return 'width=' + Math.round(base / f) + window.VIEWPORT_SUFFIXE;
+        };
         window.appliquerZoomMobile = function() {
             let meta = document.querySelector('meta[name="viewport"]'); if (!meta) return;
-            let f = window.zoomMobileActuel();
-            let base = window.largeurAppareil();
-            // Au-delà de 900 px de large, on est sur un ordinateur : on n'y touche pas.
-            if (!base || base > 900 || f === 1) meta.setAttribute('content', 'width=device-width' + window.VIEWPORT_SUFFIXE);
-            else meta.setAttribute('content', 'width=' + Math.round(base / f) + window.VIEWPORT_SUFFIXE);
+            let voulu = window.viewportVoulu();
+            /* Ne rien écrire si c'est déjà bon — et ce l'est toujours au démarrage, l'entête s'en
+               est chargé. Toucher cette balise après le rendu est précisément ce qui décale les
+               touchers sous iOS ; on ne le fait qu'au retour d'une rotation, où le navigateur
+               refait de toute façon sa géométrie. */
+            if (meta.getAttribute('content') !== voulu) meta.setAttribute('content', voulu);
             setTimeout(function() {
                 if (window.map && window.map.invalidateSize) window.map.invalidateSize();
                 if (window.renderZoomMobile) window.renderZoomMobile();
             }, 250);
         };
+        /* Changer de taille recharge la page. Il n'y a pas d'autre moyen sûr : appliquer la
+           nouvelle largeur à chaud laisse iOS avec une carte des touchers périmée, et l'utilisateur
+           se retrouve à écrire dans le champ d'à côté. Le réglage et le trajet en cours sont
+           enregistrés avant, le rechargement est instantané puisque tout est déjà en cache. */
         window.setZoomMobile = function(f) {
+            let avant = window.viewportVoulu();
             window.appSettings.zoomMobile = f;
             try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch (e) {}
-            window.appliquerZoomMobile();
             window.renderZoomMobile();
+            if (window.viewportVoulu() === avant) return;             // sur ordinateur : rien ne change
+            try { if (window.routeSave) window.routeSave(); } catch (e) {}
+            let m = document.getElementById('set-zoom-boutons');
+            if (m) m.insertAdjacentHTML('afterend',
+                '<div id="set-zoom-recharge" style="margin-top:8px; font-size:11px; color:#2980b9; font-weight:bold;">Nouvelle taille appliquée, rechargement…</div>');
+            setTimeout(function() { window.rechargerApp(); }, 500);
         };
         window.renderZoomMobile = function() {
             let box = document.getElementById('set-zoom-boutons'); if (!box) return;
@@ -5859,28 +5938,39 @@
             let base = location.origin + location.pathname;
             return base + '#trajet=' + window.routeEncoder();
         };
+        /* Le QR s'ouvre en plein écran. Il n'a qu'un usage — être photographié — et la barre de
+           droite ne fait que 340 px : un trajet dense y était imprimé si petit que la caméra ne
+           pouvait pas distinguer les modules. Le plein écran multiplie sa taille par trois. */
         window.afficherQrTrajet = function() {
             if (!window.routeSelection.length) { alert("Composez d'abord un trajet."); return; }
             let url = window.routeUrlPartage();
-            let svg = window.QR.svg(url, 260);
-            let sl = document.getElementById('selected-list'); if (!sl) return;
-            let box = document.getElementById('route-qr-box');
-            if (!box) { box = document.createElement('div'); box.id = 'route-qr-box'; sl.appendChild(box); }
-            box.innerHTML = svg
-                ? `<div style="background:#fff; border:2px solid #2c3e50; border-radius:8px; padding:14px; text-align:center; margin-top:10px;">
-                    <div style="font-size:12px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">📱 Scannez avec l'appareil photo du téléphone</div>
-                    ${svg}
-                    <div style="font-size:10px; color:#888; margin-top:8px; line-height:1.5;">${window.routeSelection.length} canon(s) · ${url.length} caractères<br>
-                    Le téléphone ouvre l'application avec ce trajet déjà chargé.</div>
-                    <div style="display:flex; gap:6px; margin-top:10px;">
-                        <button onclick="window.copierCodeTrajet(this)" style="flex:1; background:#34495e; color:#fff; border:none; padding:8px; border-radius:5px; font-size:11px; cursor:pointer;">📋 Copier le code</button>
-                        <button onclick="document.getElementById('route-qr-box').remove()" style="flex:0 0 auto; background:#ecf0f1; border:1px solid #ccc; padding:8px 12px; border-radius:5px; font-size:11px; cursor:pointer;">Fermer</button>
-                    </div>
-                   </div>`
-                : `<div style="background:#fdedec; border:1px solid #f5b7b1; border-radius:6px; padding:10px; font-size:11px; color:#922b21; margin-top:10px;">
-                    Trajet trop long pour un QR code (${url.length} caractères). Réduisez la sélection, ou utilisez « Copier le code ».
-                    <button onclick="window.copierCodeTrajet(this)" style="width:100%; margin-top:8px; background:#34495e; color:#fff; border:none; padding:8px; border-radius:5px; font-size:11px; cursor:pointer;">📋 Copier le code</button></div>`;
-            box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            let m = window.QR.matrice(url);
+            let box = document.getElementById('route-qr-plein');
+            if (!box) {
+                box = document.createElement('div'); box.id = 'route-qr-plein';
+                box.addEventListener('click', function(e) { if (e.target === box) window.fermerQrTrajet(); });
+                document.body.appendChild(box);
+            }
+            if (!m) {
+                box.innerHTML = `<div class="qr-titre" style="color:#922b21;">Trajet trop long pour un QR code</div>
+                    <div class="qr-info">${url.length} caractères. Réduisez la sélection, ou transmettez le code par message.</div>
+                    <div class="qr-actions">
+                        <button onclick="window.copierCodeTrajet(this)">📋 Copier le code</button>
+                        <button class="gris" onclick="window.fermerQrTrajet()">Fermer</button></div>`;
+            } else {
+                let n = m.length, version = (n - 17) / 4;
+                box.innerHTML = `<div class="qr-titre">📱 Visez ce code avec le téléphone</div>
+                    ${window.QR.svg(url, 900)}
+                    <div class="qr-info">${window.routeSelection.length} arrêt(s) · version ${version}, ${n}×${n} modules · ${url.length} caractères<br>
+                        Sur le téléphone : fiche de route → « Scanner un QR code ».</div>
+                    <div class="qr-actions">
+                        <button onclick="window.copierCodeTrajet(this)">📋 Copier le code</button>
+                        <button class="gris" onclick="window.fermerQrTrajet()">Fermer</button></div>`;
+            }
+            box.classList.add('open');
+        };
+        window.fermerQrTrajet = function() {
+            let box = document.getElementById('route-qr-plein'); if (box) box.classList.remove('open');
         };
         window.copierCodeTrajet = function(btn) {
             let url = window.routeUrlPartage();
@@ -6063,7 +6153,13 @@
                     let s = 0, n = 0;
                     for (let j = Math.max(0, by - 1); j <= Math.min(bh - 1, by + 1); j++)
                         for (let i = Math.max(0, bx - 1); i <= Math.min(bw - 1, bx + 1); i++) { s += moy[j * bw + i]; n++; }
-                    bits[y * w + x] = gris[y * w + x] < (s / n) ? 1 : 0;   // 1 = sombre
+                    /* Comparaison LARGE, et non stricte. Au cœur d'une grande plage noire, tous les
+                       blocs valent 0 et le seuil vaut 0 : un pixel noir n'est alors pas « strictement
+                       plus sombre que 0 » et ressortait blanc. Le centre des trois motifs de repérage
+                       — un carré de 3 modules — se trouvait ainsi troué dès que le QR dépassait 8 px
+                       par module, c'est-à-dire dès qu'il était affiché en grand ou photographié de
+                       près : le code n'était même plus détecté. */
+                    bits[y * w + x] = gris[y * w + x] <= (s / n) ? 1 : 0;   // 1 = sombre
                 }
                 return { w: w, h: h, bits: bits };
             }
@@ -6153,6 +6249,73 @@
                 let cross = (a.x - hg.x) * (b.y - hg.y) - (a.y - hg.y) * (b.x - hg.x);
                 let hd = cross > 0 ? a : b, bg = cross > 0 ? b : a;
                 return { hg: hg, hd: hd, bg: bg };
+            }
+
+            /* ------------------------------------------------------------------------ */
+            /* Le motif d'alignement, en bas à droite.                                   */
+            /*                                                                          */
+            /* Les trois motifs de repérage ne donnent que trois coins. Le quatrième     */
+            /* était déduit en supposant un parallélogramme — exact seulement si la photo */
+            /* est prise strictement de face. Or on photographie un écran de PC en se    */
+            /* penchant : 3 % de fuite suffisent à décaler ce coin de trois modules, et  */
+            /* le code, pourtant repéré, ne se décodait plus. Le motif d'alignement est  */
+            /* précisément le repère qui donne ce quatrième point.                        */
+            /* ------------------------------------------------------------------------ */
+            /* Centre du module sombre isolé passant par (x, y), sur une ligne ou sur une colonne.
+               On ne mesure que trois plages — clair, sombre, clair — et jamais la couronne sombre
+               qui les entoure : celle-ci touche les données du code, souvent sombres elles aussi,
+               et sa largeur mesurée n'a alors plus rien à voir avec un module. Exiger cinq plages
+               d'un module chacune ne réussissait qu'une fois sur quatre, au hasard des données. */
+            function centreAlign(im, x, y, module, horizontal) {
+                let lire = horizontal ? function(k) { return noir(im, k, y); } : function(k) { return noir(im, x, k); };
+                let lim = horizontal ? im.w : im.h, p = horizontal ? x : y;
+                if (!lire(p)) return null;
+                let a = p; while (a > 0 && lire(a - 1)) a--;
+                let b = p; while (b < lim - 1 && lire(b + 1)) b++;
+                let g = a - 1, ng = 0; while (g >= 0 && !lire(g)) { ng++; g--; }
+                let d = b + 1, nd = 0; while (d < lim && !lire(d)) { nd++; d++; }
+                if (g < 0 || d >= lim) return null;                    // pas de couronne de part et d'autre
+                let tol = Math.max(1.2, module * 0.6);
+                if (Math.abs(b - a + 1 - module) > tol || Math.abs(ng - module) > tol || Math.abs(nd - module) > tol) return null;
+                return (a + b) / 2;
+            }
+            /* Une alternance sombre/clair sur cinq modules se rencontre un peu partout dans les
+               données : la seule signature sûre est la couronne complète, 25 modules d'un coup. */
+            let COURONNE = [[1,1,1,1,1],[1,0,0,0,1],[1,0,1,0,1],[1,0,0,0,1],[1,1,1,1,1]];
+            function couronneOk(im, cx, cy, ux, uy, vx, vy) {
+                let faux = 0;
+                for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) {
+                    let px = Math.round(cx + ux * (i - 2) + vx * (j - 2));
+                    let py = Math.round(cy + uy * (i - 2) + vy * (j - 2));
+                    if (noir(im, px, py) !== COURONNE[j][i]) faux++;
+                }
+                return faux <= 2;
+            }
+            function chercherAlignement(im, o, dim, module) {
+                if (dim < 25) return null;                       // version 1 : aucun motif d'alignement
+                let n = dim - 7;                                  // écart entre centres de repérage, en modules
+                let ux = (o.hd.x - o.hg.x) / n, uy = (o.hd.y - o.hg.y) / n;
+                let vx = (o.bg.x - o.hg.x) / n, vy = (o.bg.y - o.hg.y) / n;
+                let k = dim - 10;                                 // du centre haut-gauche (3,5) au centre du motif (dim-6,5)
+                let ex = o.hg.x + ux * k + vx * k, ey = o.hg.y + uy * k + vy * k;
+                /* Rayon de recherche : c'est justement l'erreur du parallélogramme qu'on vient
+                   corriger, et elle croît avec l'angle de prise de vue. Huit modules couvrent une
+                   photo franchement de biais ; en deçà, le motif tombe hors de la fenêtre. */
+                let rayon = Math.max(8, module * 8);
+                let x0 = Math.max(0, Math.round(ex - rayon)), x1 = Math.min(im.w - 1, Math.round(ex + rayon));
+                let y0 = Math.max(0, Math.round(ey - rayon)), y1 = Math.min(im.h - 1, Math.round(ey + rayon));
+                let pas = Math.max(1, Math.round(module / 2));
+                let meilleur = null, dmin = Infinity;
+                for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x += pas) {
+                    if (!noir(im, x, y)) continue;
+                    let cx = centreAlign(im, x, y, module, true); if (cx === null) continue;
+                    let cy = centreAlign(im, Math.round(cx), y, module, false); if (cy === null) continue;
+                    cx = centreAlign(im, Math.round(cx), Math.round(cy), module, true); if (cx === null) continue;
+                    if (!couronneOk(im, cx, cy, ux, uy, vx, vy)) continue;
+                    let d2 = (cx - ex) * (cx - ex) + (cy - ey) * (cy - ey);
+                    if (d2 < dmin) { dmin = d2; meilleur = { x: cx, y: cy }; }
+                }
+                return meilleur;
             }
 
             // Transformation projective (4 points → grille) : un QR photographié n'est jamais un carré.
@@ -6419,14 +6582,22 @@
                     let d = dim + ecarts[essai];
                     if (d < 21 || d > 177 || (d - 17) % 4 !== 0) continue;
                     let version = (d - 17) / 4;
-                    let grille = echantillonner(im, o, d, null);
-                    if (!grille) continue;
-                    let fmt = lireFormat(grille, d);
-                    if (!fmt) continue;
-                    let octets = lireCodets(grille, d, version, fmt.masque);
-                    let data = desentrelacer(octets, version, fmt.ecc);
-                    if (!data) continue;
-                    try { let t = decoderFlux(data, version); if (t) return t; } catch (e) {}
+                    /* Le motif d'alignement n'est cherché qu'autour des dimensions plausibles : la
+                       recherche part de la position attendue, qu'une dimension fausse place n'importe
+                       où. Le quatrième coin d'abord, le parallélogramme ensuite — une photo bien à
+                       plat se décode aussi sans motif d'alignement, et les versions 1 n'en ont pas. */
+                    let ali = essai < 3 ? chercherAlignement(im, o, d, mod) : null;
+                    let reperes = ali ? [ali, null] : [null];
+                    for (let ri = 0; ri < reperes.length; ri++) {
+                        let grille = echantillonner(im, o, d, reperes[ri]);
+                        if (!grille) continue;
+                        let fmt = lireFormat(grille, d);
+                        if (!fmt) continue;
+                        let octets = lireCodets(grille, d, version, fmt.masque);
+                        let data = desentrelacer(octets, version, fmt.ecc);
+                        if (!data) continue;
+                        try { let t = decoderFlux(data, version); if (t) return t; } catch (e) {}
+                    }
                 }
                 return null;
             }
@@ -6480,8 +6651,9 @@
             let v = document.getElementById('qr-scan-video');
             try {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("caméra non disponible");
+                // Résolution la plus haute que la caméra accepte : chaque pixel compte pour un QR dense.
                 let flux = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
                 window.qrScanEtat.flux = flux;
                 v.srcObject = flux;
                 await v.play().catch(function() {});
@@ -6501,16 +6673,24 @@
             let box = document.getElementById('qr-scan'); if (box) box.classList.remove('open');
         };
 
-        window.qrScanImageData = function(source, largeurCible) {
+        /* `part` recadre au centre : 1 prend tout le cadre, 0,7 le carré central. Viser le code
+           dans la mire puis ne travailler que sur cette zone multiplie par autant le nombre de
+           pixels par module — et c'est ce nombre, et lui seul, qui décide si un code se décode. */
+        window.qrScanImageData = function(source, largeurCible, part) {
             let w = source.videoWidth || source.naturalWidth || source.width;
             let h = source.videoHeight || source.naturalHeight || source.height;
             if (!w || !h) return null;
-            let ech = Math.min(1, (largeurCible || 720) / Math.max(w, h));
-            let cw = Math.max(1, Math.round(w * ech)), ch = Math.max(1, Math.round(h * ech));
+            let sx = 0, sy = 0, sw = w, sh = h;
+            if (part && part < 1) {
+                sw = sh = Math.round(Math.min(w, h) * part);
+                sx = Math.round((w - sw) / 2); sy = Math.round((h - sh) / 2);
+            }
+            let ech = Math.min(1, (largeurCible || 1280) / Math.max(sw, sh));
+            let cw = Math.max(1, Math.round(sw * ech)), ch = Math.max(1, Math.round(sh * ech));
             let cv = window._qrCanvas || (window._qrCanvas = document.createElement('canvas'));
             cv.width = cw; cv.height = ch;
             let ctx = cv.getContext('2d', { willReadFrequently: true });
-            ctx.drawImage(source, 0, 0, cw, ch);
+            ctx.drawImage(source, sx, sy, sw, sh, 0, 0, cw, ch);
             return ctx.getImageData(0, 0, cw, ch);
         };
 
@@ -6524,12 +6704,17 @@
                     if (codes && codes.length) texte = codes[0].rawValue;
                 }
                 if (!texte && v && v.videoWidth) {
-                    let img = window.qrScanImageData(v, 720);
+                    /* Le cadre entier une fois, la mire la fois suivante : à 1 280 px le décodage
+                       coûte une vingtaine de millisecondes, on peut se permettre d'alterner. Un
+                       cadre réduit à 720 px ne laissait que 2 à 3 pixels par module sur un trajet
+                       un peu long — aucun lecteur au monde ne décode cela. */
+                    window.qrScanEtat.tour = (window.qrScanEtat.tour || 0) + 1;
+                    let img = window.qrScanImageData(v, 1280, (window.qrScanEtat.tour % 2) ? 1 : 0.7);
                     if (img) texte = window.QRLire.decoder(img);
                 }
             } catch (e) {}
             if (texte) { window.qrScanReussi(texte); return; }
-            window.qrScanEtat.timer = setTimeout(window.qrScanBoucle, 220);
+            window.qrScanEtat.timer = setTimeout(window.qrScanBoucle, 160);
         };
 
         window.qrScanFichier = function(input) {
@@ -6537,11 +6722,13 @@
             let img = new Image();
             img.onload = function() {
                 let texte = null;
-                // Deux résolutions : un QR photographié de loin a besoin de tous ses pixels, un QR
-                // pris de près décode plus sûrement réduit (le bruit de capteur s'efface).
-                [1400, 900, 600].forEach(function(t) {
+                window.qrScanMsg("Analyse de la photo…");
+                /* Plusieurs cadrages et plusieurs résolutions : un QR photographié de loin a besoin
+                   de tous ses pixels, un QR pris de près décode plus sûrement réduit (le bruit du
+                   capteur s'efface). Le recadrage au centre sauve les photos prises de trop loin. */
+                [[1600, 1], [1100, 1], [1600, 0.6], [1600, 0.85], [800, 1]].forEach(function(t) {
                     if (texte) return;
-                    let d = window.qrScanImageData(img, t);
+                    let d = window.qrScanImageData(img, t[0], t[1]);
                     if (d) { try { texte = window.QRLire.decoder(d); } catch (e) {} }
                 });
                 if (texte) window.qrScanReussi(texte);
@@ -11329,7 +11516,10 @@ ${so.ensoleille ? 'Soleil direct' : (so.alt <= 0 ? 'Nuit' : (!so.visible ? 'À l
                 // met le code et les librairies en cache pendant que les données arrivent, si bien que
                 // la sortie suivante — sans réseau — trouve déjà tout sur place.
                 window.registerServiceWorker();
-                window.appliquerZoomMobile();
+                /* Pas d'appel à appliquerZoomMobile ici : la balise viewport a déjà été posée par
+                   l'entête, avec la bonne valeur. La reposer à ce stade la CASSAIT — window.appSettings
+                   n'est pas encore chargé, zoomMobileActuel renvoyait donc 115 % par défaut et écrasait
+                   le réglage réel de l'utilisateur à chaque démarrage. */
                 window.setStep(0, "Initialisation de la carte...");
                 let retries = 0; while ((typeof L === 'undefined' || typeof JSZip === 'undefined' || typeof Chart === 'undefined') && retries < 50) { await new Promise(r => setTimeout(r, 100)); retries++; }
                 if (typeof L === 'undefined') throw new Error("Impossible de charger la carte (Leaflet). Vérifiez votre pare-feu.");
