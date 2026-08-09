@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.9.3";
+        window.APP_VERSION = "5.9.4";
         window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; let fw = document.getElementById('flake-wrap'); if(fw) fw.style.display='none'; let pc = document.getElementById('loading-pct'); if(pc) pc.style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('error-box')) { document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } } else alert("🛑 CRASH : "+msg); };
         window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
         window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
@@ -397,7 +397,15 @@
                (z-index 5200 contre 5000 et 5100) : sans réserve en bas, les dernières lignes et le
                bouton de validation restaient hors d'atteinte, cachés derrière lui. */
             :root{--dock-h:calc(38px + var(--safe-bottom));}
-            .right-content, #sidebar { padding-bottom: calc(20px + var(--dock-h)) !important; }
+            /* Une boîte vide, et non un padding-bottom : sur un conteneur qui défile, le padding du
+               bas n'entre pas dans la hauteur défilable — et #sidebar est en plus une colonne
+               flexible, où il est purement ignoré. Arrivé tout en bas, la dernière rubrique restait
+               donc sous le tiroir, mesurée à 33 px de trop. Une vraie boîte, elle, est toujours
+               comptée. */
+            .right-content::after, #sidebar::after {
+                content:''; display:block; flex:0 0 auto; width:100%;
+                height: calc(20px + var(--dock-h)); min-height: calc(20px + var(--dock-h));
+            }
             /* Ces panneaux-là passent AU-DESSUS du tiroir : il leur suffit d'éviter la barre de
                l'iPhone en bas d'écran. */
             #settings-panel > div:last-child, #pdf-pages { padding-bottom: calc(16px + var(--safe-bottom)) !important; }
@@ -438,8 +446,22 @@
             .leaflet-bottom { bottom: 54px; }
 
             .bi-container { flex-direction: column; }
-            .bi-sidebar { width: 100%; border-right: none; border-bottom: 1px solid #ddd; max-height: 40vh; }
-            .bi-content { height: 60vh; }
+            /* box-sizing : « largeur 100 % » plus « marge intérieure de 20 px » donnait, en calcul
+               par défaut, 100 % PLUS 40 px — la colonne de réglages faisait 371 px dans un cadre de
+               333, et tout son contenu sortait à droite, coupé net par le bord de l'écran. */
+            .bi-sidebar { width: 100%; box-sizing: border-box; border-right: none; border-bottom: 1px solid #ddd; max-height: 40vh; }
+            .bi-content { height: 60vh; box-sizing: border-box; max-width: 100%; }
+            /* Les rangées de réglages doivent pouvoir rétrécir : un élément flexible refuse par
+               défaut de passer sous la largeur de son contenu, ce qui rouvre le débordement dès que
+               l'écran est étroit — c'est-à-dire dès qu'on agrandit l'affichage. */
+            /* Même cause dans le formulaire de production : un champ de date natif est large, et
+               un élément flexible refuse par défaut de descendre sous la largeur de son contenu.
+               La rangée « date + heure » sortait de 27 px à l'affichage le plus gros. */
+            #production-panel .pp-field { min-width: 0; }
+            #production-panel .pp-field input, #production-panel .pp-field select { min-width: 0; max-width: 100%; box-sizing: border-box; }
+
+            .bi-sidebar > div { max-width: 100%; }
+            .bi-sidebar select, .bi-sidebar input, .bi-sidebar > div > select { min-width: 0; max-width: 100%; box-sizing: border-box; }
 
             .comp-controls { flex-direction: column; gap: 10px; }
             #compare-modal, #meteo-history-modal { width: 98%; height: 95vh; top: 2%; left: 1%; transform: none; min-width: 0; }
