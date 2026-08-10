@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.10.0";
+        window.APP_VERSION = "5.11.0";
         window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; let fw = document.getElementById('flake-wrap'); if(fw) fw.style.display='none'; let pc = document.getElementById('loading-pct'); if(pc) pc.style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('error-box')) { document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } } else alert("🛑 CRASH : "+msg); };
         window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
         window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
@@ -225,6 +225,16 @@
         #route-mode span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
         #route-mode button{background:rgba(0,0,0,0.28); color:#fff; border:none; border-radius:16px;
             padding:6px 13px; font-size:12px; font-weight:bold; cursor:pointer; flex-shrink:0;}
+        /* Plan d'enneigement */
+        .plan-alerte{background:#fff8e1;border:1px solid #ffe082;color:#7a5c00;border-radius:6px;padding:8px 10px;
+            font-size:11px;margin-bottom:8px;line-height:1.5;}
+        .plan-piste{background:#fff;border:1px solid #e6ecf1;border-radius:6px;padding:9px 10px;margin-bottom:8px;
+            box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+        .plan-jauge{flex:1;height:7px;background:#eef2f5;border-radius:4px;overflow:hidden;}
+        .plan-jauge span{display:block;height:100%;border-radius:4px;}
+        .plan-pastille{display:inline-block;background:#eef4fa;color:#2c3e50;border-radius:10px;padding:2px 8px;
+            font-size:10px;font-weight:bold;margin:2px 4px 2px 0;}
+        .plan-creneau{background:#fff;border:1px solid #e6ecf1;border-radius:6px;padding:8px 10px;margin-bottom:6px;}
         #route-print{display:none;}
         @media print{
             body.printing-route > *{display:none !important;}
@@ -698,6 +708,7 @@
                     <button class="topbar-btn" data-btnkey="meteo" data-btnlabel="Météo Live" onclick="window.openMeteoWidget()"><i class="fa-solid fa-cloud-sun"></i> <span class="btn-text">Météo Live</span></button>
                     <button class="topbar-btn" data-btnkey="webcams" data-btnlabel="Webcams" onclick="window.openWebcamGrid()"><i class="fa-solid fa-video"></i> <span class="btn-text">Webcams</span></button>
                     <button class="topbar-btn" data-btnkey="satellite" data-btnlabel="Vue satellite" onclick="window.openSatellitePanel()"><i class="fa-solid fa-satellite"></i> <span class="btn-text">Vue satellite</span></button>
+                    <button class="topbar-btn" data-btnkey="plan" data-btnlabel="Plan d'enneigement" onclick="window.openPlanNeige()" style="background:#0072ff; border-color:#3498db;"><i class="fa-solid fa-snowflake"></i> <span class="btn-text">Plan d'enneigement</span></button>
                     <button class="topbar-btn" data-btnkey="route" data-btnlabel="Fiche de route" onclick="window.openFicheRoute()"><i class="fa-solid fa-route"></i> <span class="btn-text">Fiche de route</span></button>
                     <button class="topbar-btn" data-btnkey="diag" data-btnlabel="Aide au diagnostic" onclick="window.openDiagnostic()"><i class="fa-solid fa-stethoscope"></i> <span class="btn-text">Aide au diagnostic</span></button>
                     <button class="topbar-btn" data-btnkey="histmeteo" data-btnlabel="Hist. Météo" onclick="window.openMeteoHistoryModal(true)" style="background:#f39c12; border-color:#f1c40f;"><i class="fa-solid fa-temperature-half"></i> <span class="btn-text">Hist. Météo</span></button>
@@ -1133,6 +1144,11 @@
                     </div></div>
                 </div>
             </details>
+            <details class="panel-section" data-sec="planneige" open><summary>Plan d'Enneigement</summary><div class="section-content" style="padding-top: 8px;">
+                <p style="font-size:11px; color:#666; margin:0 0 8px;">Croise les objectifs par piste, le débit des enneigeurs selon les couronnes ouvertes et la prévision ramenée à l'altitude de chaque piste.</p>
+                <button class="btn-action-primary" style="margin:0; background:#0072ff;" onclick="window.openPlanNeige()"><i class="fa-solid fa-snowflake"></i> Ouvrir le plan</button>
+                <div id="plan-resume-menu" style="font-size:11px; color:#7f8c8d; margin-top:8px;"></div>
+            </div></details>
             <details class="panel-section" data-sec="filtres" open><summary>Filtres Rapides</summary><div class="section-content" style="padding-top: 5px;">
                 <b style="font-size:12px;">Pistes :</b><div class="checkbox-list"><label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes</b></label><div id="individual-pistes"></div></div>
                 <b style="font-size:12px;">Type Canon :</b><div class="checkbox-list"><label><input type="checkbox" id="check-all-types" checked> <b>Tous</b></label><div id="individual-types"></div></div>
@@ -7434,6 +7450,11 @@
             window.rawAtelier = data.atelier || []; window.rawStock = data.stock || []; window.drivePhotos = data.drivePhotos || {};
             window.driveIcons = data.driveIcons || {}; window.drivePdfsData = data.drivePdfs || {}; window.driveKmzData = data.driveKmz || {};
             window.historiqueData = window.rawHistorique;
+            // Plan d'enneigement : objectifs par piste et abaque de débit par couronnes, tels quels.
+            // Ils restent bruts tant que leur structure n'est pas connue — mieux vaut un tableau
+            // fidèle qu'une interprétation inventée.
+            window.rawObjPiste = data.objPiste || [];
+            window.rawDebitCouronnes = data.debitCouronnes || [];
 
             window.setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
@@ -10323,6 +10344,62 @@
             return out.map(function(w) { return { debut: times[w.i0], fin: times[w.i1], heures: w.i1 - w.i0 + 1, min: w.min, moy: w.sum / w.n }; });
         };
 
+        /* ------------------------------------------------------------------------- */
+        /* CHAPITRE 8.B.0.d — ALTITUDE DE CHAQUE ENNEIGEUR                            */
+        /*                                                                           */
+        /* La température humide, donc le débit possible, change de plusieurs degrés  */
+        /* entre le bas et le haut du domaine : planifier sans altitude reviendrait à */
+        /* traiter un canon de 1 400 m comme un canon de 2 200 m. Elle est déduite    */
+        /* une fois pour toutes des coordonnées, par le même service que le relief,   */
+        /* puis conservée localement — elle ne changera plus.                          */
+        /* ------------------------------------------------------------------------- */
+        window.altitudesCanons = null;
+        window.ALT_PAR_LOT = 90;                 // l'adresse est passée en GET : on la garde courte
+        window.chargerAltitudes = async function(forcer) {
+            if (window.altitudesCanons && !forcer) return window.altitudesCanons;
+            let table = {};
+            if (!forcer) {
+                try { let c = await window.idbGet("snapshot", "altitudes"); if (c && c.table) table = c.table; } catch (e) {}
+            }
+            let pts = [];
+            (window.snowCannons && window.snowCannons.features || []).forEach(function(f) {
+                let id = f.properties.id;
+                if (table[id] !== undefined) return;
+                let c = f.geometry && f.geometry.coordinates;
+                if (!c || isNaN(c[0]) || isNaN(c[1])) return;
+                pts.push({ id: id, lat: +(+c[1]).toFixed(6), lng: +(+c[0]).toFixed(6) });
+            });
+            for (let i = 0; i < pts.length; i += window.ALT_PAR_LOT) {
+                let lot = pts.slice(i, i + window.ALT_PAR_LOT);
+                let url = "https://api.open-meteo.com/v1/elevation?latitude=" + lot.map(function(p) { return p.lat; }).join(",")
+                        + "&longitude=" + lot.map(function(p) { return p.lng; }).join(",");
+                try {
+                    let r = await fetch(url);
+                    if (!r.ok) throw new Error("HTTP " + r.status);
+                    let j = await r.json();
+                    if (!Array.isArray(j.elevation) || j.elevation.length !== lot.length) throw new Error("réponse inattendue");
+                    lot.forEach(function(p, k) { table[p.id] = Math.round(j.elevation[k]); });
+                } catch (e) {
+                    // Un lot manquant n'invalide pas les autres : on garde ce qui est arrivé.
+                    break;
+                }
+            }
+            window.altitudesCanons = table;
+            try { await window.idbPut("snapshot", { key: "altitudes", at: Date.now(), table: table }); } catch (e) {}
+            return table;
+        };
+        window.altitudeCanon = function(id) {
+            let t = window.altitudesCanons; if (!t) return null;
+            let v = t[id]; return (v === undefined || v === null) ? null : v;
+        };
+        // Altitude moyenne d'un ensemble de canons — c'est elle qui sert à choisir le secteur météo
+        // représentatif d'une piste.
+        window.altitudeMoyenne = function(ids) {
+            let s = 0, n = 0;
+            (ids || []).forEach(function(id) { let a = window.altitudeCanon(id); if (a !== null) { s += a; n++; } });
+            return n ? Math.round(s / n) : null;
+        };
+
         /* Rendement réel : régression linéaire du débit (m³/h) sur la température moyenne relevée dans
            l'onglet Production. C'est la seule source de vérité disponible sur CETTE installation — un
            abaque théorique de constructeur ignorerait le réseau, l'altitude et les réglages maison. */
@@ -11788,6 +11865,819 @@
         };
 
         /* ========================================================================= */
+        /* CHAPITRE 8.E : PLAN D'ENNEIGEMENT                                         */
+        /*                                                                          */
+        /* Croise quatre sources qui n'avaient jamais été rapprochées : l'objectif   */
+        /* d'eau par piste et ce qui a déjà été pompé (onglet « obj piste »), le     */
+        /* débit de chaque enneigeur selon les couronnes ouvertes (onglet « débit    */
+        /* canon par couronnes »), la prévision horaire ramenée à l'altitude de      */
+        /* chaque canon, et l'historique de marche de chaque enneigeur.              */
+        /*                                                                          */
+        /* Le choix des couronnes reste à l'exploitant : l'outil dit seulement ce    */
+        /* que la température humide permet d'ouvrir, d'après des seuils qu'on règle */
+        /* à la main — le constructeur ne les donne pas, et ils s'apprennent sur le  */
+        /* terrain saison après saison.                                              */
+        /* ========================================================================= */
+        window.COURONNES = [
+            { cle: 'c1',       nom: 'C1',          col: ['c1'] },
+            { cle: 'c1c2',     nom: 'C1+C2',       col: ['c1+c2', 'c1c2'] },
+            { cle: 'c1c3',     nom: 'C1+C3',       col: ['c1+c3', 'c1c3'] },
+            { cle: 'c1c2c3',   nom: 'C1+C2+C3',    col: ['c1+c2+c3', 'c1c2c3'] }
+        ];
+        window.planCfg = function() {
+            if (!window.appSettings.plan) window.appSettings.plan = {};
+            return window.completerReglages(window.appSettings.plan, {
+                capaciteEau: 960,          // m³/h de pompage disponible
+                capaciteAir: 8500,         // Nm³/h de compression disponible
+                gradient: 0.65,            // °C perdus par 100 m d'élévation
+                ratioNeige: 2.5,           // m³ de neige produits par m³ d'eau pompée
+                // Seuils de température humide autorisant chaque combinaison de couronnes. Valeurs de
+                // départ, à corriger d'après ce que l'installation fait réellement : le constructeur
+                // ne les publie pas.
+                seuils: { c1: -2, c1c2: -3.5, c1c3: -5, c1c2c3: -7 },
+                importance: {},            // piste -> 1 (faible) à 5 (ouverture du domaine)
+                besoinMode: {},            // piste -> 'objectif' (m³ lus) ou 'surface'
+                surface: {},               // piste -> m² (mode « surface »)
+                hauteur: {},               // piste -> cm de neige visés (mode « surface »)
+                colonneSaison: '',         // colonne de « obj piste » qui porte la saison en cours
+                consoLocale: {},           // saisies faites ici, en attendant le classeur : piste -> m³
+                selection: [],             // pistes retenues en mode manuel
+                prioriteManuelle: {},      // piste -> rang imposé
+                auto: true,
+                poids: { meteo: 1, importance: 1, rendement: 1 }
+            });
+        };
+        window.planSave = function() {
+            try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch (e) {}
+        };
+        // Comparaison de noms de pistes : le classeur écrit « traversée du lac », la carte « Traversée
+        // du Lac », et l'onglet des couronnes abrège en « lac ». On compare sur une forme réduite.
+        /* Accès direct à un enneigeur par son numéro. Les propriétés portées par la carte SONT
+           l'objet canon complet — historique de marche compris — il n'y a donc rien à recopier,
+           juste un index à tenir. */
+        window.planIndexCanons = null;
+        window.planCanon = function(id) {
+            if (!window.planIndexCanons) {
+                window.planIndexCanons = {};
+                (window.snowCannons && window.snowCannons.features || []).forEach(function(f) {
+                    window.planIndexCanons[String(f.properties.id)] = f.properties;
+                });
+            }
+            return window.planIndexCanons[String(id)] || null;
+        };
+        window.planNorm = function(s) {
+            return (s === null || s === undefined ? '' : s.toString())
+                .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+                .replace(/[^a-z0-9]+/g, ' ').trim();
+        };
+        window.planEstTotal = function(txt) { return /^(total|totaux|somme)\b/.test(window.planNorm(txt)); };
+
+        /* --- Onglet « obj piste » : objectif et consommation par saison --------------- */
+        window.planColonnesSaison = function() {
+            let t = window.rawObjPiste || []; if (t.length < 2) return [];
+            let ent = t[0].map(function(h) { return (h === null || h === undefined ? '' : h).toString().trim(); });
+            let out = [];
+            ent.forEach(function(h, i) {
+                // « 23-24 », « 2023-2024 », « 25/26 » : une saison est deux nombres séparés.
+                if (/^\d{2,4}\s*[-\/]\s*\d{2,4}$/.test(h)) out.push({ i: i, nom: h });
+            });
+            return out;
+        };
+        window.planColonneSaisonCourante = function() {
+            let cols = window.planColonnesSaison(); if (!cols.length) return null;
+            let c = window.planCfg();
+            if (c.colonneSaison) {
+                let t = cols.find(function(x) { return x.nom === c.colonneSaison; });
+                if (t) return t;
+            }
+            return cols[cols.length - 1];     // la dernière colonne est la saison en cours
+        };
+        window.planObjectifs = function() {
+            let t = window.rawObjPiste || [];
+            let out = {};
+            if (t.length < 2) return out;
+            let ent = t[0].map(function(h) { return window.planNorm(h); });
+            let iPiste = ent.findIndex(function(h) { return h === 'pistes' || h === 'piste'; });
+            if (iPiste === -1) iPiste = 0;
+            let iObj = ent.findIndex(function(h) { return h === 'obj' || h.indexOf('objectif') > -1; });
+            let iMoy = ent.findIndex(function(h) { return h.indexOf('moyenne') > -1; });
+            let cols = window.planColonnesSaison();
+            let saisonCourante = window.planColonneSaisonCourante();
+            t.slice(1).forEach(function(row) {
+                let nom = (row[iPiste] === null || row[iPiste] === undefined) ? '' : row[iPiste].toString().trim();
+                // La ligne « total » est un cumul de feuille de calcul, pas une piste.
+                if (!nom || window.planEstTotal(nom)) return;
+                let saisons = {};
+                cols.forEach(function(c) { saisons[c.nom] = window.prodNum(row[c.i]); });
+                out[window.planNorm(nom)] = {
+                    nom: nom,
+                    objectif: iObj > -1 ? window.prodNum(row[iObj]) : 0,
+                    moyenne: iMoy > -1 ? window.prodNum(row[iMoy]) : 0,
+                    saisons: saisons,
+                    consomme: saisonCourante ? window.prodNum(row[saisonCourante.i]) : 0
+                };
+            });
+            return out;
+        };
+
+        /* --- Onglet « débit canon par couronnes » : un enneigeur par ligne ------------ */
+        window.planCouronnes = function() {
+            let t = window.rawDebitCouronnes || [];
+            let out = { parCanon: {}, parPiste: {}, lignes: 0, sansNumero: 0 };
+            if (t.length < 2) return out;
+            let ent = t[0].map(function(h) { return window.planNorm(h); });
+            let trouve = function(cands) {
+                for (let i = 0; i < ent.length; i++) if (cands.indexOf(ent[i]) > -1) return i;
+                return -1;
+            };
+            let iPiste = trouve(['pistes', 'piste']); if (iPiste === -1) iPiste = 0;
+            let iNum = trouve(['n', 'no', 'num', 'numero', 'n canon']); if (iNum === -1) iNum = 1;
+            let iAir = trouve(['air']);
+            let iType = trouve(['types', 'type']);
+            let iCour = {};
+            window.COURONNES.forEach(function(c) {
+                let idx = -1;
+                c.col.forEach(function(v) { if (idx === -1) idx = ent.indexOf(window.planNorm(v)); });
+                iCour[c.cle] = idx;
+            });
+            t.slice(1).forEach(function(row) {
+                let piste = (row[iPiste] === null || row[iPiste] === undefined) ? '' : row[iPiste].toString().trim();
+                let numBrut = row[iNum];
+                // Les lignes « total piste » sont des sous-totaux glissés dans le tableau : leur
+                // libellé occupe la colonne du numéro. Les additionner doublerait toute la piste.
+                if (window.planEstTotal(numBrut) || window.planEstTotal(piste)) return;
+                let id = (numBrut === null || numBrut === undefined) ? '' : numBrut.toString().replace(/^YA\s*/i, '').trim();
+                if (!id || isNaN(window.prodNum(id))) { if (piste) out.sansNumero++; return; }
+                id = String(window.prodNum(id));
+                let e = { id: id, piste: piste, air: iAir > -1 ? window.prodNum(row[iAir]) : 0,
+                          type: iType > -1 ? (row[iType] || '').toString().trim() : '' };
+                window.COURONNES.forEach(function(c) { e[c.cle] = iCour[c.cle] > -1 ? window.prodNum(row[iCour[c.cle]]) : 0; });
+                out.parCanon[id] = e;
+                let k = window.planNorm(piste);
+                if (!out.parPiste[k]) out.parPiste[k] = [];
+                out.parPiste[k].push(e);
+                out.lignes++;
+            });
+            return out;
+        };
+
+        /* --- Les pistes, une fois tout recoupé ---------------------------------------- */
+        window.planPistes = function() {
+            let objs = window.planObjectifs();
+            let cour = window.planCouronnes();
+            let cfg = window.planCfg();
+            let pistes = {};
+            let voir = function(nom) {
+                let k = window.planNorm(nom);
+                if (!pistes[k]) pistes[k] = { cle: k, nom: nom, canons: [], altitudes: [], air: 0,
+                                              debit: {}, sansDebit: [], objectif: 0, consomme: 0, moyenne: 0, saisons: {} };
+                return pistes[k];
+            };
+            (window.snowCannons && window.snowCannons.features || []).forEach(function(f) {
+                let p = f.properties;
+                let nom = window.getV(p, window.keyPiste);
+                if (!nom || nom === 'N/A' || nom === '') nom = 'Sans piste';
+                let pi = voir(nom);
+                pi.canons.push(p.id);
+                let a = window.altitudeCanon(p.id); if (a !== null) pi.altitudes.push(a);
+                let d = cour.parCanon[String(p.id)];
+                if (!d) { pi.sansDebit.push(p.id); return; }
+                pi.air += d.air;
+                window.COURONNES.forEach(function(c) { pi.debit[c.cle] = (pi.debit[c.cle] || 0) + d[c.cle]; });
+            });
+            // Une piste peut avoir un objectif sans qu'aucun canon ne la déclare : on la garde
+            // visible plutôt que de la faire disparaître silencieusement du plan.
+            Object.keys(objs).forEach(function(k) { voir(objs[k].nom); });
+            Object.keys(pistes).forEach(function(k) {
+                let pi = pistes[k], o = objs[k];
+                if (o) { pi.objectif = o.objectif; pi.consomme = o.consomme; pi.moyenne = o.moyenne; pi.saisons = o.saisons; pi.dansClasseur = true; }
+                pi.consomme += window.prodNum((cfg.consoLocale || {})[k]);
+                pi.reste = Math.max(0, pi.objectif - pi.consomme);
+                pi.avancement = pi.objectif > 0 ? pi.consomme / pi.objectif : null;
+                pi.altMoy = pi.altitudes.length ? Math.round(pi.altitudes.reduce(function(a, b) { return a + b; }, 0) / pi.altitudes.length) : null;
+                pi.altMin = pi.altitudes.length ? Math.min.apply(null, pi.altitudes) : null;
+                pi.altMax = pi.altitudes.length ? Math.max.apply(null, pi.altitudes) : null;
+                pi.importance = window.prodNum((cfg.importance || {})[k]) || 3;
+                window.COURONNES.forEach(function(c) { if (!pi.debit[c.cle]) pi.debit[c.cle] = 0; });
+                // Rendement des enneigeurs : m³ d'eau par heure de marche, tiré de l'historique.
+                let eau = 0, heures = 0;
+                pi.canons.forEach(function(id) {
+                    let c = window.planCanon(id);
+                    let h = c && c.historique ? c.historique : null;
+                    if (!h) return;
+                    Object.keys(h).forEach(function(s) { eau += window.prodNum(h[s].eau); heures += window.prodNum(h[s].temps); });
+                });
+                pi.rendement = heures > 0 ? eau / heures : null;
+            });
+            return pistes;
+        };
+        window.planListe = function() {
+            let p = window.planPistes();
+            return Object.keys(p).map(function(k) { return p[k]; })
+                .sort(function(a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
+        };
+        // Contrôle de cohérence entre les trois onglets : ce qui ne se recoupe pas doit se voir.
+        window.planDiagnostic = function() {
+            let cour = window.planCouronnes(), objs = window.planObjectifs(), liste = window.planListe();
+            let idsCarte = {};
+            (window.snowCannons && window.snowCannons.features || []).forEach(function(f) { idsCarte[String(f.properties.id)] = 1; });
+            let couronnesOrphelines = Object.keys(cour.parCanon).filter(function(id) { return !idsCarte[id]; });
+            let sansDebit = liste.reduce(function(a, p) { return a + p.sansDebit.length; }, 0);
+            let objSansPiste = Object.keys(objs).filter(function(k) {
+                return !liste.some(function(p) { return p.cle === k && p.canons.length; });
+            }).map(function(k) { return objs[k].nom; });
+            return {
+                canons: Object.keys(idsCarte).length,
+                lignesCouronnes: cour.lignes,
+                canonsSansDebit: sansDebit,
+                couronnesOrphelines: couronnesOrphelines,
+                objectifsSansCanon: objSansPiste,
+                colonnesSaison: window.planColonnesSaison().map(function(c) { return c.nom; }),
+                saisonRetenue: (window.planColonneSaisonCourante() || {}).nom || null
+            };
+        };
+
+        /* --- La météo ramenée à l'altitude de chaque piste ---------------------------- */
+        /* La prévision est calculée pour un point ; une piste s'étale sur plusieurs centaines
+           de mètres de dénivelé, où la température humide n'est pas la même. On rapporte donc
+           la température à l'altitude visée par le gradient réglé, la pression par la formule
+           barométrique, et on recalcule la température humide — c'est elle qui décide de tout. */
+        window.planSecteurPour = function(pi) {
+            let d = window.meteoData; if (!d || !d.secteurs || !d.secteurs.length) return -1;
+            if (d.secteurs.length === 1) return 0;
+            // Secteur le plus proche du barycentre des canons de la piste.
+            let lat = 0, lng = 0, n = 0;
+            (pi.canons || []).forEach(function(id) {
+                let c = window.planCanon(id);
+                if (c && c.lat) { lat += c.lat; lng += c.lng; n++; }
+            });
+            if (!n) return 0;
+            lat /= n; lng /= n;
+            let best = 0, dm = Infinity;
+            d.secteurs.forEach(function(s, i) {
+                let dd = (s.lat - lat) * (s.lat - lat) + (s.lng - lng) * (s.lng - lng);
+                if (dd < dm) { dm = dd; best = i; }
+            });
+            return best;
+        };
+        window.planSerie = function(si) {
+            let d = window.meteoData; if (!d || !d.series || !d.series[si] || !d.series[si].hourly) return null;
+            let s = d.series[si], h = s.hourly;
+            let times = h.time || [];
+            let now = new Date(), i0 = 0;
+            for (let i = 0; i < times.length; i++) { if (new Date(times[i]) >= now) { i0 = Math.max(0, i - 1); break; } }
+            return { s: s, i0: i0, n: Math.min(times.length - i0, 48) };
+        };
+        window.planTH = function(si, k, altitude) {
+            let ser = window.planSerie(si); if (!ser) return null;
+            let h = ser.s.hourly, i = ser.i0 + k;
+            let T = window.prodNum(h.temperature_2m[i]), RH = window.prodNum(h.relative_humidity_2m[i]);
+            let P = window.prodNum(h.surface_pressure[i]);
+            if (h.temperature_2m[i] === undefined || h.temperature_2m[i] === null) return null;
+            let alt0 = window.prodNum(ser.s.elevation);
+            if (altitude !== null && altitude !== undefined && alt0) {
+                let dz = altitude - alt0;
+                T -= window.planCfg().gradient * dz / 100;
+                if (P > 0) P = P * Math.exp(-dz / 8400);
+            }
+            return window.wetBulb(T, RH, P > 0 ? P : undefined);
+        };
+        // Couronnes que la température humide autorise. Renvoie null quand rien ne passe.
+        window.planCouronneMax = function(th) {
+            if (th === null || th === undefined || isNaN(th)) return null;
+            let s = window.planCfg().seuils || {};
+            let choix = null;
+            window.COURONNES.forEach(function(c) {
+                let seuil = window.prodNum(s[c.cle]);
+                if (s[c.cle] === undefined || s[c.cle] === null || s[c.cle] === '') return;
+                if (th <= seuil) choix = c;         // la liste va de la plus petite à la plus ouverte
+            });
+            return choix;
+        };
+
+        /* --- Le plan proprement dit --------------------------------------------------- */
+        /* Trois critères, ceux retenus à l'usage : le rendement que la météo permet à cette
+           altitude et à cette heure, l'importance de la piste, et l'efficacité mesurée de ses
+           enneigeurs. Le retard sur l'objectif ne classe pas — il filtre : une piste au but
+           sort du plan. Chaque critère est ramené entre 0 et 1 avant d'être pondéré, sans quoi
+           des m³/h se compareraient à un rang de 1 à 5. */
+        window.planScores = function(k) {
+            let cfg = window.planCfg();
+            let liste = window.planListe().filter(function(p) { return p.canons.length > 0; });
+            let poids = cfg.poids || { meteo: 1, importance: 1, rendement: 1 };
+            liste.forEach(function(p) {
+                p.secteur = window.planSecteurPour(p);
+                p.thHeure = window.planTH(p.secteur, k || 0, p.altMoy);
+                p.couronne = window.planCouronneMax(p.thHeure);
+                p.debitHeure = p.couronne ? p.debit[p.couronne.cle] : 0;
+                p.airHeure = p.couronne ? p.air : 0;
+            });
+            let maxDebit = Math.max.apply(null, liste.map(function(p) { return p.debitHeure; }).concat([1]));
+            let maxRend = Math.max.apply(null, liste.map(function(p) { return p.rendement || 0; }).concat([0.001]));
+            liste.forEach(function(p) {
+                let sMeteo = p.debitHeure / maxDebit;                       // 0 si rien ne peut ouvrir
+                let sImp = (p.importance - 1) / 4;                          // 1 à 5 -> 0 à 1
+                let sRend = (p.rendement || 0) / maxRend;
+                let tot = (poids.meteo || 0) + (poids.importance || 0) + (poids.rendement || 0);
+                p.score = tot > 0 ? ((poids.meteo || 0) * sMeteo + (poids.importance || 0) * sImp + (poids.rendement || 0) * sRend) / tot : 0;
+                p.detailScore = { meteo: sMeteo, importance: sImp, rendement: sRend };
+            });
+            return liste;
+        };
+        /* Séquence heure par heure sur la prévision. À chaque heure on sert les pistes par ordre
+           de priorité tant que le pompage et l'air suivent ; une piste dont l'objectif est atteint
+           en cours de route s'arrête. Une piste n'est jamais servie à moitié : ouvrir la moitié des
+           canons d'une piste n'a pas de sens d'exploitation, on passe à la suivante. */
+        window.planCalculer = function() {
+            let cfg = window.planCfg();
+            let ser = window.planSerie(0);
+            let nH = ser ? ser.n : 0;
+            let base = window.planScores(0);
+            let etat = {};
+            base.forEach(function(p) { etat[p.cle] = { reste: p.reste, produit: 0, heures: 0 }; });
+
+            let candidates = base.filter(function(p) {
+                if (cfg.auto) return p.objectif > 0 ? p.reste > 0 : false;
+                return (cfg.selection || []).indexOf(p.cle) > -1;
+            });
+            if (!cfg.auto) {
+                let rang = cfg.prioriteManuelle || {};
+                candidates.sort(function(a, b) { return (window.prodNum(rang[a.cle]) || 99) - (window.prodNum(rang[b.cle]) || 99); });
+            }
+            let creneaux = [];
+            for (let k = 0; k < nH; k++) {
+                let eau = 0, air = 0, actives = [];
+                let ordonnees = candidates.slice();
+                if (cfg.auto) {
+                    // Le classement est refait à chaque heure : la météo change, l'ordre aussi.
+                    let s = {};
+                    window.planScores(k).forEach(function(p) { s[p.cle] = p; });
+                    ordonnees.forEach(function(p) { let n = s[p.cle]; if (n) { p.thHeure = n.thHeure; p.couronne = n.couronne; p.debitHeure = n.debitHeure; p.score = n.score; } });
+                    ordonnees.sort(function(a, b) { return b.score - a.score; });
+                } else {
+                    ordonnees.forEach(function(p) {
+                        p.thHeure = window.planTH(p.secteur, k, p.altMoy);
+                        p.couronne = window.planCouronneMax(p.thHeure);
+                        p.debitHeure = p.couronne ? p.debit[p.couronne.cle] : 0;
+                    });
+                }
+                ordonnees.forEach(function(p) {
+                    if (!p.couronne || p.debitHeure <= 0) return;
+                    if (etat[p.cle].reste <= 0) return;
+                    if (air + p.air > cfg.capaciteAir) return;
+                    /* Si le pompage ne suit pas, on referme des couronnes plutôt que de laisser la
+                       piste à l'arrêt — c'est ce que fait un exploitant. Sans cela, une capacité
+                       juste inférieure à la somme des pistes ne laissait tourner personne : le plan
+                       annonçait zéro mètre cube alors qu'une couronne de moins passait. */
+                    let iMax = 0;
+                    window.COURONNES.forEach(function(c, i) { if (c.cle === p.couronne.cle) iMax = i; });
+                    let choix = null, debit = 0;
+                    for (let ci = iMax; ci >= 0; ci--) {
+                        let d = p.debit[window.COURONNES[ci].cle];
+                        if (d > 0 && eau + d <= cfg.capaciteEau) { choix = window.COURONNES[ci]; debit = d; break; }
+                    }
+                    if (!choix) return;
+                    eau += debit; air += p.air;
+                    let v = Math.min(debit, etat[p.cle].reste);
+                    etat[p.cle].reste -= v; etat[p.cle].produit += v; etat[p.cle].heures++;
+                    actives.push({ cle: p.cle, nom: p.nom, couronne: choix.nom, reduite: choix.cle !== p.couronne.cle,
+                                   debit: debit, air: p.air, th: p.thHeure, volume: v });
+                });
+                let iso = ser ? ser.s.hourly.time[ser.i0 + k] : null;
+                creneaux.push({ iso: iso, eau: eau, air: air, actives: actives,
+                                margeEau: cfg.capaciteEau - eau, margeAir: cfg.capaciteAir - air });
+            }
+            let total = 0; Object.keys(etat).forEach(function(k2) { total += etat[k2].produit; });
+            return { creneaux: creneaux, etat: etat, pistes: base, candidates: candidates, heures: nH, volumeTotal: total };
+        };
+
+        /* --- Interface ---------------------------------------------------------------- */
+        window.planOnglet = 'pistes';
+        window.planPisteOuverte = null;
+        window.planCoucheCarte = null;
+
+        window.openPlanNeige = function() {
+            if (!window.ouvrirPanneauDroite('plan', "<i class='fa-solid fa-snowflake'></i> Plan d'enneigement")) return;
+            window.renderPlanNeige();
+        };
+        window.planChoisirOnglet = function(n) { window.planOnglet = n; window.renderPlanNeige(); };
+        // Résumé d'une ligne dans le menu de gauche : l'avancement global, visible sans rien ouvrir.
+        window.planResumeMenu = function() {
+            let el = document.getElementById('plan-resume-menu'); if (!el) return;
+            let liste = window.planListe().filter(function(p) { return p.objectif > 0; });
+            if (!liste.length) { el.innerHTML = "Aucun objectif lu dans « obj piste »."; return; }
+            let obj = 0, fait = 0;
+            liste.forEach(function(p) { obj += p.objectif; fait += p.consomme; });
+            let pc = obj > 0 ? Math.round(fait / obj * 100) : 0;
+            let atteintes = liste.filter(function(p) { return p.reste <= 0; }).length;
+            el.innerHTML = `<b style="color:#0072ff;">${pc} %</b> de l'objectif de saison · ${window.planFmt(fait)} / ${window.planFmt(obj)} m³
+                <br>${atteintes} piste(s) au but sur ${liste.length}`;
+        };
+
+        window.planFmt = function(v, d) {
+            if (v === null || v === undefined || isNaN(v)) return '—';
+            return window.prodFmt(v, d === undefined ? 0 : d);
+        };
+        window.planFmtTH = function(v) { return (v === null || v === undefined || isNaN(v)) ? '—' : v.toFixed(1).replace('.', ',') + ' °C'; };
+
+        window.renderPlanNeige = function() {
+            if (window.panneauDroite !== 'plan') return;
+            let sl = document.getElementById('selected-list'); if (!sl) return;
+            let cfg = window.planCfg();
+            let onglets = [['pistes', '📋 Pistes'], ['plan', '🗓️ Plan 48 h'], ['saisie', '💧 Saisie'], ['reglages', '⚙️ Réglages']];
+            let barre = `<div style="display:flex; gap:4px; margin-bottom:10px; flex-wrap:wrap;">` + onglets.map(function(o) {
+                let a = window.planOnglet === o[0];
+                return `<button onclick="window.planChoisirOnglet('${o[0]}')" style="flex:1 1 0; min-width:74px; padding:8px 4px; border-radius:6px; cursor:pointer;
+                        font-size:11px; font-weight:bold; border:2px solid ${a ? '#0072ff' : 'transparent'};
+                        background:${a ? '#0072ff' : '#eef4fa'}; color:${a ? '#fff' : '#456'};">${o[1]}</button>`;
+            }).join('') + `</div>`;
+
+            let corps = '';
+            try {
+                if (window.planOnglet === 'pistes') corps = window.planVuePistes(cfg);
+                else if (window.planOnglet === 'plan') corps = window.planVuePlan(cfg);
+                else if (window.planOnglet === 'saisie') corps = window.planVueSaisie(cfg);
+                else corps = window.planVueReglages(cfg);
+            } catch (e) {
+                corps = `<div style="background:#fdedec; border:1px solid #f5b7b1; color:#c0392b; padding:10px; border-radius:6px; font-size:12px;">
+                    <b>Le plan n'a pas pu être calculé.</b><br>${window.prodEsc(e.message)}</div>`;
+            }
+            sl.innerHTML = barre + corps;
+            window.planResumeMenu();
+        };
+
+        /* Onglet « Pistes » : l'état de chaque piste, et ce que la météo permet à l'instant. */
+        window.planVuePistes = function(cfg) {
+            let liste = window.planScores(0);
+            let diag = window.planDiagnostic();
+            if (!liste.length) return `<div style="font-size:12px; color:#7f8c8d;">Aucune piste n'a été trouvée dans le tableau général.</div>`;
+            liste.sort(function(a, b) { return b.score - a.score; });
+
+            let alerte = '';
+            if (!window.rawObjPiste || window.rawObjPiste.length < 2)
+                alerte += `<div class="plan-alerte">L'onglet « obj piste » n'a pas été reçu : aucun objectif ni consommation. Redéployez Code.gs si ce n'est pas encore fait.</div>`;
+            if (!window.rawDebitCouronnes || window.rawDebitCouronnes.length < 2)
+                alerte += `<div class="plan-alerte">L'onglet « débit canon par couronnes » n'a pas été reçu : aucun débit, donc aucun plan.</div>`;
+            else if (diag.canonsSansDebit)
+                alerte += `<div class="plan-alerte">${diag.canonsSansDebit} enneigeur(s) de la carte n'ont pas de ligne dans « débit canon par couronnes » : leur débit compte pour zéro.</div>`;
+            if (diag.objectifsSansCanon.length)
+                alerte += `<div class="plan-alerte">Objectif sans canon rattaché : ${window.prodEsc(diag.objectifsSansCanon.join(', '))}. Vérifiez l'orthographe de la piste entre les deux onglets.</div>`;
+            if (!window.meteoData)
+                alerte += `<div class="plan-alerte">Pas de prévision chargée : ouvrez « Météo Live » une fois, sinon aucune couronne ne peut être jugée possible.</div>`;
+
+            let entete = `<div style="display:flex; gap:6px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+                <button onclick="window.planBasculerMode()" style="flex:1 1 46%; padding:9px; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;
+                    background:${cfg.auto ? '#16a085' : '#34495e'}; color:#fff;">${cfg.auto ? '🤖 Mode automatique' : '✋ Mode manuel'}</button>
+                <button onclick="window.planTracerCarte()" style="flex:1 1 46%; padding:9px; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold; background:#2980b9; color:#fff;">🗺️ Voir sur la carte</button>
+            </div>
+            <div style="font-size:10px; color:#95a5a6; margin-bottom:8px;">Saison lue : <b>${diag.saisonRetenue || '—'}</b> · ${diag.lignesCouronnes} enneigeur(s) avec débit · capacité ${window.planFmt(cfg.capaciteEau)} m³/h et ${window.planFmt(cfg.capaciteAir)} Nm³/h</div>`;
+
+            let lignes = liste.map(function(p) {
+                let pc = p.avancement === null ? null : Math.min(1, p.avancement);
+                let coul = pc === null ? '#bdc3c7' : (pc >= 1 ? '#27ae60' : (pc >= 0.75 ? '#16a085' : (pc >= 0.4 ? '#f39c12' : '#e74c3c')));
+                let choisie = (cfg.selection || []).indexOf(p.cle) > -1;
+                let ouverte = window.planPisteOuverte === p.cle;
+                return `<div class="plan-piste" style="border-left:4px solid ${coul};">
+                    <div style="display:flex; align-items:center; gap:7px; cursor:pointer;" onclick="window.planOuvrirPiste('${p.cle}')">
+                        ${cfg.auto ? '' : `<input type="checkbox" ${choisie ? 'checked' : ''} onclick="event.stopPropagation(); window.planCocher('${p.cle}', this.checked)">`}
+                        <b style="flex:1; font-size:12px; color:#2c3e50;">${window.prodEsc(p.nom)}</b>
+                        <span style="font-size:10px; color:#7f8c8d;">${p.canons.length} enn.${p.altMoy !== null ? ' · ' + p.altMoy + ' m' : ''}</span>
+                        <span style="font-size:14px; color:#95a5a6;">${ouverte ? '▾' : '▸'}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-top:5px;">
+                        <div class="plan-jauge"><span style="width:${pc === null ? 0 : Math.round(pc * 100)}%; background:${coul};"></span></div>
+                        <span style="font-size:10px; font-weight:bold; color:${coul}; min-width:38px; text-align:right;">${pc === null ? '—' : Math.round(pc * 100) + ' %'}</span>
+                    </div>
+                    <div style="font-size:10px; color:#7f8c8d; margin-top:4px;">
+                        objectif ${window.planFmt(p.objectif)} m³ · fait ${window.planFmt(p.consomme)} m³ · reste <b style="color:#2c3e50;">${window.planFmt(p.reste)} m³</b>
+                    </div>
+                    <div style="font-size:11px; margin-top:5px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="background:${p.couronne ? '#eafaf1' : '#fdedec'}; color:${p.couronne ? '#1e6b42' : '#922b21'}; border-radius:10px; padding:2px 8px; font-weight:bold;">
+                            ${p.couronne ? p.couronne.nom : 'aucune couronne'}</span>
+                        <span style="color:#7f8c8d;">TH ${window.planFmtTH(p.thHeure)}</span>
+                        <span style="color:#0072ff; font-weight:bold;">${window.planFmt(p.debitHeure, 1)} m³/h</span>
+                        <span style="color:#7f8c8d;">${window.planFmt(p.air)} Nm³/h</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-top:5px; font-size:10px; color:#7f8c8d;">
+                        Importance
+                        <select onchange="window.planImportance('${p.cle}', this.value)" style="font-size:11px; padding:2px 4px; border-radius:4px; border:1px solid #ccd6e0;">
+                            ${[1,2,3,4,5].map(function(n) { return `<option value="${n}" ${p.importance === n ? 'selected' : ''}>${n}</option>`; }).join('')}
+                        </select>
+                        ${p.rendement !== null ? `· rendement ${window.planFmt(p.rendement, 1)} m³/h de marche` : '· rendement inconnu'}
+                    </div>
+                    ${ouverte ? window.planDetailCanons(p) : ''}
+                </div>`;
+            }).join('');
+            return alerte + entete + lignes;
+        };
+
+        window.planDetailCanons = function(p) {
+            let cour = window.planCouronnes();
+            let lignes = p.canons.map(function(id) {
+                let c = window.planCanon(id);
+                let d = cour.parCanon[String(id)];
+                let alt = window.altitudeCanon(id);
+                return `<tr>
+                    <td style="padding:4px 6px; font-weight:bold; cursor:pointer; color:#2980b9;" onclick="window.focusCannon('${id}')">${window.prodEsc(id)}</td>
+                    <td style="padding:4px 6px;">${d ? window.prodEsc(d.type) : (c ? window.prodEsc(window.getV(c, window.keyType)) : '')}</td>
+                    <td style="padding:4px 6px; text-align:right;">${alt === null ? '—' : alt + ' m'}</td>
+                    ${window.COURONNES.map(function(k) { return `<td style="padding:4px 6px; text-align:right;">${d ? window.planFmt(d[k.cle], 1) : '<span style="color:#c0392b;">?</span>'}</td>`; }).join('')}
+                    <td style="padding:4px 6px; text-align:right;">${d ? window.planFmt(d.air) : '—'}</td>
+                </tr>`;
+            }).join('');
+            return `<div style="margin-top:8px; overflow-x:auto; background:#fbfdff; border:1px solid #e6ecf1; border-radius:5px;">
+                <table style="width:100%; border-collapse:collapse; font-size:10px;">
+                    <thead><tr style="background:#eef4fa; text-align:left;">
+                        <th style="padding:5px 6px;">N°</th><th style="padding:5px 6px;">Type</th><th style="padding:5px 6px; text-align:right;">Alt.</th>
+                        ${window.COURONNES.map(function(k) { return `<th style="padding:5px 6px; text-align:right;">${k.nom}</th>`; }).join('')}
+                        <th style="padding:5px 6px; text-align:right;">Air</th></tr></thead>
+                    <tbody>${lignes}</tbody>
+                </table>
+                <div style="font-size:9px; color:#95a5a6; padding:4px 6px;">Débits en m³/h, air en Nm³/h, tels que lus dans « débit canon par couronnes ».</div>
+            </div>`;
+        };
+
+        window.planOuvrirPiste = function(cle) {
+            window.planPisteOuverte = (window.planPisteOuverte === cle) ? null : cle;
+            window.renderPlanNeige();
+            if (window.planPisteOuverte) window.planTracerCarte();
+        };
+        window.planCocher = function(cle, on) {
+            let cfg = window.planCfg();
+            if (!cfg.selection) cfg.selection = [];
+            let i = cfg.selection.indexOf(cle);
+            if (on && i === -1) cfg.selection.push(cle);
+            if (!on && i > -1) cfg.selection.splice(i, 1);
+            window.planSave(); window.renderPlanNeige(); window.planTracerCarte();
+        };
+        window.planImportance = function(cle, v) {
+            let cfg = window.planCfg();
+            if (!cfg.importance) cfg.importance = {};
+            cfg.importance[cle] = parseInt(v, 10) || 3;
+            window.planSave(); window.renderPlanNeige();
+        };
+        window.planBasculerMode = function() {
+            let cfg = window.planCfg(); cfg.auto = !cfg.auto; window.planSave(); window.renderPlanNeige();
+        };
+
+        /* Carte : les canons des pistes retenues sont cerclés, ceux de la piste ouverte en évidence. */
+        window.planTracerCarte = function() {
+            if (!window.map) return;
+            if (window.planCoucheCarte) { window.map.removeLayer(window.planCoucheCarte); window.planCoucheCarte = null; }
+            let cfg = window.planCfg();
+            let pistes = window.planPistes();
+            let cles = cfg.auto ? Object.keys(pistes).filter(function(k) { return pistes[k].reste > 0 && pistes[k].objectif > 0; })
+                                : (cfg.selection || []).slice();
+            if (window.planPisteOuverte && cles.indexOf(window.planPisteOuverte) === -1) cles.push(window.planPisteOuverte);
+            if (!cles.length) return;
+            let g = L.layerGroup();
+            let pts = [];
+            cles.forEach(function(k) {
+                let p = pistes[k]; if (!p) return;
+                let ouvert = (k === window.planPisteOuverte);
+                p.canons.forEach(function(id) {
+                    let c = window.planCanon(id); if (!c || !c.lat) return;
+                    pts.push([c.lat, c.lng]);
+                    L.circleMarker([c.lat, c.lng], {
+                        radius: ouvert ? 11 : 8, color: ouvert ? '#0072ff' : '#7f8c8d',
+                        weight: ouvert ? 3 : 2, fill: false, opacity: ouvert ? 0.95 : 0.5
+                    }).bindTooltip(p.nom + ' — enneigeur ' + id, { sticky: true }).addTo(g);
+                });
+            });
+            g.addTo(window.map);
+            window.planCoucheCarte = g;
+            if (window.planPisteOuverte && pts.length) {
+                try { window.map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 }); } catch (e) {}
+            }
+        };
+
+        /* Onglet « Plan 48 h » : la séquence, regroupée par périodes où rien ne change. Afficher
+           quarante-huit lignes identiques n'apprendrait rien ; ce qui compte, ce sont les moments
+           où une piste entre ou sort. */
+        window.planVuePlan = function(cfg) {
+            let r = window.planCalculer();
+            if (!r.heures) return `<div class="plan-alerte">Aucune prévision horaire disponible : ouvrez « Météo Live » pour charger les 48 h.</div>`;
+            if (!r.candidates.length) return `<div class="plan-alerte">${cfg.auto
+                ? "Aucune piste à produire : toutes ont atteint leur objectif, ou aucun objectif n'est renseigné."
+                : "Aucune piste sélectionnée. Cochez-en dans l'onglet Pistes."}</div>`;
+
+            let blocs = [], cur = null;
+            r.creneaux.forEach(function(c, k) {
+                let sig = c.actives.map(function(a) { return a.cle + ':' + a.couronne; }).sort().join('|');
+                if (cur && cur.sig === sig) { cur.fin = c.iso; cur.n++; cur.eau += c.eau; }
+                else { if (cur) blocs.push(cur); cur = { sig: sig, debut: c.iso, fin: c.iso, n: 1, eau: c.eau, actives: c.actives }; }
+                if (k === r.creneaux.length - 1 && cur) { blocs.push(cur); cur = null; }
+            });
+
+            let volumeParPiste = {};
+            r.creneaux.forEach(function(c) { c.actives.forEach(function(a) { volumeParPiste[a.cle] = (volumeParPiste[a.cle] || 0) + a.volume; }); });
+            let piquantEau = Math.max.apply(null, r.creneaux.map(function(c) { return c.eau; }).concat([0]));
+            let piquantAir = Math.max.apply(null, r.creneaux.map(function(c) { return c.air; }).concat([0]));
+
+            let tete = `<div style="background:#eef4fa; border:1px solid #dde7f0; border-radius:6px; padding:10px; margin-bottom:10px; font-size:12px;">
+                <b style="color:#2c3e50;">${window.planFmt(r.volumeTotal)} m³ d'eau</b> sur ${r.heures} h de prévision, ${cfg.auto ? 'plan automatique' : 'ordre imposé à la main'}.<br>
+                <span style="font-size:11px; color:#7f8c8d;">Pointe : ${window.planFmt(piquantEau, 1)} / ${window.planFmt(cfg.capaciteEau)} m³/h d'eau · ${window.planFmt(piquantAir)} / ${window.planFmt(cfg.capaciteAir)} Nm³/h d'air</span>
+                <div style="margin-top:8px;">${Object.keys(volumeParPiste).map(function(k) {
+                    let p = r.pistes.find(function(x) { return x.cle === k; });
+                    return `<span class="plan-pastille">${window.prodEsc(p ? p.nom : k)} ${window.planFmt(volumeParPiste[k])} m³</span>`;
+                }).join('') || '<span style="color:#c0392b;">Aucun créneau exploitable : la température humide ne permet jamais d\'ouvrir.</span>'}</div>
+            </div>`;
+
+            let corps = blocs.map(function(b) {
+                let vide = !b.actives.length;
+                return `<div class="plan-creneau" style="border-left:4px solid ${vide ? '#dfe6ec' : '#0072ff'};">
+                    <div style="font-size:11px; font-weight:bold; color:#2c3e50;">
+                        ${window.meteoFmtHeure(b.debut)}${b.n > 1 ? ' → ' + window.meteoFmtHeure(b.fin) : ''} <span style="color:#7f8c8d; font-weight:normal;">(${b.n} h)</span>
+                    </div>
+                    ${vide ? `<div style="font-size:11px; color:#c0392b; margin-top:3px;">Rien ne peut tourner : température humide trop haute.</div>`
+                        : `<div style="margin-top:4px;">${b.actives.map(function(a) {
+                            return `<div style="display:flex; gap:6px; align-items:center; font-size:11px; padding:2px 0;">
+                                <b style="flex:1; color:#2c3e50;">${window.prodEsc(a.nom)}</b>
+                                <span class="plan-pastille" style="background:${a.reduite ? '#fff3cd' : '#eafaf1'}; color:${a.reduite ? '#8a6d00' : '#1e6b42'};"
+                                      title="${a.reduite ? 'Couronne réduite : le pompage ne suivait pas' : 'Couronne maximale permise par la température'}">${a.couronne}${a.reduite ? ' ↓' : ''}</span>
+                                <span style="color:#7f8c8d;">TH ${window.planFmtTH(a.th)}</span>
+                                <span style="color:#0072ff; font-weight:bold;">${window.planFmt(a.debit, 1)} m³/h</span>
+                            </div>`;
+                        }).join('')}
+                        <div style="font-size:10px; color:#95a5a6; margin-top:3px;">Total ${window.planFmt(b.eau / b.n, 1)} m³/h · marge ${window.planFmt(cfg.capaciteEau - b.eau / b.n, 1)} m³/h</div>`}
+                </div>`;
+            }).join('');
+            return tete + corps;
+        };
+
+        /* Onglet « Saisie » : l'eau pompée relevée en salle des machines, piste par piste. */
+        window.planVueSaisie = function(cfg) {
+            let liste = window.planListe();
+            let col = window.planColonneSaisonCourante();
+            let lignes = liste.map(function(p) {
+                return `<tr>
+                    <td style="padding:5px 6px; font-weight:bold;">${window.prodEsc(p.nom)}</td>
+                    <td style="padding:5px 6px; text-align:right; color:#7f8c8d;">${window.planFmt(p.consomme)}</td>
+                    <td style="padding:5px 6px; text-align:right; color:#7f8c8d;">${window.planFmt(p.objectif)}</td>
+                    <td style="padding:5px 4px;"><input type="number" step="1" id="plan-add-${p.cle}" placeholder="0"
+                        style="width:100%; box-sizing:border-box; padding:6px; font-size:12px; border:1px solid #ccd6e0; border-radius:4px;"></td>
+                </tr>`;
+            }).join('');
+            return `<div style="font-size:11px; color:#7f8c8d; margin-bottom:8px;">
+                    Saisissez l'eau pompée <b>depuis le dernier relevé</b>, en m³, piste par piste. Elle s'ajoute au cumul de la saison
+                    ${col ? '(<b>' + window.prodEsc(col.nom) + '</b>)' : ''} et part dans l'onglet « plan enneigement webapp » avec sa date.
+                </div>
+                <div style="overflow-x:auto; border:1px solid #e6ecf1; border-radius:6px; background:#fff;">
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead><tr style="background:#eef4fa; text-align:left;">
+                            <th style="padding:6px;">Piste</th><th style="padding:6px; text-align:right;">Cumul</th>
+                            <th style="padding:6px; text-align:right;">Objectif</th><th style="padding:6px;">À ajouter (m³)</th>
+                        </tr></thead><tbody>${lignes}</tbody>
+                    </table>
+                </div>
+                <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+                    <input type="date" id="plan-date-conso" value="${new Date().toISOString().slice(0, 10)}"
+                        style="flex:1 1 42%; padding:8px; font-size:12px; border:1px solid #ccd6e0; border-radius:5px;">
+                    <input type="text" id="plan-remarque" placeholder="Remarque (facultatif)"
+                        style="flex:1 1 52%; padding:8px; font-size:12px; border:1px solid #ccd6e0; border-radius:5px;">
+                    <button onclick="window.planEnregistrerConso(this)" style="flex:1 1 100%; background:#16a085; color:#fff; border:none; padding:11px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">💧 Enregistrer la consommation</button>
+                </div>
+                <details style="margin-top:12px; border:1px solid #eee; border-radius:6px;">
+                    <summary style="padding:8px 10px; font-size:12px; font-weight:bold; cursor:pointer; background:#f8fafc;">🎯 Mettre à jour les objectifs</summary>
+                    <div style="padding:10px;">
+                        <div style="font-size:11px; color:#7f8c8d; margin-bottom:8px;">Écrit directement dans la colonne « obj » de l'onglet « obj piste ». Laissez vide pour ne pas toucher une piste.</div>
+                        ${liste.map(function(p) {
+                            return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:5px;">
+                                <span style="flex:1; font-size:11px;">${window.prodEsc(p.nom)}</span>
+                                <span style="font-size:10px; color:#95a5a6;">${window.planFmt(p.objectif)}</span>
+                                <input type="number" step="1" id="plan-obj-${p.cle}" placeholder="nouveau"
+                                    style="width:96px; padding:5px; font-size:11px; border:1px solid #ccd6e0; border-radius:4px;">
+                            </div>`;
+                        }).join('')}
+                        <button onclick="window.planEnregistrerObjectifs(this)" style="width:100%; margin-top:8px; background:#2980b9; color:#fff; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">Enregistrer les objectifs</button>
+                    </div>
+                </details>`;
+        };
+
+        window.planEnregistrerConso = async function(btn) {
+            let cfg = window.planCfg();
+            let liste = window.planListe();
+            let col = window.planColonneSaisonCourante();
+            let lignes = [], cumuls = {};
+            liste.forEach(function(p) {
+                let el = document.getElementById('plan-add-' + p.cle);
+                let v = el ? window.prodNum(el.value) : 0;
+                if (!v) return;
+                lignes.push({ piste: p.nom, eau: v, date: (document.getElementById('plan-date-conso') || {}).value || '',
+                              remarque: (document.getElementById('plan-remarque') || {}).value || '' });
+                cumuls[p.cle] = p.consomme + v;
+            });
+            if (!lignes.length) { alert("Aucune quantité saisie."); return; }
+            let txt = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Enregistrement…';
+            try {
+                let rep = await window.apiPost({ action: 'save_plan_conso', saison: col ? col.nom : '',
+                                                colonneSaison: col ? col.nom : '', lignes: lignes, cumuls: cumuls });
+                let js = await rep.json();
+                if (js.status !== 'success') throw new Error(js.msg || 'refus du serveur');
+                // Le classeur ne sera relu qu'au prochain démarrage : on tient le cumul localement
+                // en attendant, sinon l'écran afficherait encore l'ancien chiffre.
+                if (!cfg.consoLocale) cfg.consoLocale = {};
+                lignes.forEach(function(l, i) {
+                    let cle = window.planNorm(l.piste);
+                    cfg.consoLocale[cle] = window.prodNum(cfg.consoLocale[cle]) + l.eau;
+                });
+                window.planSave();
+                btn.innerHTML = '✅ Enregistré';
+                setTimeout(function() { btn.disabled = false; btn.innerHTML = txt; window.renderPlanNeige(); }, 1400);
+            } catch (e) {
+                btn.disabled = false; btn.innerHTML = txt;
+                alert("Enregistrement impossible : " + e.message);
+            }
+        };
+        window.planEnregistrerObjectifs = async function(btn) {
+            let objectifs = {}, n = 0;
+            window.planListe().forEach(function(p) {
+                let el = document.getElementById('plan-obj-' + p.cle);
+                if (!el || el.value === '') return;
+                objectifs[p.cle] = window.prodNum(el.value); n++;
+            });
+            if (!n) { alert("Aucun objectif saisi."); return; }
+            let txt = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Enregistrement…';
+            try {
+                let rep = await window.apiPost({ action: 'save_plan_objectifs', objectifs: objectifs });
+                let js = await rep.json();
+                if (js.status !== 'success') throw new Error(js.msg || 'refus du serveur');
+                btn.innerHTML = '✅ ' + (js.objectifsMisAJour || 0) + ' piste(s) mise(s) à jour';
+                setTimeout(function() { btn.disabled = false; btn.innerHTML = txt; }, 1800);
+            } catch (e) {
+                btn.disabled = false; btn.innerHTML = txt;
+                alert("Enregistrement impossible : " + e.message);
+            }
+        };
+
+        /* Onglet « Réglages » : c'est ici que vivent les seuils de couronnes, inconnus du
+           constructeur et donc entièrement à votre main. */
+        window.planVueReglages = function(cfg) {
+            let champ = function(cle, lib, val, pas, unite) {
+                return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:7px;">
+                    <span style="flex:1; font-size:11px; color:#455a64;">${lib}</span>
+                    <input type="number" step="${pas}" value="${val}" onchange="window.planReglage('${cle}', this.value)"
+                        style="width:92px; padding:6px; font-size:12px; border:1px solid #ccd6e0; border-radius:4px; text-align:right;">
+                    <span style="font-size:10px; color:#95a5a6; width:46px;">${unite}</span>
+                </div>`;
+            };
+            let cols = window.planColonnesSaison();
+            return `<div style="background:#fff8e1; border:1px solid #ffe082; border-radius:6px; padding:10px; margin-bottom:12px; font-size:11px; color:#7a5c00;">
+                    <b>Seuils d'ouverture des couronnes.</b> Le constructeur ne les publie pas : ceux-ci sont un point de départ.
+                    Corrigez-les d'après ce que l'installation fait réellement — une couronne annoncée possible qui gèle, c'est ce seuil qu'il faut baisser.
+                </div>
+                <div style="border:1px solid #e6ecf1; border-radius:6px; padding:10px; margin-bottom:12px;">
+                    <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">Température humide maximale par combinaison</div>
+                    ${window.COURONNES.map(function(c) {
+                        return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:7px;">
+                            <span style="flex:1; font-size:12px; font-weight:bold; color:#0072ff;">${c.nom}</span>
+                            <span style="font-size:11px; color:#7f8c8d;">possible si TH ≤</span>
+                            <input type="number" step="0.5" value="${(cfg.seuils || {})[c.cle]}" onchange="window.planSeuil('${c.cle}', this.value)"
+                                style="width:78px; padding:6px; font-size:12px; border:1px solid #ccd6e0; border-radius:4px; text-align:right;">
+                            <span style="font-size:10px; color:#95a5a6;">°C</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div style="border:1px solid #e6ecf1; border-radius:6px; padding:10px; margin-bottom:12px;">
+                    <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">Installation</div>
+                    ${champ('capaciteEau', 'Pompage maximal', cfg.capaciteEau, 10, 'm³/h')}
+                    ${champ('capaciteAir', 'Air comprimé maximal', cfg.capaciteAir, 100, 'Nm³/h')}
+                    ${champ('gradient', 'Refroidissement avec l\'altitude', cfg.gradient, 0.05, '°C/100 m')}
+                    ${champ('ratioNeige', 'Neige produite par m³ d\'eau', cfg.ratioNeige, 0.1, 'm³')}
+                </div>
+                <div style="border:1px solid #e6ecf1; border-radius:6px; padding:10px; margin-bottom:12px;">
+                    <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">Poids du classement automatique</div>
+                    ${champ('poids.meteo', 'Rendement permis par la météo', (cfg.poids || {}).meteo, 0.1, '')}
+                    ${champ('poids.importance', 'Importance de la piste', (cfg.poids || {}).importance, 0.1, '')}
+                    ${champ('poids.rendement', 'Efficacité des enneigeurs', (cfg.poids || {}).rendement, 0.1, '')}
+                    <div style="font-size:10px; color:#95a5a6;">Une piste ayant atteint son objectif sort du plan quel que soit son score.</div>
+                </div>
+                <div style="border:1px solid #e6ecf1; border-radius:6px; padding:10px;">
+                    <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">Saison lue dans « obj piste »</div>
+                    <select onchange="window.planReglage('colonneSaison', this.value)" style="width:100%; padding:7px; font-size:12px; border:1px solid #ccd6e0; border-radius:4px;">
+                        <option value="">Dernière colonne (${cols.length ? window.prodEsc(cols[cols.length - 1].nom) : '—'})</option>
+                        ${cols.map(function(c) { return `<option value="${window.prodEsc(c.nom)}" ${cfg.colonneSaison === c.nom ? 'selected' : ''}>${window.prodEsc(c.nom)}</option>`; }).join('')}
+                    </select>
+                </div>`;
+        };
+        window.planReglage = function(cle, v) {
+            let cfg = window.planCfg();
+            if (cle.indexOf('.') > -1) {
+                let p = cle.split('.');
+                if (!cfg[p[0]]) cfg[p[0]] = {};
+                cfg[p[0]][p[1]] = window.prodNum(v);
+            } else if (cle === 'colonneSaison') cfg.colonneSaison = v;
+            else cfg[cle] = window.prodNum(v);
+            window.planSave(); window.renderPlanNeige();
+        };
+        window.planSeuil = function(cle, v) {
+            let cfg = window.planCfg();
+            if (!cfg.seuils) cfg.seuils = {};
+            cfg.seuils[cle] = (v === '' ? '' : window.prodNum(v));
+            window.planSave(); window.renderPlanNeige();
+        };
+
+        /* ========================================================================= */
         /* CHAPITRE 8.C : DÉMARRAGE DE L'APPLICATION                                 */
         /* ========================================================================= */
         window.addEventListener('DOMContentLoaded', async () => {
@@ -11816,6 +12706,9 @@
                 // Icônes de type de canon : rapatriées puis gardées localement, faute de quoi elles
                 // n'apparaissent pas sur iPhone (cookie Google bloqué) ni hors réseau.
                 window.preparerIconesDrive().catch(function() {});
+                // Altitude de chaque enneigeur : demandée une seule fois, gardée ensuite.
+                window.chargerAltitudes().then(function() { window.planResumeMenu(); }).catch(function() {});
+                window.planResumeMenu();
             } catch (err) { window.showCrash(err.message, "Boot Principal"); }
         });
     </script>
