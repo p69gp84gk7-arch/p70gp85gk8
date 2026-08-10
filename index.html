@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.9.4";
+        window.APP_VERSION = "5.10.0";
         window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; let fw = document.getElementById('flake-wrap'); if(fw) fw.style.display='none'; let pc = document.getElementById('loading-pct'); if(pc) pc.style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('error-box')) { document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } } else alert("🛑 CRASH : "+msg); };
         window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
         window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
@@ -140,6 +140,25 @@
            la largeur disponible (flex:1) pour que la bande tienne toujours dans le panneau, du
            téléphone au grand écran, sans défilement horizontal. */
         .meteo-strip{display:flex;gap:1px;height:34px;margin-bottom:8px;border-radius:3px;overflow:hidden;}
+        /* Courbe des températures. touch-action:none — sans quoi le doigt qui suit la courbe fait
+           défiler la page au lieu de déplacer le curseur, et la lecture devient impossible. */
+        .meteo-graph{position:relative;height:96px;margin-bottom:2px;background:#fbfdff;border:1px solid #e6ecf1;
+            border-radius:4px;touch-action:none;cursor:crosshair;overflow:hidden;}
+        .meteo-graph svg{position:absolute;inset:0;width:100%;height:100%;display:block;}
+        .meteo-pt{position:absolute;width:9px;height:9px;margin:-5px 0 0 -5px;border-radius:50%;
+            background:#0072ff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);display:none;pointer-events:none;}
+        .meteo-ech{position:absolute;right:4px;font-size:9px;color:#90a4ae;pointer-events:none;background:rgba(255,255,255,0.75);padding:0 3px;border-radius:2px;}
+        .meteo-ech-h{top:2px;} .meteo-ech-b{bottom:2px;}
+        .meteo-leg{position:absolute;left:5px;top:2px;font-size:9px;color:#90a4ae;pointer-events:none;
+            background:rgba(255,255,255,0.75);padding:0 3px;border-radius:2px;}
+        /* Hauteur réservée pour deux lignes : sans cela le cadre grandissait à l'heure orageuse et
+           tout ce qui suit sautait pendant qu'on promène le doigt sur la courbe. */
+        .meteo-lecture{display:flex;flex-wrap:wrap;gap:4px 10px;align-content:flex-start;align-items:baseline;
+            font-size:11px;color:#455a64;background:#eef4fa;border:1px solid #dde7f0;border-radius:4px;
+            padding:6px 8px;margin-bottom:10px;min-height:2.9em;}
+        .meteo-lecture .mv{white-space:nowrap;}
+        .meteo-strip-nuage{height:17px;margin-bottom:10px;}
+        .meteo-eclair{font-size:11px;line-height:1;text-shadow:0 0 2px rgba(0,0,0,0.5);}
         /* Alerte de proximité : posée au-dessus de tout, en bas de l'écran là où le pouce l'atteint,
            et au-dessus de la barre d'accueil de l'iPhone. */
         #prox-alert{position:fixed;left:10px;right:10px;bottom:calc(14px + var(--safe-bottom));z-index:9500;
@@ -194,6 +213,18 @@
         #route-qr-plein .qr-actions button{border:none;padding:11px 16px;border-radius:6px;font-size:13px;
             font-weight:bold;cursor:pointer;background:#34495e;color:#fff;}
         #route-qr-plein .qr-actions button.gris{background:#ecf0f1;color:#555;border:1px solid #ccc;}
+        /* Rappel du mode dessin, posé au-dessus de la carte. Sur un téléphone il n'y a pas de
+           curseur : rien n'indiquait que l'outil était armé, et toucher un canon l'ajoutait au
+           trajet au lieu d'ouvrir sa fiche. Le bandeau dit ce que fait le prochain toucher, et
+           permet d'en sortir d'un geste. */
+        #route-mode{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + var(--dock-h));
+            z-index:5300; background:#27ae60; color:#fff; border-radius:22px; padding:7px 8px 7px 15px;
+            font-size:12px; font-weight:bold; display:none; align-items:center; gap:10px;
+            box-shadow:0 4px 14px rgba(0,0,0,0.32); max-width:92vw;}
+        #route-mode.on{display:flex;}
+        #route-mode span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+        #route-mode button{background:rgba(0,0,0,0.28); color:#fff; border:none; border-radius:16px;
+            padding:6px 13px; font-size:12px; font-weight:bold; cursor:pointer; flex-shrink:0;}
         #route-print{display:none;}
         @media print{
             body.printing-route > *{display:none !important;}
@@ -457,6 +488,12 @@
             /* Même cause dans le formulaire de production : un champ de date natif est large, et
                un élément flexible refuse par défaut de descendre sous la largeur de son contenu.
                La rangée « date + heure » sortait de 27 px à l'affichage le plus gros. */
+            /* Filet de sécurité pour les données réelles : une référence de pièce, un nom de
+               fichier ou une adresse sans espace ne se coupe pas et pousse tout le panneau hors
+               de l'écran. Les jeux d'essai n'ont pas de mots aussi longs — le terrain, si. */
+            #right-sidebar, #settings-panel, #production-panel, #print-panel,
+            .draggable-window, #pdf-modal { overflow-wrap: break-word; }
+
             #production-panel .pp-field { min-width: 0; }
             #production-panel .pp-field input, #production-panel .pp-field select { min-width: 0; max-width: 100%; box-sizing: border-box; }
 
@@ -464,7 +501,10 @@
             .bi-sidebar select, .bi-sidebar input, .bi-sidebar > div > select { min-width: 0; max-width: 100%; box-sizing: border-box; }
 
             .comp-controls { flex-direction: column; gap: 10px; }
-            #compare-modal, #meteo-history-modal { width: 98%; height: 95vh; top: 2%; left: 1%; transform: none; min-width: 0; }
+            /* box-sizing : ces fenêtres ont une bordure d'un pixel de chaque côté, qui s'ajoutait
+               à leur largeur de 100 % et les faisait dépasser de deux pixels. */
+            #compare-modal, #meteo-history-modal { width: 98%; height: 95vh; top: 2%; left: 1%; transform: none; min-width: 0; box-sizing: border-box; }
+            #bi-meteo-modal { box-sizing: border-box; }
 
             /* Calendrier : grille au-dessus, détail du jour en dessous plutôt que côte à côte */
             .cal-body { flex-direction: column; overflow-y: auto; }
@@ -2507,7 +2547,12 @@
         };
 
         window.toggleRightSidebar = function() { let sb = document.getElementById('right-sidebar'); if(!sb) return; if(sb.classList.contains('open')) sb.classList.remove('open'); else { sb.classList.add('open'); if(window.selectedCannonsMap.size === 0 && !window.currentlyEditingId) window.triggerGlobalFilterChart(); else window.renderSelectionPanel(); } };
-        window.closeRightSidebar = function() { document.getElementById('right-sidebar').classList.remove('open'); window.clearSelection(); if(window.webcamLayerGroup) window.webcamLayerGroup.eachLayer(m => m.dragging.disable()); };
+        window.closeRightSidebar = function() { document.getElementById('right-sidebar').classList.remove('open');
+            /* Refermer le panneau, c'est quitter ce qu'il contenait : sans cela le mode dessin de la
+               fiche de route restait armé dans le vide et détournait les clics sur les canons. */
+            if (window.routeQuitterEdition) window.routeQuitterEdition();
+            window.panneauDroite = null;
+            window.clearSelection(); if(window.webcamLayerGroup) window.webcamLayerGroup.eachLayer(m => m.dragging.disable()); };
         window.clearSelection = function() { window.selectedCannonsMap.clear(); if(window.currentlyEditingId) window.cancelEdit(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); };
         window.cancelEdit = function() { window.currentlyEditingId = null; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none'; document.getElementById('right-title').innerHTML = "<i class='fa-solid fa-circle-info'></i> Analyse Détaillée"; window.updateMap(); window.renderSelectionPanel(); };
         window.focusCannon = function(id) { window.geojsonLayer.eachLayer(l => { if(l.feature.properties.id === id) { if(!window.isMultiSelect && window.mainTheme !== 'suivi_entretien') window.selectedCannonsMap.clear(); window.selectedCannonsMap.set(id,l); window.map.setView(l.getLatLng(),17); window.updateMap(); window.renderSelectionPanel(); document.getElementById('right-sidebar').classList.add('open'); } }); };
@@ -2758,7 +2803,10 @@
 
         window.renderSelectionPanel = function() {
             if(window.selectedCannonsMap.size === 0) { window.triggerGlobalFilterChart(); return; }
-            if (window.ouvrirPanneauDroite) window.panneauDroite = 'selection';
+            /* La fiche canon prend possession du panneau : le mode dessin de la tournée doit
+               s'arrêter là, faute de quoi il continuerait d'intercepter les clics. */
+            if (window.routeQuitterEdition && window.panneauDroite === 'route') window.routeQuitterEdition();
+            window.panneauDroite = 'selection';
             document.getElementById('multi-tools').style.display = 'flex'; document.getElementById('view-selection').style.display = 'block';
             document.getElementById('sel-count').innerText = window.selectedCannonsMap.size; let listDiv = document.getElementById('selected-list'); if(!listDiv) return;
 
@@ -4991,6 +5039,7 @@
             document.getElementById('view-selection').style.display = 'block';
             sl.innerHTML = '';
             sb.classList.add('open');
+            if (window.routeIndicateurMode) window.routeIndicateurMode();
             return true;
         };
 
@@ -5038,7 +5087,25 @@
         window.routeBrouillon = null;      // tronçon pédestre en cours de dessin
         window.routeEditionCarte = false;
 
+        window.MODE_DESSIN_TXT = {
+            canon: "❄️ Mode dessin : touchez les canons",
+            point: "📍 Mode dessin : touchez la carte",
+            pied:  "🚶 Mode dessin : tronçon à pied",
+            gomme: "🧽 Mode gomme : touchez ce qui doit partir"
+        };
+        window.routeIndicateurMode = function() {
+            let b = document.getElementById('route-mode');
+            if (!b) {
+                b = document.createElement('div'); b.id = 'route-mode';
+                b.innerHTML = '<span></span><button onclick="window.routeChoisirOutil(window.routeOutil)">Terminer</button>';
+                document.body.appendChild(b);
+            }
+            let actif = window.routeOutil && window.panneauDroite === 'route';
+            b.classList.toggle('on', !!actif);
+            if (actif) b.querySelector('span').textContent = window.MODE_DESSIN_TXT[window.routeOutil] || "✏️ Mode dessin";
+        };
         window.routeCurseur = function() {
+            window.routeIndicateurMode();
             if (!window.map) return;
             let c = '';
             if (window.routeOutil === 'gomme') c = 'not-allowed';
@@ -5057,11 +5124,21 @@
             window.routeOutil = null; window.routeEditionCarte = false; window.routeBrouillon = null;
             window.routeCurseur();
         };
+        /* Le mode dessin ne doit avaler les clics que tant qu'il est VISIBLE. Fiche de route
+           refermée, l'outil restait armé sans que rien ne l'indique : un canon touché sur la carte
+           était silencieusement ajouté à la tournée au lieu d'ouvrir sa fiche, et l'on ne pouvait
+           plus éditer le moindre ticket après avoir composé un trajet. */
+        window.routeDessinActif = function() {
+            if (window.panneauDroite !== 'route' || !window.routeOutil) return false;
+            let sb = document.getElementById('right-sidebar');
+            if (!sb || !sb.classList.contains('open')) { window.routeQuitterEdition(); return false; }
+            return true;
+        };
         window.basculerEditionCarte = function() { window.routeChoisirOutil('canon'); };
 
         // Clic sur un canon : intercepté seulement par les outils qui le concernent.
         window.routeClicCanon = function(id) {
-            if (window.panneauDroite !== 'route' || !window.routeOutil) return false;
+            if (!window.routeDessinActif()) return false;
             if (window.routeOutil === 'canon') {
                 let i = window.routeSelection.indexOf(id);
                 if (i > -1) window.routeSelection.splice(i, 1); else window.routeSelection.push(id);
@@ -5110,7 +5187,7 @@
 
         // Clic sur la carte pendant le mode dessin. Renvoie true quand le clic a été consommé.
         window.routeCarteClic = function(e) {
-            if (window.panneauDroite !== 'route' || !window.routeOutil) return false;
+            if (!window.routeDessinActif()) return false;
             let p = [e.latlng.lat, e.latlng.lng];
             let cfg = window.routeCfg();
 
@@ -5970,9 +6047,21 @@
             let box = document.getElementById('route-qr-plein');
             if (!box) {
                 box = document.createElement('div'); box.id = 'route-qr-plein';
-                box.addEventListener('click', function(e) { if (e.target === box) window.fermerQrTrajet(); });
+                /* Fermeture au toucher du fond, mais seulement d'un vrai geste commencé sur le fond
+                   et pas dans la demi-seconde qui suit l'ouverture. iOS émet un clic « fantôme »
+                   quelques dizaines de millisecondes après le toucher : à la première ouverture il
+                   se perdait, la boîte n'existant pas encore ; à la deuxième il tombait sur le fond
+                   fraîchement affiché et la refermait sur-le-champ. Le QR s'affichait une fois sur
+                   deux, exactement comme constaté. */
+                box.addEventListener('pointerdown', function(e) { box._depart = e.target; });
+                box.addEventListener('click', function(e) {
+                    if (e.target !== box || box._depart !== box) return;
+                    if (Date.now() - (box._ouvertA || 0) < 500) return;
+                    window.fermerQrTrajet();
+                });
                 document.body.appendChild(box);
             }
+            box._ouvertA = Date.now(); box._depart = null;
             if (!m) {
                 box.innerHTML = `<div class="qr-titre" style="color:#922b21;">Trajet trop long pour un QR code</div>
                     <div class="qr-info">${url.length} caractères. Réduisez la sélection, ou transmettez le code par message.</div>
@@ -10197,7 +10286,7 @@
                 let url = "https://api.open-meteo.com/v1/forecast"
                     + "?latitude=" + secs.map(function(s) { return s.lat; }).join(",")
                     + "&longitude=" + secs.map(function(s) { return s.lng; }).join(",")
-                    + "&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,precipitation,snowfall,cloud_cover,sunshine_duration"
+                    + "&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,precipitation,snowfall,cloud_cover,sunshine_duration,weather_code,cape"
                     + "&forecast_days=" + Math.max(1, Math.min(7, parseInt(c.jours) || 3))
                     + "&timezone=Europe%2FParis";
                 let res = await fetch(url, { cache: force ? 'reload' : 'default' });
@@ -10601,6 +10690,142 @@
             window.switchMeteoTab(window.meteoTab || 'production');
         };
 
+        /* ------------------------------------------------------------------------- */
+        /* RISQUE ORAGEUX                                                            */
+        /*                                                                           */
+        /* Deux sources, dans cet ordre : le code temps de l'OMM, qui affirme l'orage */
+        /* (95 = orage, 96 et 99 = orage avec grêle), et à défaut l'énergie convective */
+        /* disponible — la CAPE — qui dit seulement que l'air est instable. La seconde */
+        /* annonce un risque, jamais une certitude : c'est pourquoi les deux niveaux   */
+        /* sont distingués à l'écran plutôt que fondus en un seul pictogramme.         */
+        /* ------------------------------------------------------------------------- */
+        /* ------------------------------------------------------------------------- */
+        /* COURBE DES TEMPÉRATURES AVEC CURSEUR DE LECTURE                            */
+        /*                                                                           */
+        /* Les bandes colorées donnent la tendance d'un coup d'œil, jamais la valeur : */
+        /* on ne lit pas « −1,4 °C » dans une nuance de vert. La courbe porte le       */
+        /* chiffre, et un curseur suivi à la souris comme au doigt affiche toutes les  */
+        /* données de l'heure pointée — température humide, air, humidité, vent,       */
+        /* nuages, précipitations, soleil et orage — au même instant.                  */
+        /* ------------------------------------------------------------------------- */
+        window.meteoPoints = {};
+        window.meteoCurseurIdx = {};
+        window.meteoBlocCourbe = function(si, pts, seuil, bon) {
+            let n = pts.length; if (!n) return '';
+            let vals = [];
+            pts.forEach(function(p) {
+                if (p.tw !== null && p.tw !== undefined && !isNaN(p.tw)) vals.push(p.tw);
+                if (p.air !== null && p.air !== undefined && !isNaN(p.air)) vals.push(p.air);
+            });
+            if (!vals.length) return '';
+            let vmin = Math.min.apply(null, vals.concat([seuil])), vmax = Math.max.apply(null, vals.concat([seuil]));
+            if (vmax - vmin < 4) { let m = (vmin + vmax) / 2; vmin = m - 2; vmax = m + 2; }
+            let marge = (vmax - vmin) * 0.12; vmin -= marge; vmax += marge;
+            const W = 480, H = 96;
+            let X = function(k) { return n < 2 ? W / 2 : (k / (n - 1)) * W; };
+            let Y = function(v) { return H - (v - vmin) / (vmax - vmin) * H; };
+            let trace = function(cle) {
+                let d = '', ouvert = false;
+                pts.forEach(function(p, k) {
+                    let v = p[cle];
+                    if (v === null || v === undefined || isNaN(v)) { ouvert = false; return; }
+                    d += (ouvert ? 'L' : 'M') + X(k).toFixed(1) + ' ' + Y(v).toFixed(1) + ' ';
+                    ouvert = true;
+                });
+                return d;
+            };
+            // Repères horizontaux : le seuil de production, et le zéro quand il est dans le cadre.
+            let reperes = '';
+            let ligne = function(v, coul, tirets) {
+                if (v < vmin || v > vmax) return '';
+                return `<line x1="0" y1="${Y(v).toFixed(1)}" x2="${W}" y2="${Y(v).toFixed(1)}" stroke="${coul}"
+                        stroke-width="1" stroke-dasharray="${tirets}" vector-effect="non-scaling-stroke"/>`;
+            };
+            reperes += ligne(0, '#b0bec5', '1 3');
+            reperes += ligne(seuil, '#e67e22', '4 3');
+            // Séparations de journée : un trait discret à chaque minuit.
+            let jours = '';
+            pts.forEach(function(p, k) {
+                if (new Date(p.iso).getHours() === 0 && k > 0)
+                    jours += `<line x1="${X(k).toFixed(1)}" y1="0" x2="${X(k).toFixed(1)}" y2="${H}" stroke="#e6ecf1" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+            });
+            window.meteoPoints[si] = pts;
+            window.meteoCurseurIdx[si] = 0;
+            let fmt = function(v) { return (v === null || v === undefined || isNaN(v)) ? '—' : v.toFixed(1).replace('.', ','); };
+            return `
+            <div class="meteo-graph" id="meteo-graph-${si}"
+                 onpointermove="window.meteoLire(event, ${si})" onpointerdown="window.meteoLire(event, ${si})"
+                 onpointerleave="window.meteoLire(null, ${si})">
+                <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+                    ${jours}${reperes}
+                    <path d="${trace('air')}" fill="none" stroke="#95a5a6" stroke-width="1.5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>
+                    <path d="${trace('tw')}" fill="none" stroke="#0072ff" stroke-width="2" vector-effect="non-scaling-stroke"
+                          stroke-linejoin="round" stroke-linecap="round"/>
+                    <line id="meteo-vline-${si}" x1="0" y1="0" x2="0" y2="${H}" stroke="#2c3e50" stroke-width="1"
+                          vector-effect="non-scaling-stroke" opacity="0.55"/>
+                </svg>
+                <div class="meteo-pt" id="meteo-pt-${si}"></div>
+                <div class="meteo-ech meteo-ech-h">${fmt(vmax)} °C</div>
+                <div class="meteo-ech meteo-ech-b">${fmt(vmin)} °C</div>
+                <div class="meteo-leg"><b style="color:#0072ff;">━</b> humide &nbsp;<b style="color:#95a5a6;">┅</b> air
+                    &nbsp;<b style="color:#e67e22;">┅</b> seuil ${fmt(seuil)} °C</div>
+            </div>
+            <div class="meteo-lecture" id="meteo-lecture-${si}"></div>`;
+        };
+        /* Lecture au pointeur. Le même code sert à la souris et au doigt : depuis les événements
+           « pointer », un doigt et une souris sont la même chose, et il n'y a pas deux chemins à
+           maintenir. Sans événement (sortie du cadre), on revient à l'heure courante. */
+        window.meteoLire = function(ev, si) {
+            let pts = window.meteoPoints[si]; if (!pts || !pts.length) return;
+            let boite = document.getElementById('meteo-graph-' + si); if (!boite) return;
+            let k = 0;
+            if (ev) {
+                let r = boite.getBoundingClientRect();
+                if (r.width > 0) k = Math.round((ev.clientX - r.left) / r.width * (pts.length - 1));
+                k = Math.max(0, Math.min(pts.length - 1, k));
+                if (ev.type === 'pointerdown' && boite.setPointerCapture) {
+                    try { boite.setPointerCapture(ev.pointerId); } catch (e) {}
+                }
+            }
+            window.meteoCurseurIdx[si] = k;
+            let p = pts[k];
+            let x = pts.length < 2 ? 240 : (k / (pts.length - 1)) * 480;
+            let vl = document.getElementById('meteo-vline-' + si);
+            if (vl) { vl.setAttribute('x1', x.toFixed(1)); vl.setAttribute('x2', x.toFixed(1)); }
+            let pastille = document.getElementById('meteo-pt-' + si);
+            if (pastille) {
+                if (p.tw === null || p.tw === undefined || isNaN(p.tw)) pastille.style.display = 'none';
+                else {
+                    pastille.style.display = 'block';
+                    pastille.style.left = (x / 480 * 100) + '%';
+                    pastille.style.top = (p.yPct * 100) + '%';
+                }
+            }
+            let l = document.getElementById('meteo-lecture-' + si); if (!l) return;
+            let nb = function(v, u, d) { return (v === null || v === undefined || isNaN(v)) ? '—' : (d ? v.toFixed(d).replace('.', ',') : Math.round(v)) + u; };
+            l.innerHTML =
+                `<b>${window.meteoFmtHeure(p.iso)}</b>` +
+                `<span class="mv" style="color:#0072ff;">TH ${nb(p.tw, ' °C', 1)}</span>` +
+                `<span class="mv">air ${nb(p.air, ' °C', 1)}</span>` +
+                `<span class="mv">${nb(p.hum, ' % HR')}</span>` +
+                `<span class="mv">vent ${nb(p.vent, ' km/h')}</span>` +
+                `<span class="mv">${nb(p.nuages, ' % nuages')}</span>` +
+                (p.precip > 0 ? `<span class="mv">${nb(p.precip, ' mm', 1)}${p.neige > 0 ? ' · ' + nb(p.neige, ' cm de neige', 1) : ''}</span>` : '') +
+                `<span class="mv">${p.soleilTxt}</span>` +
+                // Emplacement toujours présent, même vide : la ligne garde sa hauteur d'une heure à l'autre.
+                (p.orage.niveau ? `<span class="mv" style="color:${p.orage.niveau === 2 ? '#d35400' : '#b9770e'}; font-weight:bold;">⚡ ${p.orage.txt}</span>` : '<span class="mv">&nbsp;</span>');
+        };
+
+        window.CODES_ORAGE = { 95: "Orage", 96: "Orage et grêle", 99: "Orage violent, grêle" };
+        window.CAPE_RISQUE = 800;          // J/kg : au-delà, l'atmosphère porte des orages
+        window.meteoOrage = function(code, cape) {
+            if (window.CODES_ORAGE[code]) return { niveau: 2, txt: window.CODES_ORAGE[code] };
+            let c = window.prodNum(cape);
+            if (cape !== undefined && cape !== null && c >= window.CAPE_RISQUE)
+                return { niveau: 1, txt: "Air instable (" + Math.round(c) + " J/kg) — risque d'orage" };
+            return { niveau: 0, txt: "" };
+        };
+
         window.meteoFmtHeure = function(iso) {
             let d = new Date(iso);
             return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) + " " +
@@ -10640,6 +10865,8 @@
                 let vents = s.hourly.wind_speed_10m || [];
                 let neige = s.hourly.snowfall || [];
                 let cloudPct = s.hourly.cloud_cover || [];
+                let codes = s.hourly.weather_code || [];
+                let capes = s.hourly.cape || [];
                 let tws = times.map(function(_, i) { return window.wetBulb(temps[i], hums[i], pres[i]); });
 
                 // On part de l'heure en cours : les heures passées de la journée n'intéressent personne.
@@ -10667,15 +10894,43 @@
                 });
                 let heuresSoleil = soleil.filter(function(x) { return x.ensoleille; }).length;
 
-                let cellules = t2.map(function(iso, k) {
-                    let tw = tw2[k];
-                    let bg = tw === null ? '#eceff1' : (tw <= bon ? '#0072ff' : (tw <= seuil ? '#16a085' : (tw <= seuil + 2 ? '#f39c12' : '#e74c3c')));
-                    let d = new Date(iso);
+                // Orage heure par heure, et points de la courbe : une seule passe, un seul jeu de
+                // valeurs pour le graphique et pour la lecture au curseur.
+                let orages = t2.map(function(_, k) { return window.meteoOrage(codes[i0 + k], capes[i0 + k]); });
+                /* Deux comptes distincts, et non un seul : « orage annoncé » est une prévision,
+                   « air instable » n'est qu'un terrain favorable. Les confondre ferait annoncer un
+                   orage là où il n'y a qu'un risque. */
+                let heuresOrage = orages.filter(function(o) { return o.niveau === 2; }).length;
+                let heuresRisque = orages.filter(function(o) { return o.niveau === 1; }).length;
+                let orageTxt = [heuresOrage ? heuresOrage + " h d'orage annoncé" : '',
+                                heuresRisque ? heuresRisque + ' h à risque' : ''].filter(Boolean).join(' · ');
+                let pts = t2.map(function(iso, k) {
                     let so = soleil[k];
-                    return `<div class="meteo-cell" style="background:${bg};" title="${window.meteoFmtHeure(iso)}
-TH ${tw === null ? '?' : tw.toFixed(1).replace('.', ',')} °C · air ${temps[i0 + k]} °C · ${hums[i0 + k]} % HR · vent ${vents[i0 + k]} km/h${neige[i0 + k] ? ' · neige ' + neige[i0 + k] + ' cm' : ''}
-${so.ensoleille ? 'Soleil direct' : (so.alt <= 0 ? 'Nuit' : (!so.visible ? 'À l\'ombre du relief (soleil à ' + so.alt.toFixed(0) + '°, crête à ' + so.hz.toFixed(0) + '°)' : 'Ciel couvert'))}">${d.getHours() % 6 === 0 ? d.getHours() + 'h' : ''}</div>`;
-                }).join('');
+                    return {
+                        iso: iso, tw: tw2[k],
+                        air: window.prodNum(temps[i0 + k]), hum: window.prodNum(hums[i0 + k]),
+                        vent: window.prodNum(vents[i0 + k]), nuages: window.prodNum(cloudPct[i0 + k]),
+                        precip: window.prodNum((s.hourly.precipitation || [])[i0 + k]),
+                        neige: window.prodNum(neige[i0 + k]),
+                        soleilTxt: so.ensoleille ? '☀️ soleil direct' : (so.alt <= 0 ? '🌙 nuit' : (!so.visible ? '⛰️ à l\'ombre du relief' : '☁️ ciel couvert')),
+                        orage: orages[k]
+                    };
+                });
+                // Position verticale de la pastille, en fraction de la hauteur du cadre : calculée
+                // ici, avec la même échelle que la courbe, pour que le point suive exactement le tracé.
+                (function() {
+                    let vals = [];
+                    pts.forEach(function(p) {
+                        if (p.tw !== null && !isNaN(p.tw)) vals.push(p.tw);
+                        if (p.air !== null && !isNaN(p.air)) vals.push(p.air);
+                    });
+                    if (!vals.length) return;
+                    let mn = Math.min.apply(null, vals.concat([seuil])), mx = Math.max.apply(null, vals.concat([seuil]));
+                    if (mx - mn < 4) { let m = (mn + mx) / 2; mn = m - 2; mx = m + 2; }
+                    let mg = (mx - mn) * 0.12; mn -= mg; mx += mg;
+                    pts.forEach(function(p) { p.yPct = (p.tw === null || isNaN(p.tw)) ? 0 : 1 - (p.tw - mn) / (mx - mn); });
+                })();
+                let courbe = window.meteoBlocCourbe(si, pts, seuil, bon);
 
                 // Nuages et précipitations : deux bandes de plus, calées sur les mêmes heures que la
                 // température humide. Le nuage est une nuance de gris (0 % = ciel bleu, 100 % = plombé),
@@ -10696,7 +10951,11 @@ ${so.ensoleille ? 'Soleil direct' : (so.alt <= 0 ? 'Nuit' : (!so.visible ? 'À l
                     // Du bleu ciel au gris plombé, en passant par le blanc : lisible d'un coup d'œil.
                     let g = Math.round(235 - v * 1.25);
                     let bg = v < 20 ? '#63b8ff' : 'rgb(' + g + ',' + g + ',' + (g + 8) + ')';
-                    return `<div class="meteo-cell meteo-cell-sun" style="background:${bg};" title="${window.meteoFmtHeure(t2[k])} — ${v} % de nuages"></div>`;
+                    // L'éclair se pose sur le nuage de l'heure concernée : c'est là qu'on le cherche,
+                    // et l'orage ne se lit pas dans le pourcentage de couverture.
+                    let o = orages[k];
+                    let ecl = o.niveau ? `<span class="meteo-eclair" style="opacity:${o.niveau === 2 ? 1 : 0.75};">${o.niveau === 2 ? '⚡' : '⚡'}</span>` : '';
+                    return `<div class="meteo-cell meteo-cell-sun" style="background:${bg};" title="${window.meteoFmtHeure(t2[k])} — ${v} % de nuages${o.niveau ? ' · ' + o.txt : ''}">${ecl}</div>`;
                 }).join('');
 
                 let bandePrecip = precip2.map(function(mm, k) {
@@ -10719,12 +10978,12 @@ ${so.ensoleille ? 'Soleil direct' : (so.alt <= 0 ? 'Nuit' : (!so.visible ? 'À l
                         <span style="font-size:16px; font-weight:bold; color:${cur !== null && cur <= seuil ? '#16a085' : '#c0392b'};">${cur === null ? '—' : cur.toFixed(1).replace('.', ',') + ' °C'}</span>
                     </div>
                     <div style="padding:10px;">
-                        <div style="font-size:10px; color:#888; margin-bottom:3px;">Température humide, 48 h à venir</div>
-                        <div class="meteo-strip">${cellules}</div>
+                        <div style="font-size:10px; color:#888; margin-bottom:3px;">Températures, 48 h à venir — passez la souris ou le doigt sur la courbe</div>
+                        ${courbe}
                         <div style="font-size:10px; color:#888; margin-bottom:3px;">Soleil direct ${masque ? '(crête calculée sur le relief, ' + masque.alt + ' m)' : '<span style="color:#c0392b;">relief non calculé</span>'} — ${heuresSoleil} h sur 48</div>
                         <div class="meteo-strip meteo-strip-sun">${bandeSoleil}</div>
-                        <div style="font-size:10px; color:#888; margin-bottom:3px;">Couverture nuageuse — ${Math.round(nuageMoy)} % en moyenne</div>
-                        <div class="meteo-strip meteo-strip-sun">${bandeNuages}</div>
+                        <div style="font-size:10px; color:#888; margin-bottom:3px;">Couverture nuageuse — ${Math.round(nuageMoy)} % en moyenne${orageTxt ? ` · <span style="color:${heuresOrage ? '#d35400' : '#b9770e'}; font-weight:bold;">⚡ ${orageTxt}</span>` : ''}</div>
+                        <div class="meteo-strip meteo-strip-sun meteo-strip-nuage">${bandeNuages}</div>
                         <div style="font-size:10px; color:#888; margin-bottom:3px;">Précipitations — ${precipTotal.toFixed(1).replace('.', ',')} mm dont ${neigeTotal.toFixed(1).replace('.', ',')} cm de neige</div>
                         <div class="meteo-strip meteo-strip-precip">${bandePrecip}</div>`;
 
