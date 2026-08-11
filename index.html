@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.12.0";
+        window.APP_VERSION = "5.13.0";
         window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; let fw = document.getElementById('flake-wrap'); if(fw) fw.style.display='none'; let pc = document.getElementById('loading-pct'); if(pc) pc.style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('error-box')) { document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } } else alert("🛑 CRASH : "+msg); };
         window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
         window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
@@ -2392,7 +2392,7 @@
                     return `<div style="display:flex; align-items:center; gap:7px; margin-bottom:4px; font-size:11px; color:#455a64;">
                         <span style="display:inline-block; width:19px; height:19px; line-height:19px; text-align:center; border-radius:50%; background:${coul}; color:#fff; font-size:10px; font-weight:bold; border:1.5px solid #fff; box-shadow:0 0 2px rgba(0,0,0,.4);">${sigle}</span>${txt}</div>`;
                 };
-                pL.innerHTML = [5,4,3,2,1].map(function(n) { return ligne(window.planCoulPriorite(n), window.planLibPriorite(n).replace(/^\d+ · /, ''), n); }).join('')
+                pL.innerHTML = [1,2,3,4,5].map(function(n) { return ligne(window.planCoulPriorite(n), window.planLibPriorite(n).replace(/^\d+ · /, ''), n); }).join('')
                     + ligne(window.planCoulPriorite('arret'), 'Arrêt validé', '⏹')
                     + ligne('#c8d0d6', 'Écarté du plan', '⊘')
                     + ligne('#c8d0d6', 'Pas un enneigeur (SDM)', '⚙');
@@ -7492,6 +7492,11 @@
             // humide, donc des couronnes ouvrables.
             window.rawAltimetrie = data.altimetrie || [];
             window.altitudesSheet = null;
+            // Les colonnes du Tableau Général sont réapprises à chaque chargement : le classeur peut
+            // en avoir gagné une depuis la dernière fois.
+            window.planColCache = null;
+            window.planPrioCache = null;
+            window.planIndexCanons = null;
 
             window.setStep(2, "Analyse du Tableau Général...");
             if (!data.general || data.general.length < 2) throw new Error(`L'onglet principal est introuvable ou vide.`);
@@ -10400,13 +10405,12 @@
             if (!forcer) {
                 try { let c = await window.idbGet("snapshot", "altitudes"); if (c && c.table) table = c.table; } catch (e) {}
             }
-            // Les enneigeurs déjà relevés dans l'onglet « altimétrie » n'ont rien à demander au
+            // Les enneigeurs dont l'altitude est relevée dans le classeur n'ont rien à demander au
             // service de relief : c'est autant de requêtes en moins, et le relevé prime de toute façon.
-            let releve = window.planAltimetrie();
             let pts = [];
             (window.snowCannons && window.snowCannons.features || []).forEach(function(f) {
                 let id = f.properties.id;
-                if (releve[String(id)] !== undefined) return;
+                if (window.altitudeReleve(id) !== null) return;
                 if (table[id] !== undefined) return;
                 let c = f.geometry && f.geometry.coordinates;
                 if (!c || isNaN(c[0]) || isNaN(c[1])) return;
@@ -10493,18 +10497,36 @@
             });
             return out;
         };
+        /* Altitude relevée, par ordre de confiance : la colonne « altimétrie » du Tableau Général,
+           puis l'onglet du même nom, puis rien. Le modèle de relief n'intervient qu'après, dans
+           altitudeCanon — c'est le seul des trois qui soit calculé et non mesuré. */
+        window.altitudeReleve = function(id) {
+            let cg = window.planColGeneral();
+            if (cg.alt) {
+                let c = window.planCanon(id);
+                if (c) {
+                    let v = window.prodNum(window.getV(c, cg.alt));
+                    if (v >= 100 && v <= 5000) return Math.round(v);
+                }
+            }
+            let v2 = window.planAltimetrie()[String(id)];
+            return (v2 === undefined || v2 === null) ? null : v2;
+        };
         window.altitudeCanon = function(id) {
-            let s = window.planAltimetrie();
-            let v = s[String(id)];
-            if (v !== undefined && v !== null) return v;
+            let r = window.altitudeReleve(id);
+            if (r !== null) return r;
             let t = window.altitudesCanons; if (!t) return null;
-            v = t[id]; return (v === undefined || v === null) ? null : v;
+            let v = t[id]; return (v === undefined || v === null) ? null : v;
         };
         // D'où vient l'altitude affichée : relevé du classeur ou modèle de relief. La différence
         // change la confiance qu'on peut lui accorder, elle doit rester visible.
         window.altitudeSource = function(id) {
-            let s = window.planAltimetrie();
-            if (s[String(id)] !== undefined) return 'classeur';
+            let cg = window.planColGeneral();
+            if (cg.alt) {
+                let c = window.planCanon(id);
+                if (c) { let v = window.prodNum(window.getV(c, cg.alt)); if (v >= 100 && v <= 5000) return 'general'; }
+            }
+            if (window.planAltimetrie()[String(id)] !== undefined) return 'classeur';
             let t = window.altitudesCanons;
             return (t && t[id] !== undefined && t[id] !== null) ? 'relief' : null;
         };
@@ -12052,17 +12074,35 @@
            neige naturelle suffisante, par exemple. Une piste à l'arrêt est validée telle quelle :
            elle sort du plan sans que son objectif soit pour autant considéré comme manqué. */
         window.PLAN_ARRET = 'arret';
+        /* P1 est la priorité la plus forte — l'ouverture du domaine — et P5 la plus faible. C'est
+           l'ordre du terrain, où « priorité 1 » veut dire « d'abord ». Les priorités déjà réglées
+           sous l'ancien classement (5 = la plus forte) sont retournées une seule fois, sinon une
+           piste réglée « ouverture du domaine » serait silencieusement devenue accessoire. */
+        window.planMigrerPriorites = function() {
+            let cfg = window.planCfg();
+            if (cfg.prioriteP1Forte) return;
+            let imp = cfg.importance || {};
+            Object.keys(imp).forEach(function(k) {
+                let v = imp[k];
+                if (v === window.PLAN_ARRET) return;
+                let n = window.prodNum(v);
+                if (n >= 1 && n <= 5) imp[k] = 6 - n;
+            });
+            cfg.prioriteP1Forte = true;
+            window.planSave();
+        };
         window.planPriorite = function(cle) {
+            window.planMigrerPriorites();
             let v = (window.planCfg().importance || {})[cle];
             if (v === window.PLAN_ARRET) return window.PLAN_ARRET;
             let n = window.prodNum(v);
             return (n >= 1 && n <= 5) ? n : 3;
         };
-        window.PLAN_COUL_PRIO = { 1: '#95a5a6', 2: '#3498db', 3: '#16a085', 4: '#e67e22', 5: '#c0392b', arret: '#2c3e50' };
+        window.PLAN_COUL_PRIO = { 1: '#c0392b', 2: '#e67e22', 3: '#16a085', 4: '#3498db', 5: '#95a5a6', arret: '#2c3e50' };
         window.planCoulPriorite = function(pr) { return window.PLAN_COUL_PRIO[pr] || '#7f8c8d'; };
         window.planLibPriorite = function(pr) {
             if (pr === window.PLAN_ARRET) return 'Arrêt (validé)';
-            return { 1: '1 · accessoire', 2: '2 · secondaire', 3: '3 · courante', 4: '4 · importante', 5: '5 · ouverture du domaine' }[pr] || String(pr);
+            return { 1: '1 · ouverture du domaine', 2: '2 · importante', 3: '3 · courante', 4: '4 · secondaire', 5: '5 · accessoire' }[pr] || String(pr);
         };
         /* Ordre d'affichage et pistes masquées : le classeur mélange des lignes qui ne concernent
            plus l'exploitation, et l'ordre alphabétique ne dit rien du terrain. L'ordre voulu prime,
@@ -12131,6 +12171,50 @@
         };
         window.planEstTotal = function(txt) { return /^(total|totaux|somme)\b/.test(window.planNorm(txt)); };
 
+        /* --- Les colonnes du Tableau Général ------------------------------------------------
+           Tout ce dont le plan a besoin y tient désormais : le débit par couronne, l'air, la piste
+           d'objectif et l'altitude relevée. Une seule ligne par enneigeur, plus rien à recouper
+           entre trois onglets. Les colonnes sont repérées par leur nom et non par leur position :
+           une colonne insérée dans le classeur ne doit pas déplacer la lecture. Les onglets séparés
+           restent lus en secours, pour les enneigeurs que le Tableau Général ne renseigne pas
+           encore. */
+        window.planColCache = null;
+        window.planColGeneral = function() {
+            if (window.planColCache) return window.planColCache;
+            let f = (window.snowCannons && window.snowCannons.features || [])[0];
+            let noms = (f && f.properties && f.properties.fullData) ? f.properties.fullData.map(function(x) { return x.k; }) : [];
+            let trouver = function(test) {
+                for (let i = 0; i < noms.length; i++) if (test(window.planNorm(noms[i]))) return noms[i];
+                return null;
+            };
+            let egal = function(v) { return function(n) { return n === v; }; };
+            let out = {
+                air:    trouver(egal('air')),
+                // planNorm réduit « c1+c2 » à « c1 c2 » : les quatre combinaisons restent distinctes.
+                c1:     trouver(egal('c1')),
+                c1c2:   trouver(egal('c1 c2')),
+                c1c3:   trouver(egal('c1 c3')),
+                c1c2c3: trouver(egal('c1 c2 c3')),
+                pisteObj: trouver(function(n) { return n.indexOf('obj') > -1 && n.indexOf('piste') > -1; }),
+                alt:    trouver(function(n) { return n.indexOf('altim') > -1 || n === 'altitude' || n === 'altitudes'; })
+            };
+            out.aDesDebits = !!(out.c1 || out.c1c2 || out.c1c3 || out.c1c2c3 || out.air);
+            window.planColCache = out;
+            return out;
+        };
+        // Nom de piste sous lequel l'enneigeur compte pour les objectifs. Le Tableau Général porte
+        // désormais cette colonne : c'est elle qui fait le lien avec « obj piste », là où la piste
+        // d'exploitation ne s'écrivait pas toujours pareil des deux côtés.
+        window.planPisteObjectif = function(props) {
+            let cg = window.planColGeneral();
+            if (cg.pisteObj) {
+                let v = window.getV(props, cg.pisteObj);
+                if (v && v !== 'N/A' && v.toString().trim() !== '') return v.toString().trim();
+            }
+            let n = window.getV(props, window.keyPiste);
+            return (!n || n === 'N/A' || n === '') ? 'Sans piste' : n;
+        };
+
         /* --- Onglet « obj piste » : objectif et consommation par saison --------------- */
         window.planColonnesSaison = function() {
             let t = window.rawObjPiste || []; if (t.length < 2) return [];
@@ -12142,14 +12226,27 @@
             });
             return out;
         };
+        /* Saisons proposées au choix. Celles du classeur, plus la suivante — qui n'y est pas encore
+           écrite mais qu'on doit pouvoir désigner AVANT de la créer : sans quoi l'outil imposerait
+           de travailler sur les chiffres de la saison écoulée jusqu'au jour de l'ouverture. Une
+           saison choisie mais absente du classeur donne des cumuls à zéro, ce qui est exact. */
+        window.planSaisonsChoisissables = function() {
+            let cols = window.planColonnesSaison().map(function(c) { return { i: c.i, nom: c.nom }; });
+            let ajouter = function(nom) {
+                if (nom && !cols.some(function(c) { return c.nom === nom; })) cols.push({ i: -1, nom: nom, absente: true });
+            };
+            ajouter(window.planProchaineSaison());
+            ajouter((window.planCfg() || {}).colonneSaison);
+            return cols;
+        };
         window.planColonneSaisonCourante = function() {
-            let cols = window.planColonnesSaison(); if (!cols.length) return null;
             let c = window.planCfg();
             if (c.colonneSaison) {
-                let t = cols.find(function(x) { return x.nom === c.colonneSaison; });
+                let t = window.planSaisonsChoisissables().find(function(x) { return x.nom === c.colonneSaison; });
                 if (t) return t;
             }
-            return cols[cols.length - 1];     // la dernière colonne est la saison en cours
+            let cols = window.planColonnesSaison();
+            return cols.length ? cols[cols.length - 1] : null;   // à défaut, la dernière écrite
         };
         window.planObjectifs = function() {
             let t = window.rawObjPiste || [];
@@ -12173,17 +12270,45 @@
                     objectif: iObj > -1 ? window.prodNum(row[iObj]) : 0,
                     moyenne: iMoy > -1 ? window.prodNum(row[iMoy]) : 0,
                     saisons: saisons,
-                    consomme: saisonCourante ? window.prodNum(row[saisonCourante.i]) : 0
+                    // Saison choisie mais pas encore ouverte dans le classeur : le cumul est nul,
+                    // et non celui de la saison d'à côté.
+                    consomme: (saisonCourante && saisonCourante.i > -1) ? window.prodNum(row[saisonCourante.i]) : 0
                 };
             });
             return out;
         };
 
-        /* --- Onglet « débit canon par couronnes » : un enneigeur par ligne ------------ */
+        /* --- Débit de chaque enneigeur ------------------------------------------------
+           Trois sources, dans cet ordre : ce qui est saisi dans l'application, puis le Tableau
+           Général, puis l'ancien onglet « débit canon par couronnes ». Chaque source ne comble que
+           ce que la précédente laisse vide, si bien qu'un enneigeur encore absent du Tableau Général
+           continue d'être servi par l'onglet sans qu'on ait à choisir. */
         window.planCouronnes = function() {
             let t = window.rawDebitCouronnes || [];
-            let out = { parCanon: {}, parPiste: {}, lignes: 0, sansNumero: 0 };
-            if (t.length < 2) return out;
+            let out = { parCanon: {}, parPiste: {}, lignes: 0, sansNumero: 0, depuisGeneral: 0, depuisOnglet: 0 };
+            let cg = window.planColGeneral();
+            if (cg.aDesDebits) {
+                (window.snowCannons && window.snowCannons.features || []).forEach(function(f) {
+                    let p = f.properties;
+                    let e = { id: String(p.id), piste: window.planPisteObjectif(p), source: 'general',
+                              air: cg.air ? window.prodNum(window.getV(p, cg.air)) : 0,
+                              type: window.getV(p, window.keyType) };
+                    if (e.type === 'N/A') e.type = '';
+                    let renseigne = e.air > 0;
+                    window.COURONNES.forEach(function(c) {
+                        e[c.cle] = cg[c.cle] ? window.prodNum(window.getV(p, cg[c.cle])) : 0;
+                        if (e[c.cle] > 0) renseigne = true;
+                    });
+                    // Une ligne entièrement vide n'est pas une donnée : on laisse l'onglet répondre.
+                    if (!renseigne) return;
+                    out.parCanon[e.id] = e;
+                    let k = window.planNorm(e.piste);
+                    if (!out.parPiste[k]) out.parPiste[k] = [];
+                    out.parPiste[k].push(e);
+                    out.lignes++; out.depuisGeneral++;
+                });
+            }
+            if (t.length < 2) return window.planCouronnesSaisies(out);
             let ent = t[0].map(function(h) { return window.planNorm(h); });
             let trouve = function(cands) {
                 for (let i = 0; i < ent.length; i++) if (cands.indexOf(ent[i]) > -1) return i;
@@ -12208,18 +12333,23 @@
                 let id = (numBrut === null || numBrut === undefined) ? '' : numBrut.toString().replace(/^YA\s*/i, '').trim();
                 if (!id || isNaN(window.prodNum(id))) { if (piste) out.sansNumero++; return; }
                 id = String(window.prodNum(id));
-                let e = { id: id, piste: piste, air: iAir > -1 ? window.prodNum(row[iAir]) : 0,
+                // Le Tableau Général fait foi : l'onglet ne comble que ce qu'il ne dit pas.
+                if (out.parCanon[id]) return;
+                let e = { id: id, piste: piste, source: 'onglet', air: iAir > -1 ? window.prodNum(row[iAir]) : 0,
                           type: iType > -1 ? (row[iType] || '').toString().trim() : '' };
                 window.COURONNES.forEach(function(c) { e[c.cle] = iCour[c.cle] > -1 ? window.prodNum(row[iCour[c.cle]]) : 0; });
                 out.parCanon[id] = e;
                 let k = window.planNorm(piste);
                 if (!out.parPiste[k]) out.parPiste[k] = [];
                 out.parPiste[k].push(e);
-                out.lignes++;
+                out.lignes++; out.depuisOnglet++;
             });
-            /* Débits corrigés à la main. Ils passent DEVANT le classeur, sans l'écraser : un abaque
-               relevé sur le terrain vaut mieux qu'une colonne jamais reprise, et un enneigeur absent
-               de l'onglet reçoit ici le sien plutôt que de compter pour zéro dans tout le plan. */
+            return window.planCouronnesSaisies(out);
+        };
+        /* Débits corrigés à la main. Ils passent DEVANT le classeur, sans l'écraser : un relevé fait
+           sur le terrain vaut mieux qu'une colonne jamais reprise, et un enneigeur qu'aucune des deux
+           sources ne renseigne reçoit ici le sien plutôt que de compter pour zéro dans tout le plan. */
+        window.planCouronnesSaisies = function(out) {
             let saisis = window.planCfg().debitCanon || {};
             Object.keys(saisis).forEach(function(id) {
                 let d = saisis[id] || {};
@@ -12257,9 +12387,8 @@
                 // La salle des machines et consorts ne produisent pas de neige : ils sortent d'ici,
                 // pas de la carte ni des tickets.
                 if (window.planCanonExclu(p)) { exclus.push(p.id); return; }
-                let nom = window.getV(p, window.keyPiste);
-                if (!nom || nom === 'N/A' || nom === '') nom = 'Sans piste';
-                let pi = voir(nom);
+                // Regroupement sur la piste d'OBJECTIF, celle qui fait le lien avec « obj piste ».
+                let pi = voir(window.planPisteObjectif(p));
                 pi.canons.push(p.id);
                 // Un enneigeur écarté à la main reste listé — il est en panne, consigné, hors gel —
                 // mais son débit ne compte plus dans ce que la piste peut sortir.
@@ -12321,6 +12450,8 @@
                 canons: Object.keys(idsCarte).length,
                 lignesCouronnes: cour.lignes,
                 canonsSansDebit: sansDebit,
+                debitsGeneral: cour.depuisGeneral || 0,
+                debitsOnglet: cour.depuisOnglet || 0,
                 exclus: (window.planExclusVus || []).length,
                 masquees: (window.planCfg().masquees || []).length,
                 couronnesOrphelines: couronnesOrphelines,
@@ -12409,7 +12540,7 @@
             let maxRend = Math.max.apply(null, liste.map(function(p) { return p.rendement || 0; }).concat([0.001]));
             liste.forEach(function(p) {
                 let sMeteo = p.debitHeure / maxDebit;                       // 0 si rien ne peut ouvrir
-                let sImp = (p.importance - 1) / 4;                          // 1 à 5 -> 0 à 1
+                let sImp = (5 - p.importance) / 4;                          // P1 -> 1, P5 -> 0
                 let sRend = (p.rendement || 0) / maxRend;
                 let tot = (poids.meteo || 0) + (poids.importance || 0) + (poids.rendement || 0);
                 p.score = tot > 0 ? ((poids.meteo || 0) * sMeteo + (poids.importance || 0) * sImp + (poids.rendement || 0) * sRend) / tot : 0;
@@ -12512,6 +12643,28 @@
                 <br>${atteintes} piste(s) au but sur ${liste.length}${arretees ? ' · ' + arretees + ' arrêtée(s)' : ''}`;
         };
 
+        /* Le choix de la saison ne devait pas rester enterré dans les Réglages : c'est le premier
+           réglage qu'on touche à l'ouverture d'une saison, et il change tous les chiffres affichés. */
+        window.planSelectSaison = function() {
+            let cfg = window.planCfg();
+            let cols = window.planSaisonsChoisissables();
+            let cour = window.planColonneSaisonCourante();
+            return `<select onchange="window.planReglage('colonneSaison', this.value)"
+                style="flex:1 1 auto; min-width:0; padding:6px 8px; font-size:12px; font-weight:bold; border:1px solid #ccd6e0; border-radius:5px; background:#fff; color:#2c3e50;">
+                ${cols.map(function(c) {
+                    let choisie = cour && cour.nom === c.nom;
+                    return `<option value="${window.prodEsc(c.nom)}" ${choisie ? 'selected' : ''}>${window.prodEsc(c.nom)}${c.absente ? ' — à créer' : ''}</option>`;
+                }).join('')}
+            </select>`;
+        };
+        window.planAvertSaisonAbsente = function() {
+            let c = window.planColonneSaisonCourante();
+            if (!c || !c.absente) return '';
+            return `<div class="plan-alerte">La saison <b>${window.prodEsc(c.nom)}</b> n'existe pas encore dans « obj piste » : tous les cumuls sont donc à zéro, ce qui est exact tant que rien n'a été produit.
+                Ouvrez-la dans le classeur pour pouvoir y enregistrer l'eau pompée.
+                <button onclick="window.planChoisirOnglet('saisie')" style="margin-left:6px; background:#0072ff; color:#fff; border:none; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">Préparer la saison</button></div>`;
+        };
+
         window.planFmt = function(v, d) {
             if (v === null || v === undefined || isNaN(v)) return '—';
             return window.prodFmt(v, d === undefined ? 0 : d);
@@ -12556,10 +12709,10 @@
             let alerte = '';
             if (!window.rawObjPiste || window.rawObjPiste.length < 2)
                 alerte += `<div class="plan-alerte">L'onglet « obj piste » n'a pas été reçu : aucun objectif ni consommation. Redéployez Code.gs si ce n'est pas encore fait.</div>`;
-            if (!window.rawDebitCouronnes || window.rawDebitCouronnes.length < 2)
-                alerte += `<div class="plan-alerte">L'onglet « débit canon par couronnes » n'a pas été reçu : aucun débit, donc aucun plan.</div>`;
+            if (!diag.debitsGeneral && !diag.debitsOnglet)
+                alerte += `<div class="plan-alerte">Aucun débit trouvé : ni les colonnes de couronnes du Tableau Général, ni l'onglet « débit canon par couronnes ». Sans débit, pas de plan.</div>`;
             else if (diag.canonsSansDebit)
-                alerte += `<div class="plan-alerte">${diag.canonsSansDebit} enneigeur(s) sans ligne dans « débit canon par couronnes » : leur débit compte pour zéro tant qu'il n'est pas saisi.
+                alerte += `<div class="plan-alerte">${diag.canonsSansDebit} enneigeur(s) sans débit renseigné, ni dans le Tableau Général ni ailleurs : ils comptent pour zéro tant qu'ils ne sont pas saisis.
                     <button onclick="window.planChoisirOnglet('saisie')" style="margin-left:6px; background:#e67e22; color:#fff; border:none; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">Saisir les débits</button></div>`;
             if (!window.meteoData)
                 alerte += `<div class="plan-alerte">Pas de prévision chargée : ouvrez « Météo Live » une fois, sinon aucune couronne ne peut être jugée possible.</div>`;
@@ -12569,7 +12722,12 @@
                     background:${cfg.auto ? '#16a085' : '#34495e'}; color:#fff;">${cfg.auto ? '🤖 Mode automatique' : '✋ Mode manuel'}</button>
                 <button onclick="window.planTracerCarte()" style="flex:1 1 46%; padding:9px; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold; background:#2980b9; color:#fff;">🗺️ Voir sur la carte</button>
             </div>
-            <div style="font-size:10px; color:#95a5a6; margin-bottom:8px;">Saison lue : <b>${diag.saisonRetenue || '—'}</b> · ${diag.lignesCouronnes} enneigeur(s) avec débit · capacité ${window.planFmt(cfg.capaciteEau)} m³/h et ${window.planFmt(cfg.capaciteAir)} Nm³/h${diag.exclus ? ' · ' + diag.exclus + ' écarté(s) (SDM)' : ''}${diag.masquees ? ' · ' + diag.masquees + ' piste(s) masquée(s)' : ''}</div>`;
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+                <span style="font-size:11px; color:#455a64;">Saison lue</span>
+                ${window.planSelectSaison()}
+            </div>
+            ${window.planAvertSaisonAbsente()}
+            <div style="font-size:10px; color:#95a5a6; margin-bottom:8px;">${diag.lignesCouronnes} enneigeur(s) avec débit${diag.debitsGeneral ? ' (' + diag.debitsGeneral + ' depuis le Tableau Général)' : ''} · capacité ${window.planFmt(cfg.capaciteEau)} m³/h et ${window.planFmt(cfg.capaciteAir)} Nm³/h${diag.exclus ? ' · ' + diag.exclus + ' écarté(s) (SDM)' : ''}${diag.masquees ? ' · ' + diag.masquees + ' piste(s) masquée(s)' : ''}</div>`;
 
             let lignes = liste.map(function(p) {
                 let pc = p.avancement === null ? null : Math.min(1, p.avancement);
@@ -12721,7 +12879,7 @@
             let saisis = cfg.debitCanon || {};
             let ids = Object.keys(saisis);
             if (!ids.length) { alert("Aucun débit saisi à la main : il n'y a rien à envoyer."); return; }
-            if (!confirm(ids.length + " enneigeur(s) modifié(s) seront réécrits dans l'onglet « débit canon par couronnes ». Continuer ?")) return;
+            if (!confirm(ids.length + " enneigeur(s) modifié(s) seront réécrits dans le classeur, dans les colonnes de couronnes du Tableau Général. Continuer ?")) return;
             let txt = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Envoi…';
             try {
                 let rep = await window.apiPost({ action: 'save_plan_debits', debits: saisis });
@@ -12729,7 +12887,8 @@
                 if (js.status !== 'success') throw new Error(js.msg || 'refus du serveur');
                 let manquants = js.debitsIntrouvables || [];
                 btn.innerHTML = '✅ ' + (js.debitsMisAJour || 0) + ' ligne(s)';
-                if (manquants.length) alert((js.debitsMisAJour || 0) + " ligne(s) mise(s) à jour.\n\nSans ligne dans l'onglet, donc non écrits : "
+                if (manquants.length) alert((js.debitsMisAJour || 0) + " ligne(s) mise(s) à jour dans « " + (js.ongletDebits || 'le classeur') + " »."
+                    + "\n\nSans ligne dans le classeur, donc non écrits : "
                     + manquants.join(', ') + "\nIls restent saisis ici et comptent dans le plan.");
                 setTimeout(function() { btn.disabled = false; btn.innerHTML = txt; }, 1600);
             } catch (e) {
@@ -13051,7 +13210,8 @@
                         style="width:100%; box-sizing:border-box; min-width:0; padding:6px; font-size:12px; border:1px solid #ccd6e0; border-radius:4px;"></td>
                 </tr>`;
             }).join('');
-            return `<div style="font-size:11px; color:#7f8c8d; margin-bottom:8px;">
+            return `${window.planAvertSaisonAbsente()}
+                <div style="font-size:11px; color:#7f8c8d; margin-bottom:8px;">
                     Saisissez l'eau pompée <b>depuis le dernier relevé</b>, en m³, piste par piste. Elle s'ajoute au cumul de la saison
                     ${col ? '(<b>' + window.prodEsc(col.nom) + '</b>)' : ''} et part dans l'onglet « plan enneigement webapp » avec sa date.
                     <br>👁️ masque une piste, ▲▼ la déplace : l'ordre et les pistes retenues valent pour tout l'outil.
@@ -13106,7 +13266,10 @@
         };
         window.planVueNouvelleSaison = function(cfg) {
             let cols = window.planColonnesSaison();
-            let prochaine = window.planProchaineSaison();
+            // Si une saison à venir est déjà choisie comme saison lue, c'est celle-là qu'on propose
+            // d'ouvrir : sans quoi le bouton créerait une autre colonne que celle qu'on regarde.
+            let cour = window.planColonneSaisonCourante();
+            let prochaine = (cour && cour.absente) ? cour.nom : window.planProchaineSaison();
             let liste = window.planVisibles(window.planListe());
             let totObj = 0, totMoy = 0;
             liste.forEach(function(p) { totObj += p.objectif; totMoy += p.moyenne; });
@@ -13194,6 +13357,13 @@
                 cumuls[p.cle] = p.consomme + v;
             });
             if (!lignes.length) { alert("Aucune quantité saisie."); return; }
+            // Écrire un cumul dans une colonne qui n'existe pas se solderait par un refus du serveur
+            // après coup : mieux vaut le dire avant, et dire où aller la créer.
+            if (col && col.absente) {
+                alert("La saison « " + col.nom + " » n'existe pas encore dans « obj piste ».\n\n"
+                    + "Ouvrez-la d'abord avec « Préparer la saison suivante », en bas de cet onglet.");
+                return;
+            }
             let txt = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Enregistrement…';
             try {
                 let rep = await window.apiPost({ action: 'save_plan_conso', saison: col ? col.nom : '',
@@ -13248,7 +13418,6 @@
                     <span style="font-size:10px; color:#95a5a6; width:46px;">${unite}</span>
                 </div>`;
             };
-            let cols = window.planColonnesSaison();
             return `<div style="background:#fff8e1; border:1px solid #ffe082; border-radius:6px; padding:10px; margin-bottom:12px; font-size:11px; color:#7a5c00;">
                     <b>Seuils d'ouverture des couronnes.</b> Le constructeur ne les publie pas : ceux-ci sont un point de départ.
                     Corrigez-les d'après ce que l'installation fait réellement — une couronne annoncée possible qui gèle, c'est ce seuil qu'il faut baisser.
@@ -13286,14 +13455,20 @@
                     </div>
                 </div>
                 <div style="border:1px solid #e6ecf1; border-radius:6px; padding:10px; margin-bottom:12px;">
-                    <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">Altitudes</div>
+                    <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">D'où viennent les données</div>
                     <div style="font-size:11px; color:#7f8c8d;">
                         ${(function() {
-                            let s = window.planAltimetrie(); let n = Object.keys(s).length;
-                            let tot = (window.snowCannons && window.snowCannons.features || []).length;
-                            if (!n) return `Aucune altitude lue dans l'onglet « altimétrie » — les altitudes viennent du modèle de relief. Redéployez Code.gs si l'onglet existe déjà.`;
-                            return `<b>${n}</b> altitude(s) relevée(s) dans l'onglet « altimétrie », appariées au numéro d'enneigeur${tot ? ' sur ' + tot + ' canons' : ''}.
-                                    Les autres viennent du modèle de relief et sont signalées par une étoile.`;
+                            let cg = window.planColGeneral();
+                            let feats = (window.snowCannons && window.snowCannons.features || []);
+                            let nGen = 0, nOng = 0, nRelief = 0, nRien = 0;
+                            feats.forEach(function(f) {
+                                let s = window.altitudeSource(f.properties.id);
+                                if (s === 'general') nGen++; else if (s === 'classeur') nOng++; else if (s === 'relief') nRelief++; else nRien++;
+                            });
+                            let d = window.planDiagnostic();
+                            return `<b>Débits</b> : ${cg.aDesDebits ? 'colonnes du Tableau Général (' + d.debitsGeneral + ' enneigeur(s))' : 'aucune colonne de couronne dans le Tableau Général'}${d.debitsOnglet ? ', complétés par l\'onglet « débit canon par couronnes » (' + d.debitsOnglet + ')' : ''}.
+                                <br><b>Piste d'objectif</b> : ${cg.pisteObj ? 'colonne « ' + window.prodEsc(cg.pisteObj) + ' »' : 'colonne absente — on retombe sur la piste d\'exploitation, dont l\'orthographe doit alors correspondre à « obj piste »'}.
+                                <br><b>Altitudes</b> : ${nGen} du Tableau Général, ${nOng} de l'onglet « altimétrie », ${nRelief} du modèle de relief (signalées par une étoile)${nRien ? ', ' + nRien + ' inconnue(s)' : ''}.`;
                         })()}
                     </div>
                 </div>
@@ -13306,10 +13481,12 @@
                 </div>
                 <div style="border:1px solid #e6ecf1; border-radius:6px; padding:10px;">
                     <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">Saison lue dans « obj piste »</div>
-                    <select onchange="window.planReglage('colonneSaison', this.value)" style="width:100%; padding:7px; font-size:12px; border:1px solid #ccd6e0; border-radius:4px;">
-                        <option value="">Dernière colonne (${cols.length ? window.prodEsc(cols[cols.length - 1].nom) : '—'})</option>
-                        ${cols.map(function(c) { return `<option value="${window.prodEsc(c.nom)}" ${cfg.colonneSaison === c.nom ? 'selected' : ''}>${window.prodEsc(c.nom)}</option>`; }).join('')}
-                    </select>
+                    ${window.planSelectSaison()}
+                    <div style="font-size:10px; color:#95a5a6; margin-top:6px;">
+                        La saison à venir figure dans la liste avant même d'exister dans le classeur : la choisir remet les cumuls à zéro
+                        sans toucher aux colonnes des saisons passées.
+                    </div>
+                    ${window.planAvertSaisonAbsente()}
                 </div>`;
         };
         window.planReglage = function(cle, v) {
