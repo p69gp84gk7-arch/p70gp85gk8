@@ -17,7 +17,7 @@
 /* cache intermédiaire ne ferait que masquer l'état réel de la synchro.         */
 /* =========================================================================== */
 
-const SW_VERSION = '5.13.0';
+const SW_VERSION = '5.14.0';
 const SHELL = 'gmao-shell-' + SW_VERSION;
 const LIBS  = 'gmao-libs-'  + SW_VERSION;
 const TILES = 'gmao-tiles-v1';
