@@ -51,10 +51,65 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.13.0";
-        window.showCrash = function(msg, line) { let o = document.getElementById('loading-overlay'); if (o) { o.style.display='flex'; let fw = document.getElementById('flake-wrap'); if(fw) fw.style.display='none'; let pc = document.getElementById('loading-pct'); if(pc) pc.style.display='none'; document.getElementById('loading-title').innerText="🛑 ERREUR SYSTEME"; if(document.getElementById('error-box')) { document.getElementById('error-box').style.display='block'; document.getElementById('error-msg').innerHTML="<b>Détail:</b> "+msg+(line?"<br><b>Ligne:</b> "+line:""); } } else alert("🛑 CRASH : "+msg); };
-        window.onerror = function(msg, src, ln) { if (msg.indexOf('Script error') > -1) return false; window.showCrash(msg, ln); return true; };
-        window.addEventListener('unhandledrejection', function(e) { window.showCrash(e.reason ? e.reason.message : "Erreur réseau", "Réseau"); });
+        window.APP_VERSION = "5.14.0";
+        window.showCrash = function(msg, line) {
+            let o = document.getElementById('loading-overlay');
+            if (!o) { alert("🛑 CRASH : " + msg); return; }
+            o.style.display = 'flex';
+            let fw = document.getElementById('flake-wrap'); if (fw) fw.style.display = 'none';
+            let pc = document.getElementById('loading-pct'); if (pc) pc.style.display = 'none';
+            document.getElementById('loading-title').innerText = "🛑 ERREUR SYSTEME";
+            let box = document.getElementById('error-box');
+            if (!box) return;
+            box.style.display = 'block';
+            /* D'OÙ vient la page compte autant que l'erreur elle-même : un raccourci qui pointe sur
+               une vieille copie donne des pannes déjà corrigées, introuvables dans le code à jour.
+               Version et adresse sont donc affichées ici, avec de quoi forcer un rechargement propre. */
+            let src = '';
+            try { src = location.href.replace(/[?#].*$/, ''); } catch (e) {}
+            document.getElementById('error-msg').innerHTML =
+                "<b>Détail:</b> " + msg + (line ? "<br><b>Ligne:</b> " + line : "")
+                + "<div style='margin-top:10px; font-size:11px; opacity:.85; word-break:break-all;'>"
+                + "<b>Version chargée :</b> " + window.APP_VERSION
+                + "<br><b>Fichier ouvert :</b> " + src + "</div>"
+                + "<button onclick=\"window.rechargerSansCache()\" style='margin-top:10px; background:#c0392b; color:#fff; border:none; padding:8px 14px; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer;'>Recharger en vidant le cache</button>";
+        };
+        /* Vidage complet : caches du service worker, service worker lui-même, puis rechargement. Sans
+           cela, une version cassée mise en cache se resservait indéfiniment elle-même. */
+        window.rechargerSansCache = async function() {
+            try { if (window.caches) { let n = await caches.keys(); await Promise.all(n.map(function(k) { return caches.delete(k); })); } } catch (e) {}
+            try { if (navigator.serviceWorker) { let rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(function(r) { return r.unregister(); })); } } catch (e) {}
+            location.reload(true);
+        };
+        /* Une erreur survenue APRÈS le démarrage ne doit plus effacer l'application : elle concerne
+           presque toujours un coin précis (une carte, un graphique), et remplacer tout l'écran par
+           une page rouge coûtait à l'utilisateur son travail en cours pour un incident local. */
+        window.bootTermine = false;
+        window.signalerIncident = function(msg) {
+            let b = document.getElementById('incident-box');
+            if (!b) {
+                b = document.createElement('div');
+                b.id = 'incident-box';
+                b.style.cssText = 'position:fixed; left:50%; transform:translateX(-50%); bottom:calc(14px + var(--dock-h, 0px)); z-index:9999; max-width:min(92vw,520px);'
+                    + 'background:#fdecea; border:1px solid #f5b7b1; color:#922b21; padding:9px 12px; border-radius:8px; font-size:12px; box-shadow:0 4px 18px rgba(0,0,0,.18); cursor:pointer;';
+                b.title = "Toucher pour masquer";
+                b.onclick = function() { b.remove(); };
+                document.body.appendChild(b);
+            }
+            b.innerHTML = "⚠️ <b>Incident isolé :</b> " + msg + "<br><span style='font-size:10px; opacity:.8;'>L'application continue de fonctionner. Touchez pour masquer.</span>";
+            clearTimeout(window._incidentT);
+            window._incidentT = setTimeout(function() { if (b && b.parentNode) b.remove(); }, 12000);
+        };
+        window.onerror = function(msg, src, ln) {
+            if (msg.indexOf('Script error') > -1) return false;
+            if (window.bootTermine) { window.signalerIncident(msg); return true; }
+            window.showCrash(msg, ln); return true;
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+            let m = e.reason ? (e.reason.message || e.reason) : "Erreur réseau";
+            if (window.bootTermine) { window.signalerIncident(m); return; }
+            window.showCrash(m, "Réseau");
+        });
     </script>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -1129,7 +1184,7 @@
                     <div class="theme-block" data-tb="atelier"><label class="radio-card" id="lbl-atelier"><input type="radio" name="main_theme" value="atelier"> <i class="fa-solid fa-toolbox" style="color:#8e44ad;"></i> Banc d'essais</label><div class="theme-details" id="details-atelier" style="display:none;border-color:#8e44ad;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Banc de test usine</div></div></div>
                     <div class="theme-block" data-tb="stock"><label class="radio-card" id="lbl-stock"><input type="radio" name="main_theme" value="stock"> <i class="fa-solid fa-boxes-stacked" style="color:#16a085;"></i> Gestion du Stock</label><div class="theme-details" id="details-stock" style="display:none;border-color:#16a085;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Inventaire</div></div></div>
                     <div class="theme-block" data-tb="production"><label class="radio-card" id="lbl-production"><input type="radio" name="main_theme" value="production"> <i class="fa-solid fa-industry" style="color:#2980b9;"></i> Production</label><div class="theme-details" id="details-production" style="display:none;border-color:#2980b9;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Suivi de production neige</div><div class="edit-label" style="font-size:10px;">Saison affichée</div><select id="prod-season-select" class="edit-input" style="margin-bottom:8px;" onchange="window.setProductionSeason(this.value)"></select><button class="btn-action-primary" style="margin:0; background:#2980b9;" onclick="window.openProductionForm()"><i class="fa-solid fa-plus"></i> Nouvelle production</button></div></div>
-                    <div class="theme-block" data-tb="planneige"><label class="radio-card" id="lbl-planneige"><input type="radio" name="main_theme" value="planneige"> <i class="fa-solid fa-snowflake" style="color:#0072ff;"></i> Plan d'Enneigement</label><div class="theme-details" id="details-planneige" style="display:none;border-color:#0072ff;"><div class="view-toggle-wrap" data-vt="planneige"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Priorité de production</div><div id="legend-planneige"></div><button class="btn-action-primary" style="margin:10px 0 0; background:#0072ff;" onclick="window.openPlanNeige()"><i class="fa-solid fa-sliders"></i> Ouvrir l'outil complet</button></div></div>
+                    <div class="theme-block" data-tb="planneige"><label class="radio-card" id="lbl-planneige"><input type="radio" name="main_theme" value="planneige"> <i class="fa-solid fa-snowflake" style="color:#0072ff;"></i> Plan d'Enneigement</label><div class="theme-details" id="details-planneige" style="display:none;border-color:#0072ff;"><div class="view-toggle-wrap" data-vt="planneige"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Priorité de production</div><div id="legend-planneige"></div><div id="plan-prio-liste" style="margin-top:10px;"></div><div id="plan-resume-menu" style="font-size:11px; color:#7f8c8d; margin-top:10px;"></div><button class="btn-action-primary" style="margin:10px 0 0; background:#0072ff;" onclick="window.openPlanNeige()"><i class="fa-solid fa-sliders"></i> Ouvrir l'outil complet</button></div></div>
                     <div class="theme-block" data-tb="entretien_tete"><label class="radio-card" id="lbl-entretien_tete"><input type="radio" name="main_theme" value="entretien_tete"> <i class="fa-solid fa-shower" style="color:#e67e22;"></i> Entretien Tête Canon</label><div class="theme-details" id="details-entretien_tete" style="display:none;border-color:#e67e22;"><div class="view-toggle-wrap" data-vt="entretien_tete"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Buses <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('entretien_tete')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-entretien_tete" style="display:none;margin-bottom:8px;"></div><div id="legend-entretien_tete"></div><button onclick="window.resetEntretienBuses()" style="width:100%;margin-top:10px;background:#c0392b;color:white;border:none;padding:8px;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;"><i class="fa-solid fa-rotate-left"></i> RAZ</button></div></div>
                     <div class="theme-block" data-tb="suivi_entretien"><label class="radio-card" id="lbl-suivi_entretien"><input type="radio" name="main_theme" value="suivi_entretien"> <i class="fa-solid fa-screwdriver-wrench" style="color:#27ae60;"></i> Suivi Entretien</label><div class="theme-details" id="details-suivi_entretien" style="display:none;border-color:#27ae60;"><div class="view-toggle-wrap" data-vt="suivi_entretien"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Vannes <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('suivi_entretien')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-suivi_entretien" style="display:none;margin-bottom:8px;"></div><div id="legend-suivi_entretien"></div></div></div>
                     <div class="theme-block" data-tb="defauts"><label class="radio-card" id="lbl-defauts"><input type="radio" name="main_theme" value="defauts" checked> <i class="fa-solid fa-triangle-exclamation" style="color:#e74c3c;"></i> Tickets & Pannes</label><div class="theme-details" id="details-defauts" style="display:block;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="defauts"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Statuts actuels <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('defauts')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-defauts" style="display:none;margin-bottom:8px;"></div><div id="legend-defauts"></div></div></div>
@@ -1145,11 +1200,6 @@
                     </div></div>
                 </div>
             </details>
-            <details class="panel-section" data-sec="planneige" open><summary>Plan d'Enneigement</summary><div class="section-content" style="padding-top: 8px;">
-                <p style="font-size:11px; color:#666; margin:0 0 8px;">Croise les objectifs par piste, le débit des enneigeurs selon les couronnes ouvertes et la prévision ramenée à l'altitude de chaque piste.</p>
-                <button class="btn-action-primary" style="margin:0; background:#0072ff;" onclick="window.openPlanNeige()"><i class="fa-solid fa-snowflake"></i> Ouvrir le plan</button>
-                <div id="plan-resume-menu" style="font-size:11px; color:#7f8c8d; margin-top:8px;"></div>
-            </div></details>
             <details class="panel-section" data-sec="filtres" open><summary>Filtres Rapides</summary><div class="section-content" style="padding-top: 5px;">
                 <b style="font-size:12px;">Pistes :</b><div class="checkbox-list"><label><input type="checkbox" id="check-all-pistes" checked> <b>Toutes</b></label><div id="individual-pistes"></div></div>
                 <b style="font-size:12px;">Type Canon :</b><div class="checkbox-list"><label><input type="checkbox" id="check-all-types" checked> <b>Tous</b></label><div id="individual-types"></div></div>
@@ -2392,8 +2442,8 @@
                     return `<div style="display:flex; align-items:center; gap:7px; margin-bottom:4px; font-size:11px; color:#455a64;">
                         <span style="display:inline-block; width:19px; height:19px; line-height:19px; text-align:center; border-radius:50%; background:${coul}; color:#fff; font-size:10px; font-weight:bold; border:1.5px solid #fff; box-shadow:0 0 2px rgba(0,0,0,.4);">${sigle}</span>${txt}</div>`;
                 };
-                pL.innerHTML = [1,2,3,4,5].map(function(n) { return ligne(window.planCoulPriorite(n), window.planLibPriorite(n).replace(/^\d+ · /, ''), n); }).join('')
-                    + ligne(window.planCoulPriorite('arret'), 'Arrêt validé', '⏹')
+                pL.innerHTML = [1,2,3,4,5].map(function(n) { return ligne(window.planCoulPriorite(n), window.prodEsc(window.planNomPriorite(n)), n); }).join('')
+                    + ligne(window.planCoulPriorite('arret'), window.prodEsc(window.planNomPriorite('arret')), '⏹')
                     + ligne('#c8d0d6', 'Écarté du plan', '⊘')
                     + ligne('#c8d0d6', 'Pas un enneigeur (SDM)', '⚙');
             }
@@ -2542,7 +2592,7 @@
                         }
                     }
 
-                    let rad = 12; let ratio = 0; let bgStr = ""; let iconChar = p.id; let lh = '24px'; let remarkBadge = "";
+                    let rad = 12; let ratio = 0; let bgStr = ""; let iconChar = p.id; let lh = '24px'; let remarkBadge = ""; let titreCanon = "";
 
                     if (window.mainTheme === 'historique') {
                         let maxVal = window.absoluteMaxes[window.histMetric] || 1; ratio = val / maxVal; rad = 10 + (15 * ratio); bgStr = window.getColorByFilter(ratio, p);
@@ -2579,6 +2629,13 @@
                         else if (e.arret) { iconChar = '⏹'; }
                         else if (e.masquee) { iconChar = '·'; }
                         else iconChar = String(e.prio);
+                        // Le numéro a cédé la place à la priorité : l'infobulle le redonne, avec la
+                        // dénomination du niveau — sans quoi un « 3 » sur la carte ne dit rien.
+                        if (e && !e.exclu) {
+                            titreCanon = 'Enneigeur ' + p.id + ' — ' + e.nom + ' · '
+                                + (e.hors ? 'écarté du plan' : (e.arret ? 'arrêt validé' : 'priorité ' + window.planLibPriorite(e.prio)))
+                                + (e.propre && !e.hors ? ' (réglée sur cet enneigeur)' : '');
+                        } else if (e && e.exclu) titreCanon = p.id + ' — pas un enneigeur';
                     } else { bgStr = window.getColorByFilter(0, p); }
 
                     let bord = window.selectedCannonsMap.has(p.id) ? "#2c3e50" : (window.currentlyEditingId === p.id ? "#e74c3c" : "white");
@@ -2587,7 +2644,7 @@
                     let zIdx = window.currentlyEditingId === p.id ? 2000 : (window.selectedCannonsMap.has(p.id) ? 1000 : 0);
                     layer.setZIndexOffset(zIdx);
                     let actClass = (window.mainTheme !== 'suivi_entretien' && window.mainTheme === 'defauts' && window.getActiveTickets(p.id).some(t => t.statut.includes('faire'))) ? "alert-urgent" : "";
-                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}" style="background:${bgStr}; width:${rad*2}px; height:${rad*2}px; line-height:${lh}; border:${bw} solid ${bord}; font-size:${fsz}; position:relative;">${iconChar}${remarkBadge}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
+                    layer.setIcon(L.divIcon({ className: 'custom-cannon-icon', html: `<div class="cannon-circle ${actClass}"${titreCanon ? ' title="' + titreCanon.replace(/"/g, '&quot;') + '"' : ''} style="background:${bgStr}; width:${rad*2}px; height:${rad*2}px; line-height:${lh}; border:${bw} solid ${bord}; font-size:${fsz}; position:relative;">${iconChar}${remarkBadge}</div>`, iconSize: [rad*2, rad*2], iconAnchor: [rad, rad] }));
                     layer.setOpacity(1); if(layer._icon) { layer._icon.style.opacity = '1'; layer._icon.style.transform = layer._icon.style.transform.replace(' scale(1.3)', ''); }
                 }
             });
@@ -3681,7 +3738,7 @@
                 filtered.sort((a, b) => parseInt(a.id) - parseInt(b.id)).forEach(r => {
                     let color = r.statut.includes('faire') ? (s.colUrgent || '#e74c3c') : (s.colEnCours || '#f39c12');
                     let safeDef = r.defaut.replace(/[^a-zA-Z0-9]/g, ""); let safeDefJs = r.defaut.replace(/'/g, "\\'");
-                    html += `<tr class="list-row" style="border-top:1px solid #f0f0f0; cursor:pointer;" onclick="window.toggleTicketRow('${r.id}', '${safeDefJs}', '${safeDef}')"><td style="padding:10px; font-weight:bold;">${r.id}</td><td style="padding:10px;">${r.piste}</td><td style="padding:10px;">${r.defaut}</td><td style="padding:10px;"><span style="background:${color}20; color:${color}; padding:3px 8px; border-radius:10px; font-weight:bold; font-size:10px;">${r.statut.toUpperCase()}</span></td><td style="padding:10px; color:#888;">${r.date}</td><td style="padding:10px; text-align:right;"><span class="list-row-arrow" id="arrow-ticket-${r.id}-${safeDef}">▼</span></td></tr>`;
+                    html += `<tr class="list-row" style="border-top:1px solid #f0f0f0; cursor:pointer;" onclick="window.toggleTicketRow('${r.id}', '${safeDefJs}', '${safeDef}')"><td style="padding:10px; font-weight:bold;">${r.id}</td><td style="padding:10px;">${r.piste}</td><td style="padding:10px;">${r.defaut}</td><td style="padding:10px;"><span style="background:${color}20; color:${color}; padding:3px 8px; border-radius:10px; font-weight:bold; font-size:10px;">${r.statut.toUpperCase()}</span></td><td style="padding:10px; color:#888;">${window.frDateLabel(r.date)}</td><td style="padding:10px; text-align:right;"><span class="list-row-arrow" id="arrow-ticket-${r.id}-${safeDef}">▼</span></td></tr>`;
                     html += `<tr class="list-expand-row" id="ticket-expand-row-${r.id}-${safeDef}" style="display:none;"><td colspan="6" style="padding:0; background:#fafbfc; border-top:1px solid #eee;"><div id="ticket-edit-${r.id}-${safeDef}" style="padding:12px;"></div></td></tr>`;
                 });
                 html += `</tbody></table></div>`;
@@ -3914,10 +3971,12 @@
                 .catch(function() {});
         };
         window.loadSnapshot = function() { return window.idbGet("snapshot", "sheets"); };
+        /* Toutes les dates affichées s'écrivent jour/mois/année, année comprise : « 12/08 » se lit
+           encore l'hiver suivant, et on ne sait plus de quelle saison il s'agissait. */
         window.fmtSnapshotDate = function(ts) {
             if (!ts) return "date inconnue";
             let d = new Date(ts);
-            return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + " à " +
+            return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + " à " +
                    d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         };
 
@@ -5510,7 +5569,9 @@
                 grp.addLayer(mk);
             });
 
-            if (r && r.depart) grp.addLayer(L.marker([r.depart.lat, r.depart.lng], {
+            // Coordonnées vérifiées avant d'être données à Leaflet : un point de départ incomplet
+            // levait « Invalid LatLng object » et emportait tout l'affichage de la fiche.
+            if (r && r.depart && isFinite(r.depart.lat) && isFinite(r.depart.lng)) grp.addLayer(L.marker([r.depart.lat, r.depart.lng], {
                 icon: L.divIcon({ className: 'route-step-icon route-start-icon', html: '<div>D</div>', iconSize: [26, 26], iconAnchor: [13, 13] })
             }));
 
@@ -7944,7 +8005,7 @@
 
                 let hist = window.getHistoryTickets(idCanon); let histHtml = `<div style="padding:10px; background:#fff; font-size:12px;">`;
                 if(hist.length === 0) histHtml += `<span style="color:#7f8c8d; font-style:italic;">Aucune panne enregistrée.</span>`;
-                else hist.forEach(t => { histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${t.date}</b> : <span style="color:#e74c3c;">${t.defaut}</span></div>`; });
+                else hist.forEach(t => { histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${window.frDateLabel(t.date)}</b> : <span style="color:#e74c3c;">${t.defaut}</span></div>`; });
                 histHtml += `</div>`;
 
                 let formHtml = `
@@ -11043,7 +11104,7 @@
 
         window.meteoFmtHeure = function(iso) {
             let d = new Date(iso);
-            return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) + " " +
+            return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) + " " +
                    String(d.getHours()).padStart(2, '0') + " h";
         };
 
@@ -11374,7 +11435,7 @@
         };
 
         window.getCurrentLegendHtml = function() {
-            let map = { defauts: 'legend-defauts', type: 'legend-type', repeteur: 'legend-repeteur', transfo: 'legend-transfo', historique: 'legend-historique', entretien_tete: 'legend-entretien_tete', suivi_entretien: 'legend-suivi_entretien' };
+            let map = { defauts: 'legend-defauts', type: 'legend-type', repeteur: 'legend-repeteur', transfo: 'legend-transfo', historique: 'legend-historique', entretien_tete: 'legend-entretien_tete', suivi_entretien: 'legend-suivi_entretien', planneige: 'legend-planneige' };
             let elId = map[window.mainTheme]; if (!elId) return '';
             let el = document.getElementById(elId); if (!el || !el.innerHTML.trim()) return '';
             return `<div style="font-weight:bold; font-size:11px; text-transform:uppercase; color:#34495e; margin-bottom:6px;">Légende</div>${el.innerHTML}`;
@@ -11428,6 +11489,10 @@
             if (window.isPrintMapAvailable()) blocks.push({ id: 'blk-map', kind: 'map', label: '🗺️ Carte (vue actuelle)', checked: true });
             if (window.getCurrentLegendHtml()) blocks.push({ id: 'blk-legend', kind: 'legend', label: '🏷️ Légende', checked: true });
             if (window.mainTheme === 'type') blocks.push({ id: 'blk-canonlist', kind: 'canonlist', label: '📋 Liste des canons (Type)', checked: true });
+            // Plan d'enneigement : la liste des pistes rangées par priorité s'imprime avec la carte
+            // et la légende — c'est la feuille qu'on emporte.
+            if (window.mainTheme === 'planneige' && window.planListePrioritesHtml(true))
+                blocks.push({ id: 'blk-prio', kind: 'prio', label: '❄️ Pistes par priorité', checked: true });
             let source = window.getPrintSourceContainer();
             if (source) {
                 Array.from(source.children).forEach((child, idx) => {
@@ -11699,6 +11764,12 @@
                 if (!b.checked || b.kind === 'map') continue;
                 if (b.kind === 'legend') { if (forceFullMapPage) continue; let div = document.createElement('div'); div.innerHTML = window.getCurrentLegendHtml(); div.style.cssText = 'margin-bottom:15px; padding:10px; border:1px solid #eee; border-radius:6px;'; otherBlockNodes.push(div); continue; }
                 if (b.kind === 'canonlist') { let node = window.buildTypeCanonListNode(); if (node) otherBlockNodes.push(node); continue; }
+                if (b.kind === 'prio') {
+                    let html = window.planListePrioritesHtml(true);
+                    if (html) { let d = document.createElement('div'); d.innerHTML = html;
+                        d.style.cssText = 'margin-bottom:15px; padding:10px; border:1px solid #eee; border-radius:6px;'; otherBlockNodes.push(d); }
+                    continue;
+                }
                 let source = window.getPrintSourceContainer(); let srcChild = source && source.children[b.idx];
                 if (!srcChild) continue;
                 if (window.mainTheme === 'stock') {
@@ -12049,6 +12120,8 @@
                 exclure: 'sdm, salle des machines',
                 debitCanon: {},            // id -> { c1, c1c2, c1c3, c1c2c3, air, type } saisis ici
                 canonsHorsPlan: {},        // id -> true : enneigeur écarté du plan sans être effacé
+                prioriteCanon: {},         // id -> 1 à 5 : priorité forcée, sinon celle de la piste
+                nomsPriorite: {},          // 1 à 5 et 'arret' -> dénomination choisie par l'exploitant
                 masquees: [],              // pistes masquées de la saisie et du plan
                 ordre: []                  // ordre d'affichage voulu, piste par piste
             });
@@ -12081,15 +12154,47 @@
         window.planMigrerPriorites = function() {
             let cfg = window.planCfg();
             if (cfg.prioriteP1Forte) return;
-            let imp = cfg.importance || {};
-            Object.keys(imp).forEach(function(k) {
-                let v = imp[k];
-                if (v === window.PLAN_ARRET) return;
-                let n = window.prodNum(v);
-                if (n >= 1 && n <= 5) imp[k] = 6 - n;
+            [cfg.importance, cfg.prioriteCanon].forEach(function(table) {
+                if (!table) return;
+                Object.keys(table).forEach(function(k) {
+                    let v = table[k];
+                    if (v === window.PLAN_ARRET) return;
+                    let n = window.prodNum(v);
+                    if (n >= 1 && n <= 5) table[k] = 6 - n;
+                });
             });
             cfg.prioriteP1Forte = true;
             window.planSave();
+        };
+        /* Priorité d'un enneigeur. Par défaut il suit sa piste : c'est le cas courant, et une
+           priorité recopiée sur trois cents canons serait ingérable. Elle peut être forcée canon par
+           canon — un enneigeur en bas de piste qu'on veut lancer d'abord, un autre qu'on arrête. */
+        window.planPrioriteCanon = function(id, clePiste) {
+            let cfg = window.planCfg();
+            window.planMigrerPriorites();
+            if ((cfg.canonsHorsPlan || {})[id]) return window.PLAN_ARRET;
+            let v = (cfg.prioriteCanon || {})[id];
+            if (v === window.PLAN_ARRET) return window.PLAN_ARRET;
+            let n = window.prodNum(v);
+            if (n >= 1 && n <= 5) return n;
+            return clePiste ? window.planPriorite(clePiste) : 3;
+        };
+        window.planCanonSuitSaPiste = function(id) {
+            let cfg = window.planCfg();
+            return !(cfg.canonsHorsPlan || {})[id] && (cfg.prioriteCanon || {})[id] === undefined;
+        };
+        /* « Arrêt » sur un enneigeur veut dire qu'il ne produit pas : c'est exactement ce que faisait
+           la case « hors plan », qu'on garde comme mécanisme pour ne pas avoir deux réglages qui
+           disent la même chose de deux façons. */
+        window.planReglerPrioriteCanon = function(id, v) {
+            let cfg = window.planCfg();
+            if (!cfg.prioriteCanon) cfg.prioriteCanon = {};
+            if (!cfg.canonsHorsPlan) cfg.canonsHorsPlan = {};
+            if (v === window.PLAN_ARRET) { cfg.canonsHorsPlan[id] = true; delete cfg.prioriteCanon[id]; }
+            else if (v === '' || v === 'piste') { delete cfg.canonsHorsPlan[id]; delete cfg.prioriteCanon[id]; }
+            else { delete cfg.canonsHorsPlan[id]; cfg.prioriteCanon[id] = parseInt(v, 10) || 3; }
+            window.planSave(); window.renderPlanNeige();
+            if (window.mainTheme === 'planneige') { window.updateMap(); window.refreshListViewIfActive(); }
         };
         window.planPriorite = function(cle) {
             window.planMigrerPriorites();
@@ -12100,9 +12205,17 @@
         };
         window.PLAN_COUL_PRIO = { 1: '#c0392b', 2: '#e67e22', 3: '#16a085', 4: '#3498db', 5: '#95a5a6', arret: '#2c3e50' };
         window.planCoulPriorite = function(pr) { return window.PLAN_COUL_PRIO[pr] || '#7f8c8d'; };
+        // Dénomination de chaque niveau. Les noms sont les vôtres : ceux-ci ne sont qu'un point de
+        // départ, et ce sont eux qui s'écrivent sur la carte, dans la légende et à l'impression.
+        window.PLAN_NOMS_DEFAUT = { 1: 'ouverture du domaine', 2: 'importante', 3: 'courante', 4: 'secondaire', 5: 'accessoire', arret: 'Arrêt (validé)' };
+        window.planNomPriorite = function(pr) {
+            let n = (window.planCfg().nomsPriorite || {})[pr];
+            if (n !== undefined && n !== null && n.toString().trim() !== '') return n.toString().trim();
+            return window.PLAN_NOMS_DEFAUT[pr] || String(pr);
+        };
         window.planLibPriorite = function(pr) {
-            if (pr === window.PLAN_ARRET) return 'Arrêt (validé)';
-            return { 1: '1 · ouverture du domaine', 2: '2 · importante', 3: '3 · courante', 4: '4 · secondaire', 5: '5 · accessoire' }[pr] || String(pr);
+            if (pr === window.PLAN_ARRET) return window.planNomPriorite(pr);
+            return pr + ' · ' + window.planNomPriorite(pr);
         };
         /* Ordre d'affichage et pistes masquées : le classeur mélange des lignes qui ne concernent
            plus l'exploitation, et l'ordre alphabétique ne dit rien du terrain. L'ordre voulu prime,
@@ -12140,8 +12253,12 @@
             Object.keys(pistes).forEach(function(k) {
                 let p = pistes[k];
                 p.canons.forEach(function(id) {
-                    idx[String(id)] = { cle: k, nom: p.nom, prio: p.priorite, arret: p.arret,
-                                        masquee: p.masquee, hors: !!hors[id],
+                    // La priorité peinte sur la carte est celle de l'enneigeur : la sienne s'il en a
+                    // une, celle de sa piste sinon.
+                    let pr = window.planPrioriteCanon(id, k);
+                    idx[String(id)] = { cle: k, nom: p.nom, prio: pr, prioPiste: p.priorite,
+                                        propre: !window.planCanonSuitSaPiste(id),
+                                        arret: p.arret, masquee: p.masquee, hors: !!hors[id],
                                         avancement: p.avancement, reste: p.reste };
                 });
             });
@@ -12629,7 +12746,44 @@
         };
         window.planChoisirOnglet = function(n) { window.planOnglet = n; window.renderPlanNeige(); };
         // Résumé d'une ligne dans le menu de gauche : l'avancement global, visible sans rien ouvrir.
+        /* Les pistes rangées par priorité. C'est la lecture qu'on emporte sur le terrain : dans quel
+           ordre ouvrir, et ce qu'il reste à faire sur chacune. Le même bloc part à l'impression tel
+           quel, avec la légende — d'où un rendu autonome, sans dépendre de ce qui est à l'écran. */
+        window.planListePrioritesHtml = function(pourImpression) {
+            let liste;
+            try { liste = window.planVisibles(window.planListe()); } catch (e) { return ''; }
+            if (!liste.length) return '';
+            let niveaux = [1, 2, 3, 4, 5, window.PLAN_ARRET];
+            let groupes = niveaux.map(function(n) {
+                return { n: n, pistes: liste.filter(function(p) { return p.priorite === n; }) };
+            }).filter(function(g) { return g.pistes.length; });
+            if (!groupes.length) return '';
+            let ps = pourImpression ? 12 : 11;
+            return `<div class="plan-prio-bloc">
+                <div style="font-weight:bold; font-size:${ps}px; text-transform:uppercase; color:#34495e; margin-bottom:6px;">Pistes par priorité</div>
+                ${groupes.map(function(g) {
+                    let coul = window.planCoulPriorite(g.n);
+                    return `<div style="margin-bottom:7px;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                            <span style="display:inline-block; min-width:19px; height:19px; line-height:19px; text-align:center; border-radius:10px; background:${coul}; color:#fff; font-size:10px; font-weight:bold;">${g.n === window.PLAN_ARRET ? '⏹' : g.n}</span>
+                            <span style="font-size:${ps}px; font-weight:bold; color:${coul};">${window.prodEsc(window.planNomPriorite(g.n))}</span>
+                        </div>
+                        ${g.pistes.map(function(p) {
+                            let pc = p.avancement === null ? null : Math.round(Math.min(1, p.avancement) * 100);
+                            return `<div style="display:flex; gap:6px; font-size:${ps}px; padding:1px 0 1px 25px; color:#2c3e50;">
+                                <span style="flex:1;">${window.prodEsc(p.nom)}</span>
+                                <span style="color:#7f8c8d;">${p.actifs.length} enn.</span>
+                                <span style="color:#7f8c8d; min-width:34px; text-align:right;">${pc === null ? '—' : pc + ' %'}</span>
+                                <span style="min-width:62px; text-align:right; font-weight:bold;">${p.reste > 0 ? window.planFmt(p.reste) + ' m³' : 'au but'}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>`;
+                }).join('')}
+            </div>`;
+        };
         window.planResumeMenu = function() {
+            let pl = document.getElementById('plan-prio-liste');
+            if (pl) { try { pl.innerHTML = window.planListePrioritesHtml(false); } catch (e) { pl.innerHTML = ''; } }
             let el = document.getElementById('plan-resume-menu'); if (!el) return;
             let visibles = window.planVisibles(window.planListe());
             let arretees = visibles.filter(function(p) { return p.arret; }).length;
@@ -12672,7 +12826,9 @@
         window.planFmtTH = function(v) { return (v === null || v === undefined || isNaN(v)) ? '—' : v.toFixed(1).replace('.', ',') + ' °C'; };
 
         window.renderPlanNeige = function() {
-            if (window.panneauDroite !== 'plan') return;
+            // Le menu de gauche est tenu à jour même quand l'outil n'est pas ouvert : c'est lui qui
+            // porte la liste par priorité et le résumé d'avancement.
+            if (window.panneauDroite !== 'plan') { window.planResumeMenu(); return; }
             let sl = document.getElementById('selected-list'); if (!sl) return;
             let cfg = window.planCfg();
             let onglets = [['pistes', '📋 Pistes'], ['plan', '🗓️ Plan 48 h'], ['saisie', '💧 Saisie'], ['reglages', '⚙️ Réglages']];
@@ -12794,6 +12950,20 @@
             let valeur = function(i, cle) {
                 return i.s[cle] !== undefined ? i.s[cle] : (i.d ? (i.d[cle] || '') : '');
             };
+            /* Priorité de l'enneigeur : « suit la piste » par défaut, sinon un niveau imposé, ou
+               l'arrêt qui l'écarte du plan. Un seul réglage par canon plutôt qu'une case et un
+               niveau qui diraient deux fois la même chose. */
+            let selPrio = function(id) {
+                let pr = window.planPrioriteCanon(id, p.cle);
+                let suit = window.planCanonSuitSaPiste(id);
+                return `<select onchange="window.planReglerPrioriteCanon('${id}', this.value)" title="Priorité de cet enneigeur"
+                    style="font-size:10px; padding:2px 3px; border-radius:10px; border:1px solid #d6e2ee; font-weight:bold;
+                           background:${suit ? '#fff' : window.planCoulPriorite(pr)}; color:${suit ? '#7f8c8d' : '#fff'};">
+                    <option value="piste" ${suit ? 'selected' : ''} style="background:#fff; color:#2c3e50;">↳ piste (${p.arret ? '⏹' : p.priorite})</option>
+                    ${[1,2,3,4,5].map(function(n) { return `<option value="${n}" ${!suit && pr === n ? 'selected' : ''} style="background:#fff; color:#2c3e50;">${window.planLibPriorite(n)}</option>`; }).join('')}
+                    <option value="arret" ${pr === window.PLAN_ARRET && !p.arret ? 'selected' : ''} style="background:#fff; color:#2c3e50;">⏹ ${window.prodEsc(window.planNomPriorite('arret'))}</option>
+                </select>`;
+            };
             /* Sur téléphone, cinq colonnes de nombres deviennent un tableau qu'on fait glisser pour
                voir la moitié des champs — et les champs de saisie ne peuvent pas descendre sous
                16 px sans que Safari zoome à la mise au point. Chaque enneigeur prend donc sa propre
@@ -12811,10 +12981,10 @@
                                        border:1px solid ${m ? '#e67e22' : '#dbe3ea'}; background:${m ? '#fff8ee' : '#fff'};"></label>`;
                     };
                     return `<div style="border-top:1px solid #eef2f6; padding:8px 7px; ${i.dedans ? '' : 'opacity:0.55;'}">
-                        <div style="display:flex; align-items:center; gap:7px; margin-bottom:6px;">
-                            <input type="checkbox" ${i.dedans ? 'checked' : ''} onchange="window.planCanonHorsPlan('${id}', this.checked)">
+                        <div style="display:flex; align-items:center; gap:7px; margin-bottom:6px; flex-wrap:wrap;">
                             <b style="color:#2980b9; font-size:12px; cursor:pointer;" onclick="window.focusCannon('${id}')">${window.prodEsc(id)}</b>
-                            <span style="flex:1; font-size:10px; color:#7f8c8d;">${window.prodEsc((i.d && i.d.type) || (i.c ? window.getV(i.c, window.keyType) : ''))}
+                            ${selPrio(id)}
+                            <span style="flex:1; min-width:0; font-size:10px; color:#7f8c8d;">${window.prodEsc((i.d && i.d.type) || (i.c ? window.getV(i.c, window.keyType) : ''))}
                                 ${i.alt === null ? '' : '· ' + i.alt + ' m' + (i.src === 'relief' ? '*' : '')}</span>
                         </div>
                         <div style="display:flex; gap:6px 8px; flex-wrap:wrap;">
@@ -12841,8 +13011,7 @@
                 let src = window.altitudeSource(id);
                 let dedans = !hors[id];
                 return `<tr style="${dedans ? '' : 'opacity:0.55;'}">
-                    <td style="padding:2px 4px; text-align:center;"><input type="checkbox" ${dedans ? 'checked' : ''}
-                        title="Compter cet enneigeur dans le plan" onchange="window.planCanonHorsPlan('${id}', this.checked)"></td>
+                    <td style="padding:2px 4px;">${selPrio(id)}</td>
                     <td style="padding:4px 6px; font-weight:bold; cursor:pointer; color:#2980b9;" onclick="window.focusCannon('${id}')">${window.prodEsc(id)}</td>
                     <td style="padding:4px 6px;">${window.prodEsc((d && d.type) || (c ? window.getV(c, window.keyType) : ''))}</td>
                     <td style="padding:4px 6px; text-align:right;" title="${src === 'classeur' ? 'relevé dans l\'onglet altimétrie' : (src === 'relief' ? 'estimée d\'après le modèle de relief' : 'inconnue')}">
@@ -12855,14 +13024,14 @@
             }).join('');
             return `<div style="margin-top:8px; background:#fbfdff; border:1px solid #e6ecf1; border-radius:5px;">
                 <div style="display:flex; align-items:center; gap:6px; padding:5px 6px; border-bottom:1px solid #eef2f6;">
-                    <span style="flex:1; font-size:10px; color:#7f8c8d;">Décochez un enneigeur pour l'écarter du plan.</span>
+                    <span style="flex:1; font-size:10px; color:#7f8c8d;">Chaque enneigeur suit la priorité de sa piste, sauf si vous lui en donnez une. « Arrêt » l'écarte du plan.</span>
                     <button onclick="window.renderPlanNeige()" style="background:#eef4fa; color:#2c3e50; border:1px solid #d6e2ee; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">↻ Recalculer</button>
                     <button onclick="window.planEnvoyerDebits(this)" style="background:#2980b9; color:#fff; border:none; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">⬆ Envoyer au classeur</button>
                 </div>
                 <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse:collapse; font-size:10px;">
                     <thead><tr style="background:#eef4fa; text-align:left;">
-                        <th style="padding:5px 4px;">Plan</th><th style="padding:5px 6px;">N°</th><th style="padding:5px 6px;">Type</th><th style="padding:5px 6px; text-align:right;">Alt.</th>
+                        <th style="padding:5px 4px;">Priorité</th><th style="padding:5px 6px;">N°</th><th style="padding:5px 6px;">Type</th><th style="padding:5px 6px; text-align:right;">Alt.</th>
                         ${window.COURONNES.map(function(k) { return `<th style="padding:5px 6px; text-align:right;">${k.nom}</th>`; }).join('')}
                         <th style="padding:5px 6px; text-align:right;">Air</th></tr></thead>
                     <tbody>${lignes}</tbody>
@@ -13442,6 +13611,20 @@
                     ${champ('ratioNeige', 'Neige produite par m³ d\'eau', cfg.ratioNeige, 0.1, 'm³')}
                 </div>
                 <div style="border:1px solid #e6ecf1; border-radius:6px; padding:10px; margin-bottom:12px;">
+                    <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">Dénomination des priorités</div>
+                    <div style="font-size:11px; color:#7f8c8d; margin-bottom:8px;">
+                        P1 est la plus forte. Ces noms sont les vôtres : ce sont eux qui s'affichent sur la carte, dans la légende et à l'impression.
+                    </div>
+                    ${[1,2,3,4,5,window.PLAN_ARRET].map(function(n) {
+                        return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="flex:0 0 auto; min-width:26px; height:22px; line-height:22px; text-align:center; border-radius:11px; background:${window.planCoulPriorite(n)}; color:#fff; font-size:11px; font-weight:bold;">${n === window.PLAN_ARRET ? '⏹' : n}</span>
+                            <input type="text" value="${window.prodEsc(window.planNomPriorite(n))}" onchange="window.planNommerPriorite('${n}', this.value)"
+                                placeholder="${window.prodEsc(window.PLAN_NOMS_DEFAUT[n])}"
+                                style="flex:1 1 auto; min-width:0; padding:6px; font-size:12px; border:1px solid #ccd6e0; border-radius:4px;">
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div style="border:1px solid #e6ecf1; border-radius:6px; padding:10px; margin-bottom:12px;">
                     <div style="font-size:11px; font-weight:bold; color:#2c3e50; margin-bottom:8px;">Équipements qui ne produisent pas de neige</div>
                     <div style="font-size:11px; color:#7f8c8d; margin-bottom:7px;">
                         La salle des machines figure dans la liste des canons pour porter ses tickets, mais elle n'a ni couronne ni objectif.
@@ -13500,6 +13683,15 @@
             window.planSave(); window.renderPlanNeige();
             if (window.mainTheme === 'planneige') { window.updateMap(); window.refreshListViewIfActive(); }
         };
+        window.planNommerPriorite = function(niveau, v) {
+            let cfg = window.planCfg();
+            if (!cfg.nomsPriorite) cfg.nomsPriorite = {};
+            let t = (v === null || v === undefined) ? '' : v.toString().trim();
+            if (!t) delete cfg.nomsPriorite[niveau]; else cfg.nomsPriorite[niveau] = t;
+            window.planSave(); window.renderPlanNeige();
+            if (window.mainTheme === 'planneige') { window.updateLegend(); window.updateMap(); window.refreshListViewIfActive(); }
+            window.planResumeMenu();
+        };
         window.planSeuil = function(cle, v) {
             let cfg = window.planCfg();
             if (!cfg.seuils) cfg.seuils = {};
@@ -13539,6 +13731,9 @@
                 // Altitude de chaque enneigeur : demandée une seule fois, gardée ensuite.
                 window.chargerAltitudes().then(function() { window.planResumeMenu(); }).catch(function() {});
                 window.planResumeMenu();
+                // À partir d'ici l'application est utilisable : un incident ultérieur sera signalé
+                // discrètement au lieu d'effacer l'écran.
+                window.bootTermine = true;
             } catch (err) { window.showCrash(err.message, "Boot Principal"); }
         });
     </script>
