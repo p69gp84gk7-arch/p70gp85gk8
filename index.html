@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.14.0";
+        window.APP_VERSION = "5.15.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("🛑 CRASH : " + msg); return; }
@@ -72,7 +72,10 @@
                 + "<div style='margin-top:10px; font-size:11px; opacity:.85; word-break:break-all;'>"
                 + "<b>Version chargée :</b> " + window.APP_VERSION
                 + "<br><b>Fichier ouvert :</b> " + src + "</div>"
-                + "<button onclick=\"window.rechargerSansCache()\" style='margin-top:10px; background:#c0392b; color:#fff; border:none; padding:8px 14px; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer;'>Recharger en vidant le cache</button>";
+                + "<div style='margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;'>"
+                + "<button onclick=\"location.reload()\" style='background:#2980b9; color:#fff; border:none; padding:8px 14px; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer;'>Réessayer</button>"
+                + "<button onclick=\"window.rechargerSansCache()\" style='background:#c0392b; color:#fff; border:none; padding:8px 14px; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer;'>Recharger en vidant le cache</button>"
+                + "</div>";
         };
         /* Vidage complet : caches du service worker, service worker lui-même, puis rechargement. Sans
            cela, une version cassée mise en cache se resservait indéfiniment elle-même. */
@@ -812,6 +815,17 @@
         </div>
         <div style="padding:15px; overflow-y:auto; flex:1; background:#fdfdfe;">
             <details class="panel-section" open style="margin-bottom:10px; border:1px solid #eee; border-radius:6px; background:#fff;">
+                <summary style="padding:10px; font-weight:bold; cursor:pointer; background:#f8f9fa; outline:none;"><i class="fa-solid fa-cloud-arrow-up"></i> Réglages partagés</summary>
+                <div style="padding:15px;">
+                    <p style="font-size:11px; color:#666; margin:0 0 10px;">Ordre des thèmes, couleurs, clé satellite, points météo, plan d'enneigement, légendes : tout est enregistré dans le classeur et vous suit d'un navigateur à l'autre. Seule la taille d'affichage du téléphone reste propre à l'appareil.</p>
+                    <div id="reglages-etat" style="font-size:11px; color:#555; background:#f8fafc; border:1px solid #eef2f6; border-radius:5px; padding:8px; margin-bottom:8px;"></div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button onclick="window.reglagesEnvoyerMaintenant(this)" style="flex:1 1 46%; background:#16a085; color:#fff; border:none; padding:9px; border-radius:5px; font-size:11px; font-weight:bold; cursor:pointer;">⬆ Envoyer maintenant</button>
+                        <button onclick="window.reglagesRecupererMaintenant(this)" style="flex:1 1 46%; background:#2980b9; color:#fff; border:none; padding:9px; border-radius:5px; font-size:11px; font-weight:bold; cursor:pointer;">⬇ Reprendre le classeur</button>
+                    </div>
+                </div>
+            </details>
+            <details class="panel-section" open style="margin-bottom:10px; border:1px solid #eee; border-radius:6px; background:#fff;">
                 <summary style="padding:10px; font-weight:bold; cursor:pointer; background:#f8f9fa; outline:none;"><i class="fa-solid fa-mobile-screen"></i> Taille de l'affichage (téléphone)</summary>
                 <div style="padding:15px;">
                     <div id="set-zoom-boutons" style="display:flex; gap:6px;"></div>
@@ -1181,14 +1195,14 @@
             <div class="sidebar-header-bg"><i class="fa-solid fa-layer-group"></i> Outils d'Analyse</div>
             <details class="panel-section" data-sec="theme" open><summary>Thème & Légende</summary>
                 <div class="section-content" style="padding-top: 10px;">
-                    <div class="theme-block" data-tb="atelier"><label class="radio-card" id="lbl-atelier"><input type="radio" name="main_theme" value="atelier"> <i class="fa-solid fa-toolbox" style="color:#8e44ad;"></i> Banc d'essais</label><div class="theme-details" id="details-atelier" style="display:none;border-color:#8e44ad;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Banc de test usine</div></div></div>
-                    <div class="theme-block" data-tb="stock"><label class="radio-card" id="lbl-stock"><input type="radio" name="main_theme" value="stock"> <i class="fa-solid fa-boxes-stacked" style="color:#16a085;"></i> Gestion du Stock</label><div class="theme-details" id="details-stock" style="display:none;border-color:#16a085;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Inventaire</div></div></div>
-                    <div class="theme-block" data-tb="production"><label class="radio-card" id="lbl-production"><input type="radio" name="main_theme" value="production"> <i class="fa-solid fa-industry" style="color:#2980b9;"></i> Production</label><div class="theme-details" id="details-production" style="display:none;border-color:#2980b9;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Suivi de production neige</div><div class="edit-label" style="font-size:10px;">Saison affichée</div><select id="prod-season-select" class="edit-input" style="margin-bottom:8px;" onchange="window.setProductionSeason(this.value)"></select><button class="btn-action-primary" style="margin:0; background:#2980b9;" onclick="window.openProductionForm()"><i class="fa-solid fa-plus"></i> Nouvelle production</button></div></div>
-                    <div class="theme-block" data-tb="planneige"><label class="radio-card" id="lbl-planneige"><input type="radio" name="main_theme" value="planneige"> <i class="fa-solid fa-snowflake" style="color:#0072ff;"></i> Plan d'Enneigement</label><div class="theme-details" id="details-planneige" style="display:none;border-color:#0072ff;"><div class="view-toggle-wrap" data-vt="planneige"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Priorité de production</div><div id="legend-planneige"></div><div id="plan-prio-liste" style="margin-top:10px;"></div><div id="plan-resume-menu" style="font-size:11px; color:#7f8c8d; margin-top:10px;"></div><button class="btn-action-primary" style="margin:10px 0 0; background:#0072ff;" onclick="window.openPlanNeige()"><i class="fa-solid fa-sliders"></i> Ouvrir l'outil complet</button></div></div>
-                    <div class="theme-block" data-tb="entretien_tete"><label class="radio-card" id="lbl-entretien_tete"><input type="radio" name="main_theme" value="entretien_tete"> <i class="fa-solid fa-shower" style="color:#e67e22;"></i> Entretien Tête Canon</label><div class="theme-details" id="details-entretien_tete" style="display:none;border-color:#e67e22;"><div class="view-toggle-wrap" data-vt="entretien_tete"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Buses <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('entretien_tete')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-entretien_tete" style="display:none;margin-bottom:8px;"></div><div id="legend-entretien_tete"></div><button onclick="window.resetEntretienBuses()" style="width:100%;margin-top:10px;background:#c0392b;color:white;border:none;padding:8px;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;"><i class="fa-solid fa-rotate-left"></i> RAZ</button></div></div>
-                    <div class="theme-block" data-tb="suivi_entretien"><label class="radio-card" id="lbl-suivi_entretien"><input type="radio" name="main_theme" value="suivi_entretien"> <i class="fa-solid fa-screwdriver-wrench" style="color:#27ae60;"></i> Suivi Entretien</label><div class="theme-details" id="details-suivi_entretien" style="display:none;border-color:#27ae60;"><div class="view-toggle-wrap" data-vt="suivi_entretien"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Vannes <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('suivi_entretien')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-suivi_entretien" style="display:none;margin-bottom:8px;"></div><div id="legend-suivi_entretien"></div></div></div>
                     <div class="theme-block" data-tb="defauts"><label class="radio-card" id="lbl-defauts"><input type="radio" name="main_theme" value="defauts" checked> <i class="fa-solid fa-triangle-exclamation" style="color:#e74c3c;"></i> Tickets & Pannes</label><div class="theme-details" id="details-defauts" style="display:block;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="defauts"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Statuts actuels <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('defauts')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-defauts" style="display:none;margin-bottom:8px;"></div><div id="legend-defauts"></div></div></div>
                     <div class="theme-block" data-tb="type"><label class="radio-card" id="lbl-type"><input type="radio" name="main_theme" value="type"> <i class="fa-solid fa-snowflake" style="color:#3498db;"></i> Type de canon</label><div class="theme-details" id="details-type" style="display:none;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="type"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Modèles <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('type')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-type" style="display:none;margin-bottom:8px;"></div><div id="legend-type"></div></div></div>
+                    <div class="theme-block" data-tb="entretien_tete"><label class="radio-card" id="lbl-entretien_tete"><input type="radio" name="main_theme" value="entretien_tete"> <i class="fa-solid fa-shower" style="color:#e67e22;"></i> Entretien Tête Canon</label><div class="theme-details" id="details-entretien_tete" style="display:none;border-color:#e67e22;"><div class="view-toggle-wrap" data-vt="entretien_tete"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Buses <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('entretien_tete')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-entretien_tete" style="display:none;margin-bottom:8px;"></div><div id="legend-entretien_tete"></div><button onclick="window.resetEntretienBuses()" style="width:100%;margin-top:10px;background:#c0392b;color:white;border:none;padding:8px;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;"><i class="fa-solid fa-rotate-left"></i> RAZ</button></div></div>
+                    <div class="theme-block" data-tb="suivi_entretien"><label class="radio-card" id="lbl-suivi_entretien"><input type="radio" name="main_theme" value="suivi_entretien"> <i class="fa-solid fa-screwdriver-wrench" style="color:#27ae60;"></i> Suivi Entretien</label><div class="theme-details" id="details-suivi_entretien" style="display:none;border-color:#27ae60;"><div class="view-toggle-wrap" data-vt="suivi_entretien"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Vannes <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('suivi_entretien')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-suivi_entretien" style="display:none;margin-bottom:8px;"></div><div id="legend-suivi_entretien"></div></div></div>
+                    <div class="theme-block" data-tb="stock"><label class="radio-card" id="lbl-stock"><input type="radio" name="main_theme" value="stock"> <i class="fa-solid fa-boxes-stacked" style="color:#16a085;"></i> Gestion du Stock</label><div class="theme-details" id="details-stock" style="display:none;border-color:#16a085;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Inventaire</div></div></div>
+                    <div class="theme-block" data-tb="atelier"><label class="radio-card" id="lbl-atelier"><input type="radio" name="main_theme" value="atelier"> <i class="fa-solid fa-toolbox" style="color:#8e44ad;"></i> Banc d'essais</label><div class="theme-details" id="details-atelier" style="display:none;border-color:#8e44ad;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Banc de test usine</div></div></div>
+                    <div class="theme-block" data-tb="production"><label class="radio-card" id="lbl-production"><input type="radio" name="main_theme" value="production"> <i class="fa-solid fa-industry" style="color:#2980b9;"></i> Production</label><div class="theme-details" id="details-production" style="display:none;border-color:#2980b9;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Suivi de production neige</div><div class="edit-label" style="font-size:10px;">Saison affichée</div><select id="prod-season-select" class="edit-input" style="margin-bottom:8px;" onchange="window.setProductionSeason(this.value)"></select><button class="btn-action-primary" style="margin:0; background:#2980b9;" onclick="window.openProductionForm()"><i class="fa-solid fa-plus"></i> Nouvelle production</button></div></div>
+                    <div class="theme-block" data-tb="planneige"><label class="radio-card" id="lbl-planneige"><input type="radio" name="main_theme" value="planneige"> <i class="fa-solid fa-snowflake" style="color:#0072ff;"></i> Plan d'Enneigement</label><div class="theme-details" id="details-planneige" style="display:none;border-color:#0072ff;"><div class="view-toggle-wrap" data-vt="planneige"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Priorité de production</div><div id="legend-planneige"></div><div id="plan-prio-liste" style="margin-top:10px;"></div><div id="plan-resume-menu" style="font-size:11px; color:#7f8c8d; margin-top:10px;"></div><button class="btn-action-primary" style="margin:10px 0 0; background:#0072ff;" onclick="window.openPlanNeige()"><i class="fa-solid fa-sliders"></i> Ouvrir l'outil complet</button></div></div>
                     <div class="theme-block" data-tb="repeteur"><label class="radio-card" id="lbl-repeteur"><input type="radio" name="main_theme" value="repeteur"> <i class="fa-solid fa-satellite-dish" style="color:#3498db;"></i> Répéteurs</label><div class="theme-details" id="details-repeteur" style="display:none;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="repeteur"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Répéteurs <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('repeteur')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-repeteur" style="display:none;margin-bottom:8px;"></div><div id="legend-repeteur"></div></div></div>
                     <div class="theme-block" data-tb="transfo"><label class="radio-card" id="lbl-transfo"><input type="radio" name="main_theme" value="transfo"> <i class="fa-solid fa-bolt" style="color:#f1c40f;"></i> Transformateurs</label><div class="theme-details" id="details-transfo" style="display:none;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="transfo"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Transfos <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('transfo')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-transfo" style="display:none;margin-bottom:8px;"></div><div id="legend-transfo"></div></div></div>
                     <div class="theme-block" data-tb="historique"><label class="radio-card" id="lbl-historique"><input type="radio" name="main_theme" value="historique"> <i class="fa-solid fa-chart-column" style="color:#2ecc71;"></i> Historique Volumes</label><div class="theme-details-hist" id="details-historique" style="display:none;">
@@ -1358,6 +1372,223 @@
             if(window.renderFicheCanonSettings) window.renderFicheCanonSettings();
             if(window.updateLegend) window.updateLegend(); if(window.updateMap) window.updateMap();
             window.applySettingsUI();
+        };
+
+        /* ========================================================================= */
+        /* CHAPITRE 2.D : RÉGLAGES PARTAGÉS ENTRE NAVIGATEURS                        */
+        /*                                                                          */
+        /* Tout ce qui se règle — ordre des thèmes, couleurs, clé Copernicus, points */
+        /* météo, plan d'enneigement, légendes — vivait dans le localStorage, c'est- */
+        /* à-dire dans UN navigateur. Changer de poste, ou simplement de navigateur, */
+        /* remettait l'application dans son état d'usine. Ces réglages sont          */
+        /* désormais tenus dans un onglet du classeur, une ligne par rubrique.       */
+        /*                                                                          */
+        /* Le suivi des modifications se fait par COMPARAISON PÉRIODIQUE plutôt qu'en*/
+        /* instrumentant chaque endroit qui enregistre : il y en a une quinzaine     */
+        /* dans l'application, en oublier un seul aurait fait perdre silencieusement */
+        /* un réglage. Ici, rien ne peut échapper au relevé.                          */
+        /*                                                                          */
+        /* L'arbitrage entre deux postes se fait rubrique par rubrique, à la date de */
+        /* modification : régler les couleurs sur le PC et les priorités sur l'iPad  */
+        /* n'écrase ni l'un ni l'autre. Une modification faite hors réseau reste     */
+        /* « en attente » et n'est jamais écrasée par le classeur tant qu'elle n'est */
+        /* pas partie.                                                               */
+        /* ========================================================================= */
+        // Le zoom mobile dépend de l'écran qu'on a en main : il n'a rien à faire sur un PC.
+        window.REGLAGES_NON_PARTAGES = ['zoomMobile'];
+        window.reglagesEtat = { envoye: {}, ts: {}, attente: {} };
+        window.reglagesActif = false;
+        window.reglagesCharger = function() {
+            try {
+                let b = JSON.parse(localStorage.getItem('gmao_reglages_sync') || '{}');
+                window.reglagesEtat = { envoye: b.envoye || {}, ts: b.ts || {}, attente: b.attente || {} };
+            } catch (e) { window.reglagesEtat = { envoye: {}, ts: {}, attente: {} }; }
+            return window.reglagesEtat;
+        };
+        window.reglagesSauver = function() {
+            try { localStorage.setItem('gmao_reglages_sync', JSON.stringify(window.reglagesEtat)); } catch (e) {}
+        };
+        window.reglagesLireTable = function(t) {
+            let out = {};
+            if (!t || t.length < 2) return out;
+            let ent = t[0].map(function(h) { return (h === null || h === undefined ? '' : h).toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); });
+            let iC = ent.indexOf('cle'); if (iC === -1) iC = 0;
+            let iV = ent.indexOf('valeur'); if (iV === -1) iV = 1;
+            let iM = ent.findIndex(function(h) { return h.indexOf('modifie') > -1; }); if (iM === -1) iM = 2;
+            t.slice(1).forEach(function(r) {
+                let c = (r[iC] === null || r[iC] === undefined) ? '' : r[iC].toString().trim();
+                if (!c) return;
+                out[c] = { valeur: (r[iV] === null || r[iV] === undefined) ? '' : r[iV].toString(),
+                           at: (r[iM] === null || r[iM] === undefined) ? '' : r[iM].toString() };
+            });
+            return out;
+        };
+        window.reglagesAppliquerDistants = function(table) {
+            window.reglagesCharger();
+            let distant = window.reglagesLireTable(table);
+            let etat = window.reglagesEtat;
+            let adoptes = [], gardes = [];
+            Object.keys(distant).forEach(function(cle) {
+                if (window.REGLAGES_NON_PARTAGES.indexOf(cle) > -1) return;
+                // Une modification locale pas encore partie prime : la perdre serait pire que tout.
+                if (etat.attente[cle]) { gardes.push(cle); return; }
+                let tLocal = etat.ts[cle] ? Date.parse(etat.ts[cle]) : 0;
+                let tDist = distant[cle].at ? Date.parse(distant[cle].at) : 0;
+                if (tDist && tLocal && tDist <= tLocal) return;
+                let v;
+                try { v = JSON.parse(distant[cle].valeur); } catch (e) { return; }
+                if (v === undefined) return;
+                window.appSettings[cle] = v;
+                etat.ts[cle] = distant[cle].at;
+                etat.envoye[cle] = window.reglagesJson(v);
+                adoptes.push(cle);
+            });
+            if (adoptes.length) { try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch (e) {} }
+            window.reglagesSauver();
+            window.reglagesDernierePioche = { adoptes: adoptes, gardes: gardes, at: Date.now() };
+            return window.reglagesDernierePioche;
+        };
+        /* Écriture stable : les clés d'un objet sont triées avant sérialisation. Sans cela, un
+           réglage reconstruit au démarrage dans un ordre différent — même contenu, autre ordre
+           d'insertion — produisait une chaîne différente, donc un faux changement. Deux postes se
+           seraient renvoyé le même réglage indéfiniment. */
+        window.reglagesJson = function(v) {
+            let stable = function(x) {
+                if (Array.isArray(x)) return x.map(stable);
+                if (x && typeof x === 'object') {
+                    let o = {};
+                    Object.keys(x).sort().forEach(function(k) { if (x[k] !== undefined) o[k] = stable(x[k]); });
+                    return o;
+                }
+                return x;
+            };
+            try { return JSON.stringify(stable(v)); } catch (e) { return undefined; }
+        };
+        window.reglagesDiff = function() {
+            let etat = window.reglagesEtat, maj = {};
+            Object.keys(window.appSettings).forEach(function(cle) {
+                if (window.REGLAGES_NON_PARTAGES.indexOf(cle) > -1) return;
+                let v = window.appSettings[cle];
+                if (v === undefined || typeof v === 'function') return;
+                let j = window.reglagesJson(v);
+                if (j === undefined) return;
+                if (etat.envoye[cle] === j) return;
+                maj[cle] = j;
+            });
+            return maj;
+        };
+        window.reglagesEnvoiEnCours = false;
+        window.reglagesVerifier = async function() {
+            if (!window.reglagesActif || window.reglagesEnvoiEnCours) return;
+            let maj = window.reglagesDiff();
+            let cles = Object.keys(maj);
+            if (!cles.length) return;
+            let etat = window.reglagesEtat;
+            cles.forEach(function(c) { etat.attente[c] = 1; });
+            window.reglagesSauver();
+            if (navigator.onLine === false) return;      // on retentera au prochain tour
+            window.reglagesEnvoiEnCours = true;
+            try {
+                let rep = await window.apiPost({ action: 'save_reglages', reglages: maj }, { noQueue: true });
+                let js = await rep.json();
+                if (js.status !== 'success') throw new Error(js.msg || 'refus du serveur');
+                let quand = js.modifieLe || new Date().toISOString();
+                cles.forEach(function(c) { etat.envoye[c] = maj[c]; etat.ts[c] = quand; delete etat.attente[c]; });
+                window.reglagesSauver();
+                window.reglagesDernierEnvoi = Date.now();
+                window.reglagesDerniereErreur = null;
+            } catch (e) {
+                window.reglagesDerniereErreur = e.message;
+            } finally { window.reglagesEnvoiEnCours = false; }
+        };
+        /* Index des documents Drive. Le balayage des dossiers est lent — un appel par fichier — et
+           grossit à chaque photo de panne ajoutée. Il ne doit donc jamais se produire pendant que
+           quelqu'un attend l'ouverture de l'application : on le déclenche après coup, et seulement
+           s'il date. Le résultat est repris au démarrage suivant. */
+        window.INDEX_DRIVE_HEURES = 12;
+        window.rafraichirIndexDrive = async function(forcer) {
+            let at = window.driveIndexAt ? Date.parse(window.driveIndexAt) : 0;
+            let ageH = at ? (Date.now() - at) / 3600000 : Infinity;
+            if (!forcer && ageH < window.INDEX_DRIVE_HEURES) return { ignore: true, ageH: ageH };
+            if (navigator.onLine === false || window.offlineMode) return { ignore: true, horsReseau: true };
+            let rep = await window.apiPost({ action: 'refresh_drive_index' }, { noQueue: true });
+            let js = await rep.json();
+            if (js.status !== 'success') throw new Error(js.msg || 'refus du serveur');
+            window.driveIndexAt = js.driveIndexAt || '';
+            window.driveIndexFichiers = js.fichiersIndexes || 0;
+            // L'index revient avec la réponse : on le prend séance tenante plutôt que d'attendre le
+            // démarrage suivant, sinon la première ouverture après un redéploiement se ferait sans
+            // photos ni icônes.
+            let avantPhotos = Object.keys(window.drivePhotos || {}).length;
+            if (js.drivePhotos) window.drivePhotos = js.drivePhotos;
+            if (js.driveIcons) window.driveIcons = js.driveIcons;
+            if (js.drivePdfs) window.drivePdfsData = js.drivePdfs;
+            if (js.driveKmz) window.driveKmzData = js.driveKmz;
+            if (!avantPhotos && js.fichiersIndexes) {
+                // Les icônes de type de canon sont rapatriées puis mises en cache local : à refaire
+                // maintenant que leurs adresses viennent d'arriver.
+                if (window.preparerIconesDrive) window.preparerIconesDrive().then(function() { if (window.updateMap) window.updateMap(); }).catch(function() {});
+                if (window.initDriveKMZList) try { window.initDriveKMZList(); } catch (e) {}
+                if (window.signalerIncident) window.signalerIncident("Index des documents dressé : " + js.fichiersIndexes + " fichiers.");
+            }
+            return js;
+        };
+        window.reglagesEtatTexte = function() {
+            let e = window.reglagesEtat || {};
+            let n = Object.keys(e.envoye || {}).length;
+            let att = Object.keys(e.attente || {}).length;
+            let diff = Object.keys(window.reglagesDiff ? window.reglagesDiff() : {}).length;
+            let dernier = null;
+            Object.keys(e.ts || {}).forEach(function(k) { let t = Date.parse(e.ts[k]); if (t && (!dernier || t > dernier)) dernier = t; });
+            let l = ['<b>' + n + '</b> rubrique(s) partagée(s)'];
+            l.push(dernier ? 'dernière écriture le ' + window.fmtSnapshotDate(dernier) : 'jamais envoyées');
+            if (att || diff) l.push('<b style="color:#e67e22;">' + Math.max(att, diff) + ' en attente d\'envoi</b>');
+            else l.push('<b style="color:#16a085;">à jour</b>');
+            if (window.reglagesDerniereErreur) l.push('<span style="color:#c0392b;">dernier envoi refusé : ' + window.prodEsc(window.reglagesDerniereErreur) + '</span>');
+            let p = window.reglagesDernierePioche;
+            if (p && p.adoptes && p.adoptes.length) l.push('reprises du classeur au démarrage : ' + p.adoptes.join(', '));
+            return l.join('<br>');
+        };
+        window.reglagesMajEtatUI = function() {
+            let el = document.getElementById('reglages-etat'); if (!el) return;
+            try { el.innerHTML = window.reglagesEtatTexte(); } catch (e) { el.textContent = 'état indisponible'; }
+        };
+        window.reglagesEnvoyerMaintenant = async function(btn) {
+            let t = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Envoi…';
+            window.reglagesActif = true;
+            await window.reglagesVerifier();
+            btn.disabled = false; btn.innerHTML = window.reglagesDerniereErreur ? '⚠ Échec' : '✅ Envoyé';
+            window.reglagesMajEtatUI();
+            setTimeout(function() { btn.innerHTML = t; }, 1800);
+        };
+        window.reglagesRecupererMaintenant = async function(btn) {
+            if (!confirm("Reprendre les réglages enregistrés dans le classeur ?\n\nCe poste adoptera leur version pour toutes les rubriques plus récentes que les siennes.")) return;
+            let t = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Lecture…';
+            try {
+                let rep = await window.fetchWithTimeout(GOOGLE_API_URL);
+                let d = await rep.json();
+                // Les modifications en attente ne bloquent pas une reprise demandée à la main.
+                window.reglagesEtat.attente = {};
+                let r = window.reglagesAppliquerDistants(d.reglages || []);
+                window.loadSettingsLocally();
+                if (window.applySidebarLayout) window.applySidebarLayout();
+                btn.innerHTML = '✅ ' + r.adoptes.length + ' reprise(s)';
+                window.reglagesMajEtatUI();
+            } catch (e) {
+                btn.innerHTML = '⚠ Échec';
+                alert("Lecture impossible : " + e.message);
+            }
+            btn.disabled = false;
+            setTimeout(function() { btn.innerHTML = t; }, 1800);
+        };
+        window.reglagesDemarrerSurveillance = function() {
+            if (window.reglagesMinuteur) return;
+            window.reglagesActif = true;
+            window.reglagesMinuteur = setInterval(function() { window.reglagesVerifier(); window.reglagesMajEtatUI(); }, 5000);
+            // Quitter l'onglet ou éteindre l'écran est le moment le plus probable pour perdre une
+            // modification : on tente un envoi immédiat.
+            document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'hidden') window.reglagesVerifier(); });
+            window.addEventListener('online', function() { window.reglagesVerifier(); });
         };
 
         window.saveSettingsLocally = function() {
@@ -7507,8 +7738,13 @@
             if(!resource.includes('raw.githubusercontent')) { finalUrl += (resource.includes('?') ? '&' : '?') + 't=' + new Date().getTime(); }
             const controller = window.AbortController ? new AbortController() : null;
             if (controller) options.signal = controller.signal;
+            /* Le délai n'est plus la vraie protection : la lenteur venait du balayage des dossiers
+               Drive à l'intérieur du doGet, désormais sorti du chemin de démarrage. On garde une
+               limite large — un poste en 4G au chalet est lent sans être en panne — et le message
+               dit quoi faire au lieu de constater l'échec. */
+            const delai = window.DELAI_SERVEUR_MS || 90000;
             const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => { if (controller) controller.abort(); reject(new Error("Le serveur Google met trop de temps à répondre (délai de 45s dépassé).")); }, 45000);
+                setTimeout(() => { if (controller) controller.abort(); reject(new Error("Le serveur Google n'a pas répondu en " + Math.round(delai / 1000) + " s.")); }, delai);
             });
             return Promise.race([ fetch(finalUrl, options).catch(e => { if (e.name === 'AbortError' || e.message.includes('aborted')) { throw new Error("Connexion interrompue."); } throw e; }), timeoutPromise ]);
         };
@@ -7553,6 +7789,11 @@
             // humide, donc des couronnes ouvrables.
             window.rawAltimetrie = data.altimetrie || [];
             window.altitudesSheet = null;
+            /* Réglages du classeur : adoptés AVANT toute construction d'écran, pour que l'ordre des
+               thèmes, les couleurs et les points météo soient déjà les bons au premier affichage. */
+            window.rawReglages = data.reglages || [];
+            window.driveIndexAt = data.driveIndexAt || '';
+            try { window.reglagesAppliquerDistants(window.rawReglages); } catch (e) {}
             // Les colonnes du Tableau Général sont réapprises à chaque chargement : le classeur peut
             // en avoir gagné une depuis la dernière fois.
             window.planColCache = null;
@@ -10295,8 +10536,29 @@
             if (!b) return { nom: "Station", lat: 42.766, lng: 0.564 };
             return { nom: "Domaine", lat: +((b.minLat + b.maxLat) / 2).toFixed(5), lng: +((b.minLng + b.maxLng) / 2).toFixed(5) };
         };
+        /* Points de prévision par défaut : cinq enneigeurs choisis pour couvrir le domaine du bas
+           vers le haut. On les désigne par leur NUMÉRO et non par des coordonnées écrites en dur —
+           un canon déplacé emmène son point avec lui, et la liste reste lisible dans les réglages. */
+        window.SECTEURS_METEO_DEFAUT = ['33', '139', '1', '92', '221'];
+        window.meteoSecteursDepuisCanons = function(ids) {
+            let out = [];
+            (ids || []).forEach(function(id) {
+                let c = window.planCanon ? window.planCanon(id) : null;
+                if (!c || !c.lat || !c.lng) return;
+                let piste = window.getV(c, window.keyPiste);
+                out.push({ nom: 'Canon ' + id + ((piste && piste !== 'N/A') ? ' — ' + piste : ''),
+                           canon: String(id), lat: +(+c.lat).toFixed(5), lng: +(+c.lng).toFixed(5) });
+            });
+            return out;
+        };
         window.meteoSecteurs = function() {
             let c = window.meteoCfg();
+            // Première ouverture : on installe les points par défaut dès que les canons sont chargés,
+            // et on les enregistre pour qu'ils soient modifiables comme les autres.
+            if (!c.secteurs.length && (window.snowCannons && window.snowCannons.features || []).length) {
+                let d = window.meteoSecteursDepuisCanons(window.SECTEURS_METEO_DEFAUT);
+                if (d.length) { c.secteurs = d; window.meteoSaveCfg(); }
+            }
             if (!c.secteurs.length) return [window.meteoDefaultSecteur()];
             return c.secteurs;
         };
@@ -10713,12 +10975,17 @@
         /* ------------------------------------------------------------------------- */
         window.satLayerExtra = null;
 
+        // Identifiant d'instance Copernicus du domaine. Renseigné par défaut pour que la vue
+        // satellite fonctionne sur un poste neuf sans rien avoir à ressaisir ; il reste modifiable.
+        window.CLE_COPERNICUS_DEFAUT = "1ee6f65f-3278-4f3c-9ea5-bddd74d4bda5";
         window.satCfg = function() {
             let c = window.meteoCfg();
             if (!c.sat) c.sat = {};
-            return window.completerReglages(c.sat, { instance: "", layer: "FALSE-COLOR", maxcc: 20, jours: 90,
+            window.completerReglages(c.sat, { instance: "", layer: "FALSE-COLOR", maxcc: 20, jours: 90,
                                     source: "", annee: "2025", opacite: 100, couches: [],
                                     gibs: "VIIRS_SNPP_CorrectedReflectance_TrueColor", gibsJour: "" });
+            if (!c.sat.instance) c.sat.instance = window.CLE_COPERNICUS_DEFAUT;
+            return c.sat;
         };
 
         /* Couches de l'instance Copernicus. Chaque configuration Sentinel Hub expose SES propres
@@ -13731,6 +13998,11 @@
                 // Altitude de chaque enneigeur : demandée une seule fois, gardée ensuite.
                 window.chargerAltitudes().then(function() { window.planResumeMenu(); }).catch(function() {});
                 window.planResumeMenu();
+                // Réglages : on écoute les changements et on les pousse au classeur.
+                window.reglagesDemarrerSurveillance();
+                // Index des documents Drive : reconstruit en arrière-plan quand il vieillit, JAMAIS
+                // pendant le démarrage — c'est ce balayage qui bloquait l'ouverture de l'application.
+                window.rafraichirIndexDrive().catch(function() {});
                 // À partir d'ici l'application est utilisable : un incident ultérieur sera signalé
                 // discrètement au lieu d'effacer l'écran.
                 window.bootTermine = true;
