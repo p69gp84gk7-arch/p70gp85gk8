@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.17.0";
+        window.APP_VERSION = "5.18.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -9252,6 +9252,63 @@
            ========================================================================= */
         window.calquesEtat = { chargement: {}, erreurs: {} };
         window.calqueDriveId = function(fileId) { return 'drive_' + fileId; };
+
+        /* -------------------------------------------------------------------------
+           CALQUES LIVRÉS AVEC L'APPLICATION
+
+           Ces fichiers sont déposés À CÔTÉ de index.html sur l'hébergement, comme le plan
+           de circulation : ils font partie de l'application et n'ont ni à être cherchés
+           dans le Drive ni à être réimportés sur chaque poste. Ils sont recopiés en base
+           locale au premier affichage, donc disponibles ensuite sans réseau.
+
+           Chacun garde sa couleur et son épaisseur, réglables et mémorisées : un réseau
+           d'eau et une implantation de remontées n'ont pas à se ressembler sur la carte.
+           Ajouter un fichier tient en une ligne ici, à condition qu'il soit publié au même
+           endroit que index.html.
+           ------------------------------------------------------------------------- */
+        window.KMZ_APPLICATION = [
+            { fichier: 'canalisation neige de culture.kmz', nom: 'Canalisation neige de culture', couleur: '#2980b9', epaisseur: 3 },
+            { fichier: 'pistes.kmz',                        nom: 'Pistes',                        couleur: '#27ae60', epaisseur: 3 },
+            { fichier: 'IMPLANTATION RM.kmz',               nom: 'Implantation RM',               couleur: '#8e44ad', epaisseur: 3 },
+            { fichier: 'levée de réseau ADRE.kmz',          nom: 'Levée de réseau ADRE',          couleur: '#e67e22', epaisseur: 3 }
+        ];
+        window.calqueApplicationId = function(fichier) {
+            return 'appli_' + fichier.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        };
+        // Décodage d'un .kmz ou .kml quelconque en GeoJSON. Le plan de circulation a le sien,
+        // qui en extrait des lignes classées par couleur réglementaire ; ici on veut le tracé
+        // brut, points et surfaces compris.
+        window.kmzVersGeoJson = async function(octets, nomFichier) {
+            let kml = "";
+            let u8 = new Uint8Array(octets);
+            let compresse = /\.kmz$/i.test(nomFichier) || (u8[0] === 0x50 && u8[1] === 0x4B);
+            if (compresse) {
+                if (typeof JSZip === 'undefined') throw new Error("JSZip indisponible");
+                let zip = await JSZip.loadAsync(octets);
+                let f = Object.values(zip.files).find(function(x) { return /\.kml$/i.test(x.name); });
+                if (!f) throw new Error("aucun .kml dans cette archive");
+                kml = await f.async("string");
+            } else {
+                kml = new TextDecoder("utf-8").decode(octets);
+            }
+            let xml = new DOMParser().parseFromString(kml, "text/xml");
+            if (xml.querySelector('parsererror')) throw new Error("fichier KML illisible");
+            let geo = toGeoJSON.kml(xml);
+            if (!geo || !geo.features || !geo.features.length) throw new Error("aucun tracé dans ce fichier");
+            return geo;
+        };
+        window.calqueChargerApplication = async function(it) {
+            // Le nom porte des espaces et des accents : il doit être encodé pour l'adresse,
+            // sans quoi « levée de réseau ADRE.kmz » revient en 404.
+            let rep = await fetch(encodeURI(it.fichier), { cache: 'no-cache' });
+            if (!rep.ok) throw new Error("fichier introuvable à côté de index.html (HTTP " + rep.status + ")");
+            let buf = await rep.arrayBuffer();
+            if (buf.byteLength < 64) throw new Error("fichier vide ou page d'erreur reçue");
+            let geo = await window.kmzVersGeoJson(buf, it.fichier);
+            window.addGeoJsonToMap(it.cle, it.nom, geo, true, it.couleur, it.epaisseur);
+            window.saveLayerToDB(it.cle, it.nom, geo, it.couleur, it.epaisseur, true);
+            return geo;
+        };
         // Inventaire de tout ce qui peut se poser sur la carte, groupé par provenance.
         window.calquesInventaire = function() {
             let groupes = [];
@@ -9261,7 +9318,15 @@
                     genre: 'plan', cle: 'plan', nom: 'Plan de circulation (' + window.planCirculation.lignes.length + ' tronçons)',
                     visible: !!window.planVisible, couleur: null, epaisseur: null, supprimable: false }] });
             }
-            // 2. Google Drive : listés qu'ils soient chargés ou non.
+            // 2. Fichiers livrés avec l'application : toujours proposés, chargés ou non.
+            groupes.push({ titre: "Fichiers de l'application", items: window.KMZ_APPLICATION.map(function(f) {
+                let cle = window.calqueApplicationId(f.fichier);
+                let e = window.externalLayers[cle];
+                return { genre: 'appli', cle: cle, fichier: f.fichier, nom: f.nom, charge: !!e,
+                         visible: !!(e && e.visible), couleur: e ? e.color : f.couleur,
+                         epaisseur: e ? e.weight : f.epaisseur, supprimable: false };
+            }) });
+            // 3. Google Drive : listés qu'ils soient chargés ou non.
             let noms = Object.keys(window.driveKmzData || {}).sort();
             if (noms.length) {
                 groupes.push({ titre: 'Google Drive', items: noms.map(function(nom) {
@@ -9323,7 +9388,13 @@
             // sélecteur d'import, pas dans la liste.
             let poses = [];
             window.calquesInventaire().forEach(function(g) {
-                g.items.forEach(function(it) { if (it.charge !== false) { it.groupe = g.titre; poses.push(it); } });
+                g.items.forEach(function(it) {
+                    // Les fichiers livrés avec l'application figurent toujours dans la liste, même
+                    // non chargés : ce sont des calques de l'exploitation, qu'on allume et qu'on
+                    // éteint. Le Drive, lui, reste une réserve derrière son bouton.
+                    if (it.charge === false && it.genre !== 'appli') return;
+                    it.groupe = g.titre; poses.push(it);
+                });
             });
             let nDrive = Object.keys(window.driveKmzData || {}).length;
             let liste = poses.length ? poses.map(function(it) {
@@ -9334,7 +9405,7 @@
                 return `<div class="kml-layer-item" title="${window.prodEsc(it.nom)}">
                         ${occupe ? `<i class="fa-solid fa-spinner fa-spin" style="width:13px; color:#3498db;"></i>`
                                  : `<input type="checkbox" ${it.visible ? 'checked' : ''} onchange="window.calqueBasculer('${it.cle}', this.checked)">`}
-                        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${window.prodEsc(it.nom)}</span>
+                        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ${it.charge === false ? 'color:#8899a6;' : ''}">${window.prodEsc(it.nom)}</span>
                         ${it.couleur !== null ? `<span style="width:11px; height:11px; border-radius:3px; background:${it.couleur}; flex:0 0 auto; box-shadow:0 0 0 1px rgba(0,0,0,0.12);"></span>` : ''}
                         <button onclick="window.calqueDeplier('${it.cle}')" title="Détail du calque"
                             style="background:none; border:none; color:#7f8c8d; cursor:pointer; padding:0 2px; font-size:12px;">
@@ -9343,7 +9414,8 @@
                     ${err ? `<div style="font-size:10px; color:#c0392b; padding:2px 0 6px 22px;">${window.prodEsc(err)}</div>` : ''}
                     ${ouvert ? `<div style="margin:2px 0 8px 22px; padding:8px; background:#f8fafc; border:1px solid #eef2f6; border-radius:5px; font-size:11px; color:#555;">
                         <div style="color:#95a5a6; font-size:10px; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">${window.prodEsc(it.groupe)}</div>
-                        ${window.calqueContenu(it) ? `<div style="margin-bottom:6px;">${window.calqueContenu(it)}</div>` : ''}
+                        ${window.calqueContenu(it) ? `<div style="margin-bottom:6px;">${window.calqueContenu(it)}</div>`
+                            : (it.charge === false ? `<div style="margin-bottom:6px; color:#8899a6;">Pas encore chargé — cochez la case pour l'afficher.</div>` : '')}
                         ${e && e.retires ? `<div style="color:#e67e22; margin-bottom:6px;">${e.retires} élément(s) sans coordonnées, écarté(s) à l'affichage.</div>` : ''}
                         ${it.couleur !== null ? `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                             <span>Couleur</span><input type="color" class="layer-color-picker" value="${it.couleur}" onchange="window.calqueStyle('${it.cle}', this.value, null)">
@@ -9428,9 +9500,12 @@
             delete window.calquesEtat.erreurs[cle];
             if (it.genre === 'plan') { window.basculerPlanCarte(); window.renderCalquesUnifies(); return; }
             if (it.genre === 'cloud') { await window.toggleCloudLayer(it.idx, visible); window.renderCalquesUnifies(); return; }
-            if (it.genre === 'drive' && visible && !it.charge) {
+            if ((it.genre === 'drive' || it.genre === 'appli') && visible && !it.charge) {
                 window.calquesEtat.chargement[cle] = 1; window.renderCalquesUnifies();
-                try { await window.calqueChargerDrive(it); }
+                try {
+                    if (it.genre === 'appli') await window.calqueChargerApplication(it);
+                    else await window.calqueChargerDrive(it);
+                }
                 catch (e) { window.calquesEtat.erreurs[cle] = e.message; }
                 finally { delete window.calquesEtat.chargement[cle]; window.renderCalquesUnifies(); }
                 return;
