@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.16.0";
+        window.APP_VERSION = "5.17.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -714,14 +714,16 @@
             <div id="flake-wrap">
                 <svg viewBox="0 0 100 100" role="img" aria-label="Chargement">
                     <defs>
+                        <!-- Une branche réduite à l'essentiel : la tige et une seule paire de barbes.
+                             Les trois rangs d'origine se refermaient en une tache grise dès qu'on
+                             descendait sous 32 px — c'est-à-dire partout ailleurs que sur cet écran.
+                             Les barbes sont posées SUR la tige et ouvrent vers la pointe : mises au
+                             bout, elles se lisaient comme des flèches et non comme un flocon.
+                             Même géométrie que les icônes de l'application. -->
                         <g id="flk-branch">
-                            <line x1="50" y1="50" x2="50" y2="6"></line>
-                            <line x1="50" y1="6" x2="44.5" y2="13"></line>
-                            <line x1="50" y1="6" x2="55.5" y2="13"></line>
-                            <line x1="50" y1="21" x2="41.5" y2="13.5"></line>
-                            <line x1="50" y1="21" x2="58.5" y2="13.5"></line>
-                            <line x1="50" y1="34" x2="43.5" y2="28"></line>
-                            <line x1="50" y1="34" x2="56.5" y2="28"></line>
+                            <line x1="50" y1="50" x2="50" y2="9"></line>
+                            <line x1="50" y1="29" x2="38" y2="17"></line>
+                            <line x1="50" y1="29" x2="62" y2="17"></line>
                         </g>
                         <g id="flk-full">
                             <use href="#flk-branch"></use>
@@ -740,8 +742,8 @@
                         </linearGradient>
                         <clipPath id="flk-clip"><rect id="flk-rect" x="-10" y="100" width="120" height="0"></rect></clipPath>
                     </defs>
-                    <use href="#flk-full" fill="none" stroke="#cfdbe8" stroke-width="3.4" stroke-linecap="round"></use>
-                    <use href="#flk-full" fill="none" stroke="url(#flk-grad)" stroke-width="3.4" stroke-linecap="round" clip-path="url(#flk-clip)"></use>
+                    <use href="#flk-full" fill="none" stroke="#cfdbe8" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"></use>
+                    <use href="#flk-full" fill="none" stroke="url(#flk-grad)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#flk-clip)"></use>
                 </svg>
             </div>
             <h1 id="loading-appname">GMAO Neige</h1>
@@ -1233,7 +1235,8 @@
             <details class="panel-section" data-sec="kmz" open><summary>Calques & Tracés (KMZ)</summary><div class="section-content" style="padding-top: 5px;">
                 <div id="calques-liste"></div>
                 <input type="file" id="kml-upload" accept=".kml,.kmz" style="display:none;" onchange="window.handleKMLUpload(event)">
-                <button class="btn-action-primary" style="margin-top:12px; background:#8e44ad;" onclick="document.getElementById('kml-upload').click()"><i class="fa-solid fa-folder-open"></i> Importer un fichier…</button>
+                <!-- Les deux boutons d'import sont rendus avec la liste (renderCalquesUnifies) :
+                     ils dépendent de ce que le Drive a effectivement rapporté. -->
                 <!-- Conteneurs historiques conservés pour les appels qui les visent encore. -->
                 <div id="cloud-layers-container" style="display:none;"></div><div id="custom-layers-list" style="display:none;"></div><div id="drive-kmz-dropdown-container" style="display:none;"></div>
             </div></details>
@@ -2192,7 +2195,7 @@
                     let lat = pos.coords.latitude; let lng = pos.coords.longitude;
                     if (window.userMarker) { window.map.removeLayer(window.userMarker); }
                     window.userMarker = L.circleMarker([lat, lng], { radius: 8, color: '#fff', weight: 2, fillColor: '#3498db', fillOpacity: 1, zIndexOffset: 3000 }).addTo(window.map);
-                    window.map.setView([lat, lng], 17, {animate: true}); btn.innerHTML = oldText;
+                    window.centrerSurPoint([lat, lng], 17); btn.innerHTML = oldText;
                 },
                 (err) => { alert("Erreur de localisation : " + err.message); btn.innerHTML = oldText; },
                 { enableHighAccuracy: true, timeout: 10000 }
@@ -2999,7 +3002,56 @@
             window.clearSelection(); if(window.webcamLayerGroup) window.webcamLayerGroup.eachLayer(m => m.dragging.disable()); };
         window.clearSelection = function() { window.selectedCannonsMap.clear(); if(window.currentlyEditingId) window.cancelEdit(); window.updateMap(); window.renderSelectionPanel(); window.triggerGlobalFilterChart(); };
         window.cancelEdit = function() { window.currentlyEditingId = null; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none'; document.getElementById('right-title').innerHTML = "<i class='fa-solid fa-circle-info'></i> Analyse Détaillée"; window.updateMap(); window.renderSelectionPanel(); };
-        window.focusCannon = function(id) { window.geojsonLayer.eachLayer(l => { if(l.feature.properties.id === id) { if(!window.isMultiSelect && window.mainTheme !== 'suivi_entretien') window.selectedCannonsMap.clear(); window.selectedCannonsMap.set(id,l); window.map.setView(l.getLatLng(),17); window.updateMap(); window.renderSelectionPanel(); document.getElementById('right-sidebar').classList.add('open'); } }); };
+        /* -------------------------------------------------------------------------
+           CENTRAGE DANS LA PARTIE RÉELLEMENT VISIBLE DE LA CARTE
+
+           La carte s'étend sous les panneaux latéraux : le menu d'analyse à gauche et le
+           tableau de bord à droite la recouvrent sans la rétrécir. Centrer sur un canon le
+           posait donc au milieu du CADRE, c'est-à-dire souvent derrière l'un des deux
+           panneaux — et l'ouverture du panneau de droite, provoquée par le clic lui-même,
+           achevait de le masquer.
+
+           On mesure ici ce que chaque panneau recouvre effectivement, et on décale d'autant.
+           Le calcul se fait après ouverture du panneau, sinon on corrige d'après une largeur
+           qui n'est plus la bonne un instant plus tard.
+           ------------------------------------------------------------------------- */
+        window.zoneCarteVisible = function() {
+            let out = { gauche: 0, droite: 0, haut: 0, bas: 0 };
+            if (!window.map) return out;
+            let large = window.map.getContainer().offsetWidth;
+            if (!large) return out;
+            /* Les deux panneaux glissent par « transform » en trois dixièmes de seconde : leur
+               position mesurée pendant l'animation ne vaut rien. On raisonne donc sur leur ÉTAT
+               — ouvert, replié — et sur leur largeur propre, qui elle ne bouge pas. */
+            let visible = function(el) {
+                if (!el) return false;
+                let s = getComputedStyle(el);
+                return s.display !== 'none' && s.visibility !== 'hidden' && parseFloat(s.opacity) !== 0;
+            };
+            let g = document.getElementById('sidebar');
+            if (visible(g) && !g.classList.contains('collapsed')) out.gauche = g.offsetWidth;
+            let d = document.getElementById('right-sidebar');
+            if (visible(d) && d.classList.contains('open')) out.droite = d.offsetWidth;
+            let dock = document.getElementById('mobile-dock');
+            if (visible(dock)) out.bas = dock.offsetHeight;
+            // Sur téléphone, un panneau couvre presque tout l'écran : il n'y a plus de « partie
+            // visible » à viser, et décaler enverrait le canon hors du cadre. On ne corrige pas.
+            if (out.gauche + out.droite > large * 0.8) { out.gauche = 0; out.droite = 0; }
+            return out;
+        };
+        window.centrerSurPoint = function(latlng, zoom, anime) {
+            if (!window.map || !latlng) return;
+            window.map.setView(latlng, zoom === undefined ? window.map.getZoom() : zoom, { animate: anime !== false });
+            let z = window.zoneCarteVisible();
+            let dx = (z.droite - z.gauche) / 2, dy = (z.bas - z.haut) / 2;
+            if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+            window.map.panBy([dx, dy], { animate: anime !== false });
+        };
+        window.focusCannon = function(id) { window.geojsonLayer.eachLayer(l => { if(l.feature.properties.id === id) { if(!window.isMultiSelect && window.mainTheme !== 'suivi_entretien') window.selectedCannonsMap.clear(); window.selectedCannonsMap.set(id,l); window.updateMap(); window.renderSelectionPanel(); document.getElementById('right-sidebar').classList.add('open');
+            // Le décalage est calculé APRÈS l'ouverture du panneau : sa largeur vient de changer.
+            let pt = l.getLatLng();
+            requestAnimationFrame(function() { window.centrerSurPoint(pt, 17); });
+        } }); };
 
         /* ========================================================================= */
         /* CHAPITRE 4 : PANNEAU DE DROITE, ÉDITION, ACTIONS ET TICKETS               */
@@ -4595,7 +4647,7 @@
         window.zoomSurCanon = function(id) {
             let f = ((window.snowCannons && window.snowCannons.features) || []).find(function(x) { return x.properties.id === id; });
             if (!f || !window.map) return;
-            window.map.setView([f.geometry.coordinates[1], f.geometry.coordinates[0]], 18);
+            window.centrerSurPoint([f.geometry.coordinates[1], f.geometry.coordinates[0]], 18);
             let b = document.getElementById('prox-alert'); if (b) b.classList.remove('show');
             if (window.geojsonLayer) window.geojsonLayer.eachLayer(function(l) { if (l.feature && l.feature.properties.id === id) l.fire('click'); });
         };
@@ -8200,7 +8252,7 @@
                         // d'autre, sinon la fiche canon remplacerait le panneau à chaque ajout.
                         if (window.routeClicCanon && window.routeClicCanon(id)) return;
                         if (window.selectedCannonsMap.has(id)) { window.selectedCannonsMap.delete(id); } else { window.selectedCannonsMap.set(id, layer); }
-                        if(window.map) window.map.setView(layer.getLatLng(), 17, {animate: true});
+                        if(window.map) window.centrerSurPoint(layer.getLatLng(), 17);
                         window.updateMap(); window.renderSelectionPanel(); let sb = document.getElementById('right-sidebar'); if (window.selectedCannonsMap.size > 0 && sb) sb.classList.add('open');
                     });
                 }
@@ -8212,7 +8264,7 @@
             window.webcamsData.forEach(wc => {
                 if (wc.lat !== undefined && wc.lng !== undefined && !isNaN(wc.lat) && !isNaN(wc.lng)) {
                     let marker = L.marker([wc.lat, wc.lng], { icon: L.divIcon({ className: 'custom-cannon-icon', html: `<div class="camera-icon">${wc.icon}</div>`, iconSize: [24,24], iconAnchor: [12,12] }), draggable: false });
-                    marker.on('click', function(e) { L.DomEvent.stopPropagation(e); if(marker.dragging && marker.dragging.enabled()) return; if(window.map) window.map.setView([wc.lat, wc.lng], 17, {animate: true}); if(window.openSingleWebcam) window.openSingleWebcam(wc.nom); });
+                    marker.on('click', function(e) { L.DomEvent.stopPropagation(e); if(marker.dragging && marker.dragging.enabled()) return; if(window.map) window.centrerSurPoint([wc.lat, wc.lng], 17); if(window.openSingleWebcam) window.openSingleWebcam(wc.nom); });
                     marker.wcData = wc; window.webcamLayerGroup.addLayer(marker);
                 }
             });
@@ -9239,30 +9291,129 @@
             }
             return groupes;
         };
+        /* La liste ne montre QUE les calques réellement posés. Lister le contenu entier du Drive
+           remplissait le menu de gauche d'une dizaine de lignes qu'on ne regarde jamais : le Drive
+           est une réserve, pas un calque. On y va donc par un bouton, quand on en a besoin.
+           Le détail — couleur, épaisseur, contenu, suppression — se replie derrière une flèche :
+           une ligne par calque suffit à la lecture courante. */
+        window.calquesOuverts = {};
+        window.calqueDeplier = function(cle) {
+            window.calquesOuverts[cle] = !window.calquesOuverts[cle];
+            window.renderCalquesUnifies();
+        };
+        window.calqueContenu = function(it) {
+            let e = window.externalLayers[it.cle];
+            let geo = e ? e.geojson : null;
+            if (it.genre === 'plan' && window.planCirculation)
+                return window.planCirculation.lignes.length + ' tronçon(s)';
+            if (!geo || !geo.features) return '';
+            let n = { lignes: 0, points: 0, surfaces: 0 };
+            geo.features.forEach(function(f) {
+                let t = (f.geometry || {}).type || '';
+                if (/Point/.test(t)) n.points++;
+                else if (/Polygon/.test(t)) n.surfaces++;
+                else if (/LineString/.test(t)) n.lignes++;
+            });
+            return [n.lignes ? n.lignes + ' tracé(s)' : '', n.points ? n.points + ' point(s)' : '',
+                    n.surfaces ? n.surfaces + ' surface(s)' : ''].filter(Boolean).join(' · ');
+        };
         window.renderCalquesUnifies = function() {
             let box = document.getElementById('calques-liste'); if (!box) return;
-            let groupes = window.calquesInventaire();
-            if (!groupes.length) {
-                box.innerHTML = `<i style="font-size:11px; color:#888;">Aucun calque disponible. Importez un fichier .kmz, ou déclarez-en dans l'onglet « kmz » du classeur.</i>`;
-                return;
-            }
-            box.innerHTML = groupes.map(function(g) {
-                return `<div style="margin-bottom:10px;">
-                    <div style="font-size:10px; font-weight:bold; color:#95a5a6; text-transform:uppercase; margin-bottom:4px;">${window.prodEsc(g.titre)}</div>
-                    ${g.items.map(function(it) {
-                        let occupe = window.calquesEtat.chargement[it.cle];
-                        let err = window.calquesEtat.erreurs[it.cle];
-                        return `<div class="kml-layer-item" title="${window.prodEsc(it.nom)}">
-                            ${occupe ? `<i class="fa-solid fa-spinner fa-spin" style="width:13px; color:#3498db;"></i>`
-                                     : `<input type="checkbox" ${it.visible ? 'checked' : ''} onchange="window.calqueBasculer('${it.cle}', this.checked)">`}
-                            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ${it.charge === false ? 'color:#7f8c8d;' : ''}">${window.prodEsc(it.nom)}</span>
-                            ${it.couleur !== null ? `<input type="color" class="layer-color-picker" value="${it.couleur}" onchange="window.calqueStyle('${it.cle}', this.value, null)">` : ''}
-                            ${it.epaisseur !== null ? `<input type="number" class="layer-weight-picker" value="${it.epaisseur}" min="1" max="15" onchange="window.calqueStyle('${it.cle}', null, this.value)">` : ''}
-                            ${it.supprimable ? `<button onclick="window.calqueSupprimer('${it.cle}')" title="Retirer ce calque" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:14px; padding:0 4px;">×</button>` : ''}
-                        </div>${err ? `<div style="font-size:10px; color:#c0392b; padding:2px 0 6px 20px;">${window.prodEsc(err)}</div>` : ''}`;
-                    }).join('')}
-                </div>`;
+            // Les fichiers du Drive non chargés ne sont pas des calques : ils vivent dans le
+            // sélecteur d'import, pas dans la liste.
+            let poses = [];
+            window.calquesInventaire().forEach(function(g) {
+                g.items.forEach(function(it) { if (it.charge !== false) { it.groupe = g.titre; poses.push(it); } });
+            });
+            let nDrive = Object.keys(window.driveKmzData || {}).length;
+            let liste = poses.length ? poses.map(function(it) {
+                let occupe = window.calquesEtat.chargement[it.cle];
+                let err = window.calquesEtat.erreurs[it.cle];
+                let ouvert = !!window.calquesOuverts[it.cle];
+                let e = window.externalLayers[it.cle];
+                return `<div class="kml-layer-item" title="${window.prodEsc(it.nom)}">
+                        ${occupe ? `<i class="fa-solid fa-spinner fa-spin" style="width:13px; color:#3498db;"></i>`
+                                 : `<input type="checkbox" ${it.visible ? 'checked' : ''} onchange="window.calqueBasculer('${it.cle}', this.checked)">`}
+                        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${window.prodEsc(it.nom)}</span>
+                        ${it.couleur !== null ? `<span style="width:11px; height:11px; border-radius:3px; background:${it.couleur}; flex:0 0 auto; box-shadow:0 0 0 1px rgba(0,0,0,0.12);"></span>` : ''}
+                        <button onclick="window.calqueDeplier('${it.cle}')" title="Détail du calque"
+                            style="background:none; border:none; color:#7f8c8d; cursor:pointer; padding:0 2px; font-size:12px;">
+                            <i class="fa-solid fa-chevron-${ouvert ? 'down' : 'right'}"></i></button>
+                    </div>
+                    ${err ? `<div style="font-size:10px; color:#c0392b; padding:2px 0 6px 22px;">${window.prodEsc(err)}</div>` : ''}
+                    ${ouvert ? `<div style="margin:2px 0 8px 22px; padding:8px; background:#f8fafc; border:1px solid #eef2f6; border-radius:5px; font-size:11px; color:#555;">
+                        <div style="color:#95a5a6; font-size:10px; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">${window.prodEsc(it.groupe)}</div>
+                        ${window.calqueContenu(it) ? `<div style="margin-bottom:6px;">${window.calqueContenu(it)}</div>` : ''}
+                        ${e && e.retires ? `<div style="color:#e67e22; margin-bottom:6px;">${e.retires} élément(s) sans coordonnées, écarté(s) à l'affichage.</div>` : ''}
+                        ${it.couleur !== null ? `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span>Couleur</span><input type="color" class="layer-color-picker" value="${it.couleur}" onchange="window.calqueStyle('${it.cle}', this.value, null)">
+                            <span>Épaisseur</span><input type="number" class="layer-weight-picker" value="${it.epaisseur}" min="1" max="15" onchange="window.calqueStyle('${it.cle}', null, this.value)">
+                        </div>` : ''}
+                        <div style="display:flex; gap:6px;">
+                            ${e ? `<button onclick="window.calqueCadrer('${it.cle}')" style="flex:1; background:#ecf0f1; border:1px solid #dbe2e8; color:#34495e; padding:5px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-crosshairs"></i> Cadrer</button>` : ''}
+                            ${it.supprimable ? `<button onclick="window.calqueSupprimer('${it.cle}')" style="flex:1; background:#fdedec; border:1px solid #f5b7b1; color:#c0392b; padding:5px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-trash"></i> Retirer</button>` : ''}
+                        </div>
+                    </div>` : ''}`;
+            }).join('') : `<i style="font-size:11px; color:#888;">Aucun calque affiché.</i>`;
+
+            let choix = window.calquesChoixDriveOuvert ? `
+                <div style="margin-top:8px; padding:8px; background:#f8fafc; border:1px solid #eef2f6; border-radius:5px;">
+                    ${nDrive ? `<select id="drive-kmz-select" class="edit-input" style="margin:0 0 6px; font-size:11px; padding:6px;">
+                        ${Object.keys(window.driveKmzData).sort().map(function(nom) {
+                            return `<option value="${window.driveKmzData[nom]}">${window.prodEsc(nom.replace(/\.(kmz|kml)$/i, ''))}</option>`;
+                        }).join('')}
+                       </select>
+                       <div style="display:flex; gap:6px;">
+                        <button onclick="window.calqueImporterDriveChoisi(this)" style="flex:1; background:#3498db; color:#fff; border:none; padding:7px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">Afficher</button>
+                        <button onclick="window.calqueBasculerChoixDrive()" style="background:#ecf0f1; border:1px solid #ccc; padding:7px 10px; border-radius:4px; font-size:11px; cursor:pointer;">Fermer</button>
+                       </div>`
+                      : `<i style="font-size:11px; color:#888;">Aucun fichier .kmz dans le Drive. L'index se construit après le démarrage : réessayez dans une minute.</i>`}
+                </div>` : '';
+
+            /* Un fichier du Drive qui a refusé de s'ouvrir n'apparaît dans aucune ligne — il n'est
+               justement pas posé. Son message s'afficherait donc dans le vide : on le sort ici,
+               au-dessus des boutons, sans quoi le clic sur « Afficher » resterait sans réponse. */
+            let orphelines = Object.keys(window.calquesEtat.erreurs || {})
+                .filter(function(c) { return !poses.some(function(x) { return x.cle === c; }); });
+            let msgs = orphelines.map(function(c) {
+                let it = window.calqueTrouver(c);
+                return `<div style="background:#fdedec; border:1px solid #f5b7b1; color:#c0392b; border-radius:5px; padding:7px; font-size:10px; margin-top:8px;">
+                    <b>${window.prodEsc(it ? it.nom : c)}</b> — ${window.prodEsc(window.calquesEtat.erreurs[c])}
+                    <button onclick="window.calqueOublierErreur('${c}')" style="background:none; border:none; color:#c0392b; cursor:pointer; float:right; font-weight:bold;">×</button></div>`;
             }).join('');
+
+            box.innerHTML = liste + msgs + `
+                <div style="display:flex; gap:6px; margin-top:10px;">
+                    <button onclick="window.calqueBasculerChoixDrive()" style="flex:1; background:#3498db; color:#fff; border:none; padding:8px; border-radius:5px; font-size:11px; font-weight:bold; cursor:pointer;">
+                        <i class="fa-brands fa-google-drive"></i> Depuis le Drive${nDrive ? ' (' + nDrive + ')' : ''}</button>
+                    <button onclick="document.getElementById('kml-upload').click()" style="flex:1; background:#8e44ad; color:#fff; border:none; padding:8px; border-radius:5px; font-size:11px; font-weight:bold; cursor:pointer;">
+                        <i class="fa-solid fa-folder-open"></i> Un fichier</button>
+                </div>` + choix;
+        };
+        window.calqueOublierErreur = function(cle) {
+            delete window.calquesEtat.erreurs[cle];
+            window.renderCalquesUnifies();
+        };
+        window.calquesChoixDriveOuvert = false;
+        window.calqueBasculerChoixDrive = function() {
+            window.calquesChoixDriveOuvert = !window.calquesChoixDriveOuvert;
+            window.renderCalquesUnifies();
+        };
+        window.calqueImporterDriveChoisi = async function(btn) {
+            let sel = document.getElementById('drive-kmz-select'); if (!sel || !sel.value) return;
+            let cle = window.calqueDriveId(sel.value);
+            window.calquesChoixDriveOuvert = false;
+            await window.calqueBasculer(cle, true);
+        };
+        // Recadrer la carte sur un calque : sur un domaine, un tracé importé peut se trouver
+        // à l'autre bout de la vallée sans qu'on s'en aperçoive.
+        window.calqueCadrer = function(cle) {
+            let e = window.externalLayers[cle]; if (!e || !e.layer || !window.map) return;
+            if (!e.visible) window.calqueBasculer(cle, true);
+            try {
+                let b = e.layer.getBounds();
+                if (b && b.isValid()) window.map.fitBounds(b, { padding: [30, 30] });
+            } catch (err) {}
         };
         window.calqueTrouver = function(cle) {
             let g = window.calquesInventaire();
@@ -9470,13 +9621,80 @@
             };
         };
         window.buildGeoJsonStyle = function(hexColor, weight) { let finalWeight = weight ? parseInt(weight) : 4; return { style: function (feature) { return { color: hexColor, weight: finalWeight, opacity: 0.8, fillColor: hexColor }; }, pointToLayer: function(feature, latlng) { return L.circleMarker(latlng, {radius: 6, color: hexColor, fillColor: hexColor, fillOpacity: 0.8, weight: 1}); } }; };
+        /* -------------------------------------------------------------------------
+           ASSAINISSEMENT D'UN TRACÉ AVANT DE LE POSER SUR LA CARTE
+
+           « Invalid LatLng object: (undefined, NaN) » : un fichier KML contient presque
+           toujours quelques repères vides — un dossier, un point de légende, un tracé
+           abandonné en cours de saisie. Convertis en GeoJSON, ils donnent des géométries
+           sans coordonnées, et Leaflet refuse alors le calque ENTIER : un seul repère
+           creux et le KMZ ne s'affiche pas du tout.
+
+           On écarte donc ce qui n'est pas plaçable, et on garde le reste. Le compte des
+           éléments retirés est conservé pour pouvoir le dire, plutôt que de laisser croire
+           que le fichier est complet.
+           ------------------------------------------------------------------------- */
+        window.coordValide = function(c) {
+            return Array.isArray(c) && c.length >= 2 &&
+                   typeof c[0] === 'number' && typeof c[1] === 'number' &&
+                   isFinite(c[0]) && isFinite(c[1]) &&
+                   c[0] >= -180 && c[0] <= 180 && c[1] >= -90 && c[1] <= 90;
+        };
+        window.geometrieAssainie = function(g) {
+            if (!g || !g.type) return null;
+            let c = g.coordinates;
+            if (g.type === 'Point') return window.coordValide(c) ? g : null;
+            if (g.type === 'MultiPoint' || g.type === 'LineString') {
+                let p = (c || []).filter(window.coordValide);
+                if (g.type === 'LineString' && p.length < 2) return null;
+                if (!p.length) return null;
+                return { type: g.type, coordinates: p };
+            }
+            if (g.type === 'MultiLineString' || g.type === 'Polygon') {
+                let l = (c || []).map(function(x) { return (x || []).filter(window.coordValide); })
+                                 .filter(function(x) { return x.length >= 2; });
+                if (!l.length) return null;
+                return { type: g.type, coordinates: l };
+            }
+            if (g.type === 'MultiPolygon') {
+                let m = (c || []).map(function(poly) {
+                    return (poly || []).map(function(x) { return (x || []).filter(window.coordValide); })
+                                       .filter(function(x) { return x.length >= 2; });
+                }).filter(function(poly) { return poly.length; });
+                if (!m.length) return null;
+                return { type: g.type, coordinates: m };
+            }
+            if (g.type === 'GeometryCollection') {
+                let sous = (g.geometries || []).map(window.geometrieAssainie).filter(Boolean);
+                if (!sous.length) return null;
+                return { type: 'GeometryCollection', geometries: sous };
+            }
+            return null;
+        };
+        window.geoJsonAssaini = function(geo) {
+            let feats = (geo && geo.type === 'FeatureCollection') ? (geo.features || []) : (geo ? [geo] : []);
+            let gardes = [], retires = 0;
+            feats.forEach(function(f) {
+                if (!f) { retires++; return; }
+                let g = window.geometrieAssainie(f.type === 'Feature' ? f.geometry : f);
+                if (!g) { retires++; return; }
+                gardes.push(f.type === 'Feature' ? { type: 'Feature', properties: f.properties || {}, geometry: g }
+                                                 : { type: 'Feature', properties: {}, geometry: g });
+            });
+            return { geo: { type: 'FeatureCollection', features: gardes }, gardes: gardes.length, retires: retires };
+        };
+
         window.addGeoJsonToMap = function(id, name, geojson, isVisible, hexColor, weight, sansRecadrage) {
             let finalWeight = weight || 4;
             if (window.externalLayers[id] && window.externalLayers[id].layer) { window.map.removeLayer(window.externalLayers[id].layer); }
+            let net = window.geoJsonAssaini(geojson);
+            if (!net.gardes) throw new Error("aucun tracé plaçable dans ce fichier" + (net.retires ? " (" + net.retires + " élément(s) sans coordonnées)" : ""));
+            geojson = net.geo;
             const layer = L.geoJSON(geojson, window.buildGeoJsonStyle(hexColor, finalWeight));
             if(isVisible) layer.addTo(window.map);
             if(isVisible && !sansRecadrage && layer.getBounds && typeof layer.getBounds === 'function') { let b = layer.getBounds(); if(b.isValid()) window.map.fitBounds(b); }
-            window.externalLayers[id] = { layer: layer, name: name, geojson: geojson, color: hexColor, weight: finalWeight, visible: isVisible };
+            window.externalLayers[id] = { layer: layer, name: name, geojson: geojson, color: hexColor,
+                                          weight: finalWeight, visible: isVisible, retires: net.retires };
             return layer;
         };
 
