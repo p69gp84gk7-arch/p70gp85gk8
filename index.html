@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.18.0";
+        window.APP_VERSION = "5.19.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -1404,13 +1404,46 @@
         // partir de appSettings — jamais l'inverse.
         window.reglageEcran = function() {
             window.reglagesEcranVersEtat();
-            try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch (e) {}
+            try { window.persisterReglages(); } catch (e) {}
             window.applySettingsUI();
         };
 
+        /* -------------------------------------------------------------------------
+           CHAPITRE 2.C.2 — ON NE PEUT PAS ÉCRIRE LES RÉGLAGES AVANT DE LES AVOIR LUS
+
+           Tous les réglages tiennent dans UN SEUL enregistrement du navigateur : chaque
+           point d'écriture y recopie window.appSettings en entier. Une écriture faite
+           avant que le contenu mémorisé n'ait été relu efface donc TOUT ce qui avait été
+           réglé, et le remplace par les valeurs d'usine.
+
+           C'est ce qui se produisait à chaque démarrage : la reprise des priorités du
+           classeur enregistrait les réglages du plan d'enneigement AVANT la lecture de la
+           mémoire. Couleurs, ordre des thèmes, forme des boutons, secteurs météo — tout
+           repartait d'usine à chaque ouverture, et le poste renvoyait ensuite ces valeurs
+           d'usine au classeur, écrasant du même coup ce qui avait été réglé sur le
+           téléphone. « Les réglages ne se répercutent pas » : ils étaient effacés.
+
+           La lecture se fait donc ici, à l'analyse du script, avant que quoi que ce soit
+           ne puisse tourner ; et l'écriture est refusée tant qu'elle n'a pas eu lieu.
+           ------------------------------------------------------------------------- */
+        window.reglagesMemoirePrete = false;
+        window.chargerReglagesMemoire = function() {
+            try {
+                let brut = localStorage.getItem('gmao_settings_v5');
+                if (brut) window.appSettings = Object.assign(window.appSettings, JSON.parse(brut));
+            } catch (e) {}
+            window.reglagesMemoirePrete = true;
+            return window.appSettings;
+        };
+        window.persisterReglages = function() {
+            if (!window.reglagesMemoirePrete) { window.reglagesEcritureRefusee = (window.reglagesEcritureRefusee || 0) + 1; return false; }
+            try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch (e) { return false; }
+            return true;
+        };
+        window.chargerReglagesMemoire();
+
         window.loadSettingsLocally = function() {
-            let saved = localStorage.getItem('gmao_settings_v5');
-            if (saved) { window.appSettings = Object.assign(window.appSettings, JSON.parse(saved)); }
+            window.chargerReglagesMemoire();
             if (!window.appSettings.viewMode) window.appSettings.viewMode = { defauts: 'map', suivi_entretien: 'map', entretien_tete: 'map', type: 'map', repeteur: 'map', transfo: 'map' };
             if (!window.appSettings.legendConfig) window.appSettings.legendConfig = {};
             // Object.assign ne fusionne que le premier niveau : un réglage de production absent du
@@ -1504,7 +1537,7 @@
                 etat.envoye[cle] = window.reglagesJson(v);
                 adoptes.push(cle);
             });
-            if (adoptes.length) { try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch (e) {} }
+            if (adoptes.length) { try { window.persisterReglages(); } catch (e) {} }
             window.reglagesSauver();
             window.reglagesDernierePioche = { adoptes: adoptes, gardes: gardes, at: Date.now() };
             // Au démarrage, l'écran est construit après ce point : rien à repeindre. En cours de
@@ -1714,7 +1747,7 @@
             // de carte) sont déjà tenus à jour dans window.appSettings au fil de l'eau par leurs
             // propres handlers : ils ne doivent surtout pas être écrasés ici.
             window.reglagesEcranVersEtat();
-            localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings));
+            window.persisterReglages();
             alert("Paramètres mémorisés avec succès !");
             let panel = document.getElementById('settings-panel'); if(panel) panel.style.display = 'none';
             window.updateLegend(); window.updateMap(); window.triggerGlobalFilterChart();
@@ -2127,7 +2160,7 @@
         };
 
         window.persistLayoutSettings = function() {
-            localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings));
+            window.persisterReglages();
             window.applySidebarLayout();
             window.renderSidebarOrderSettings();
         };
@@ -2638,7 +2671,7 @@
         window.setZoomMobile = function(f) {
             let avant = window.viewportVoulu();
             window.appSettings.zoomMobile = f;
-            try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch (e) {}
+            try { window.persisterReglages(); } catch (e) {}
             window.renderZoomMobile();
             if (window.viewportVoulu() === avant) return;             // sur ordinateur : rien ne change
             try { if (window.routeSave) window.routeSave(); } catch (e) {}
@@ -2809,7 +2842,7 @@
             if (!c.order) c.order = []; if (!c.hidden) c.hidden = [];
             return c;
         };
-        window.saveLegendConfig = function() { try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch(e) {} };
+        window.saveLegendConfig = function() { try { window.persisterReglages(); } catch(e) {} };
 
         window.sortLegendItems = function(theme, items) {
             let order = window.getLegendConfig(theme).order;
@@ -3717,7 +3750,7 @@
         window.setDashPref = function(key, field, val) {
             let p = window.getDashPref(key);
             p[field] = (val === 'true') ? true : (val === 'false' ? false : val);
-            try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch(e) {}
+            try { window.persisterReglages(); } catch(e) {}
             window.triggerGlobalFilterChart();
         };
 
@@ -3777,7 +3810,7 @@
         };
 
         window.filterDashTable = function(key, q, skipSave) {
-            if (!skipSave) { window.getDashPref(key).filter = q; try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch(e) {} }
+            if (!skipSave) { window.getDashPref(key).filter = q; try { window.persisterReglages(); } catch(e) {} }
             let needle = (q || '').toLowerCase().trim();
             let host = document.getElementById('dash-table-' + key); if (!host) return;
             host.querySelectorAll('.dash-row').forEach(tr => {
@@ -3951,7 +3984,7 @@
         window.setViewMode = function(theme, mode) {
             if (!window.appSettings.viewMode) window.appSettings.viewMode = {};
             window.appSettings.viewMode[theme] = mode;
-            try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch(e) {}
+            try { window.persisterReglages(); } catch(e) {}
             if (window.mainTheme === theme) window.applyThemeViewMode();
             window.renderViewToggles();
         };
@@ -4521,6 +4554,10 @@
                 msg = "" + window.outboxCount + " saisie(s) en attente d'envoi";
                 if (window.outboxFailed > 0) msg += " · " + window.outboxFailed + " refusée(s)";
                 btn = `<button onclick="window.flushOutbox(true)">Envoyer</button>`;
+            } else if (window.donneesPerimees) {
+                cls = "stale";
+                msg = "Le classeur a changé depuis l'ouverture — rechargez pour voir les données à jour";
+                btn = `<button onclick="location.reload()">Recharger</button><button onclick="window.donneesPerimees=false;window.updateNetBanner();" style="margin-left:5px;">Plus tard</button>`;
             } else if (window.dataStale) {
                 cls = "stale";
                 msg = "Saisies envoyées — rechargez pour voir le Google Sheet à jour";
@@ -4571,7 +4608,7 @@
             if (!window.appSettings.proximite) window.appSettings.proximite = {};
             return window.completerReglages(window.appSettings.proximite, { actif: false, rayon: 120, repos: 30 });
         };
-        window.proxSave = function() { try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch(e) {} };
+        window.proxSave = function() { try { window.persisterReglages(); } catch(e) {} };
 
         // Distance en mètres (formule de haversine).
         window.distanceM = function(lat1, lng1, lat2, lng2) {
@@ -4773,7 +4810,7 @@
                 ]
             });
         };
-        window.routeSave = function() { try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch(e) {} };
+        window.routeSave = function() { try { window.persisterReglages(); } catch(e) {} };
 
         window.routeNumero = function(id) {
             let s = (id === null || id === undefined ? '' : id.toString());
@@ -8057,6 +8094,10 @@
                 try { data = JSON.parse(textData); } catch(e) { throw new Error("Format invalide."); }
                 if (data.status === "error") throw new Error(data.message || "Erreur serveur Apps Script.");
                 window.offlineMode = false;
+                // Empreinte de ce qui est affiché : elle sert à savoir, plus tard, si le classeur
+                // a bougé depuis (cf. CHAPITRE 5.B).
+                window.empreinteDonnees = window.empreinteTexte(textData);
+                window.donneesChargeesA = Date.now();
                 window.saveSnapshot(data);
             } catch (netErr) {
                 let snap = null;
@@ -8064,6 +8105,7 @@
                 if (!snap || !snap.payload) throw netErr;
                 data = snap.payload;
                 window.offlineMode = true; window.snapshotAt = snap.at;
+                window.empreinteDonnees = null; window.donneesChargeesA = 0;
                 window.setStep(1, "Hors réseau — copie du " + window.fmtSnapshotDate(snap.at));
             }
 
@@ -8201,6 +8243,107 @@
             let ld = document.getElementById('loading-desc');
             if(ld) ld.innerHTML = `${window.snowCannons.features.length} canons placés.` + (window.offlineMode ? `<br><span style="color:#c0392b;">Copie locale du ${window.fmtSnapshotDate(window.snapshotAt)}</span>` : '');
             setTimeout(() => { window.initAppUI(); if(window.initDriveKMZList) window.initDriveKMZList(); if(window.loadSettingsLocally) window.loadSettingsLocally(); if(window.initMobileDock) window.initMobileDock(); if (window.innerWidth <= 768) { let sb = document.getElementById('sidebar'); if (sb) sb.classList.add('collapsed'); } let ov = document.getElementById('loading-overlay'); if(ov) ov.style.display = 'none'; window.refreshOutboxCount().then(function() { if (!window.offlineMode && window.outboxCount > 0) window.flushOutbox(); }); if (window.proxCfg().actif) window.proxDemarrer(); if (window.chargerTrajetDepuisUrl) window.chargerTrajetDepuisUrl(); }, 800);
+        };
+
+        /* =========================================================================
+           CHAPITRE 5.B : FRAÎCHEUR DES DONNÉES AFFICHÉES
+
+           Le classeur n'est lu qu'UNE fois, au démarrage. Sur un ordinateur, l'onglet finit
+           par être fermé et rouvert, donc relu. Sur un téléphone, non : l'application
+           installée est mise en veille puis reprise, jamais redémarrée. Elle pouvait ainsi
+           montrer pendant des jours l'état du classeur au matin de son ouverture — une
+           tâche modifiée sur le PC la veille n'apparaissait pas le lendemain sur le
+           téléphone. C'était le cas signalé.
+
+           Au retour au premier plan après une absence, on va donc redemander le classeur et
+           comparer son empreinte à celle de ce qui est affiché. Rien n'a bougé : on ne fait
+           rien, et cela ne coûte qu'une lecture. Le classeur a changé : l'application se
+           recharge — sauf si quelque chose est en cours de saisie, auquel cas elle le
+           propose dans le bandeau plutôt que d'emporter le travail en cours.
+           ========================================================================= */
+        window.DONNEES_AGE_MS = 10 * 60 * 1000;      // en deçà, inutile de redemander
+        window.empreinteDonnees = null;
+        window.donneesChargeesA = 0;
+        window.donneesPerimees = false;
+        window.donneesControleEnCours = false;
+        window.pageMasqueeA = 0;
+        // FNV-1a : suffisant pour dire « ce n'est plus le même texte », et immédiat même sur
+        // plusieurs centaines de milliers de caractères.
+        window.empreinteTexte = function(t) {
+            let h = 0x811c9dc5;
+            for (let i = 0; i < t.length; i++) {
+                h ^= t.charCodeAt(i);
+                h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+            }
+            return t.length + ':' + h.toString(16);
+        };
+        /* Ce qu'il ne faut pas interrompre. Recharger la page pendant qu'on remplit un ticket au
+           bord d'une piste ferait perdre la saisie : le rechargement automatique s'abstient, et
+           le bandeau prend le relais. */
+        window.FENETRES_A_MENAGER = ['pdf-modal', 'bi-meteo-modal', 'compare-modal', 'meteo-history-modal',
+                                     'print-page-preview-modal', 'calendar-modal', 'qr-scan', 'route-qr-plein',
+                                     'settings-panel', 'print-panel'];
+        window.travailEnCours = function() {
+            let a = document.activeElement;
+            if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'checkbox' && a.type !== 'radio') return 'saisie en cours';
+            if (window.outboxCount > 0) return 'saisies en attente';
+            if (window.zoneDrawMode || window.zonePickMode) return 'zone en cours de dessin';
+            if (window.routeDessinActif && window.routeDessinActif()) return 'fiche de route en cours';
+            for (let i = 0; i < window.FENETRES_A_MENAGER.length; i++) {
+                let el = document.getElementById(window.FENETRES_A_MENAGER[i]);
+                if (el && el.offsetParent !== null) return 'fenêtre ouverte';
+            }
+            let d = document.getElementById('right-sidebar');
+            if (d && d.classList.contains('open') && d.querySelector('input, textarea')) return 'fiche ouverte en édition';
+            return '';
+        };
+        window.donneesVerifierFraicheur = async function(auRetour) {
+            if (window.donneesControleEnCours) return null;
+            if (navigator.onLine === false || window.offlineMode) return null;
+            if (!window.empreinteDonnees) return null;              // ouvert hors réseau : rien à comparer
+            window.donneesControleEnCours = true;
+            try {
+                let rep = await window.fetchWithTimeout(GOOGLE_API_URL);
+                if (!rep.ok) return null;
+                let txt = await rep.text();
+                let emp = window.empreinteTexte(txt);
+                window.donneesControleA = Date.now();
+                if (emp === window.empreinteDonnees) { window.donneesPerimees = false; window.updateNetBanner(); return { change: false }; }
+                // Le classeur a changé. L'instantané est mis à jour au passage : même si on ne
+                // recharge pas tout de suite, la prochaine ouverture hors réseau sera à jour.
+                try { let d = JSON.parse(txt); if (d && d.status !== 'error') await window.saveSnapshot(d); } catch (e) {}
+                let gene = window.travailEnCours();
+                if (auRetour && !gene) { location.reload(); return { change: true, recharge: true }; }
+                window.donneesPerimees = true; window.updateNetBanner();
+                return { change: true, recharge: false, gene: gene };
+            } catch (e) {
+                return null;
+            } finally { window.donneesControleEnCours = false; }
+        };
+        window.donneesSurveiller = function() {
+            if (window.donneesMinuteur) return;
+            // En arrière-plan : on note l'heure du départ. Au retour, on ne redemande le classeur
+            // que si l'absence a duré — revenir d'un aller-retour vers l'appareil photo ne doit
+            // pas déclencher une lecture complète.
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'hidden') { window.pageMasqueeA = Date.now(); return; }
+                let absence = window.pageMasqueeA ? Date.now() - window.pageMasqueeA : 0;
+                let age = window.donneesChargeesA ? Date.now() - window.donneesChargeesA : Infinity;
+                if (absence > 60000 && age > window.DONNEES_AGE_MS) window.donneesVerifierFraicheur(true);
+                if (window.outboxCount > 0) window.flushOutbox();
+            });
+            // Poste resté ouvert toute la journée : on regarde de temps en temps, sans jamais
+            // recharger sous les doigts de qui s'en sert — le bandeau propose, l'utilisateur dispose.
+            window.donneesMinuteur = setInterval(function() {
+                if (document.visibilityState !== 'visible') return;
+                let age = window.donneesChargeesA ? Date.now() - window.donneesChargeesA : Infinity;
+                if (age > window.DONNEES_AGE_MS) window.donneesVerifierFraicheur(false);
+            }, window.DONNEES_AGE_MS);
+            // La file d'attente est repoussée régulièrement : une saisie faite au bord d'une piste
+            // ne doit pas attendre la prochaine ouverture pour partir.
+            window.outboxMinuteur = setInterval(function() {
+                if (navigator.onLine !== false && window.outboxCount > 0) window.flushOutbox();
+            }, 60000);
         };
 
         /* ========================================================================= */
@@ -9354,6 +9497,27 @@
                              couleur: e.color, epaisseur: e.weight, supprimable: true };
                 }) });
             }
+            /* 5. TOUT LE RESTE — le filet de sécurité.
+
+               Les groupes ci-dessus décrivent des PROVENANCES : le Drive, le classeur, l'appareil.
+               Un calque dont la provenance a disparu n'entrait dans aucun d'eux : un KMZ du Drive
+               renommé, déplacé, ou dont les droits ont changé, reste en base locale et se repose
+               sur la carte au démarrage suivant — mais l'index du Drive ne le connaît plus, donc
+               il n'avait plus de ligne. Sur PC, on le voyait sur la carte sans aucun moyen de le
+               décocher ni de l'enlever. C'était le cas signalé.
+
+               Ici on part de l'inverse : de ce qui est RÉELLEMENT en mémoire. Tout calque posé
+               qu'aucun groupe ne réclame obtient sa ligne, et il est retirable. */
+            let deja = {};
+            groupes.forEach(function(g) { g.items.forEach(function(it) { deja[it.cle] = 1; }); });
+            let restes = Object.keys(window.externalLayers || {}).filter(function(k) { return !deja[k]; });
+            if (restes.length) {
+                groupes.push({ titre: 'Autres calques', items: restes.map(function(k) {
+                    let e = window.externalLayers[k];
+                    return { genre: 'orphelin', cle: k, nom: e.name || k, charge: true, visible: !!e.visible,
+                             couleur: e.color || '#7f8c8d', epaisseur: e.weight || 4, supprimable: true };
+                }) });
+            }
             return groupes;
         };
         /* La liste ne montre QUE les calques réellement posés. Lister le contenu entier du Drive
@@ -9410,6 +9574,9 @@
                         <button onclick="window.calqueDeplier('${it.cle}')" title="Détail du calque"
                             style="background:none; border:none; color:#7f8c8d; cursor:pointer; padding:0 2px; font-size:12px;">
                             <i class="fa-solid fa-chevron-${ouvert ? 'down' : 'right'}"></i></button>
+                        ${it.supprimable ? `<button onclick="window.calqueSupprimer('${it.cle}')" title="Retirer ce calque"
+                            style="background:none; border:none; color:#c0392b; cursor:pointer; padding:0 2px; font-size:12px;">
+                            <i class="fa-solid fa-xmark"></i></button>` : ''}
                     </div>
                     ${err ? `<div style="font-size:10px; color:#c0392b; padding:2px 0 6px 22px;">${window.prodEsc(err)}</div>` : ''}
                     ${ouvert ? `<div style="margin:2px 0 8px 22px; padding:8px; background:#f8fafc; border:1px solid #eef2f6; border-radius:5px; font-size:11px; color:#555;">
@@ -9496,7 +9663,11 @@
             return null;
         };
         window.calqueBasculer = async function(cle, visible) {
-            let it = window.calqueTrouver(cle); if (!it) return;
+            let it = window.calqueTrouver(cle);
+            /* Un calque posé que l'inventaire ne réclame plus doit tout de même s'éteindre : sans
+               ce repli, la case à cocher d'un tracé orphelin restait sans effet. */
+            if (!it && window.externalLayers[cle]) it = { genre: 'orphelin', cle: cle, charge: true };
+            if (!it) return;
             delete window.calquesEtat.erreurs[cle];
             if (it.genre === 'plan') { window.basculerPlanCarte(); window.renderCalquesUnifies(); return; }
             if (it.genre === 'cloud') { await window.toggleCloudLayer(it.idx, visible); window.renderCalquesUnifies(); return; }
@@ -9514,7 +9685,7 @@
             if (e) {
                 if (visible) e.layer.addTo(window.map); else window.map.removeLayer(e.layer);
                 e.visible = !!visible;
-                if (cle.indexOf('local_') === 0 || cle.indexOf('drive_') === 0)
+                if (cle.indexOf('cloud_') !== 0)
                     window.saveLayerToDB(cle, e.name, e.geojson, e.color, e.weight, e.visible);
             }
             window.renderCalquesUnifies();
@@ -9559,11 +9730,19 @@
             if (e.layer && e.layer.setStyle) e.layer.setStyle(window.buildGeoJsonStyle(e.color, e.weight).style());
             window.saveLayerToDB(cle, e.name, e.geojson, e.color, e.weight, e.visible);
         };
+        /* Retirer veut dire retirer : de la carte, de la mémoire, ET de la base locale. Chaque
+           étape est tentée séparément — une entrée déjà absente de l'une ne doit pas empêcher
+           le nettoyage des autres, sinon un calque à moitié effacé revenait au démarrage
+           suivant sans qu'on comprenne pourquoi. */
         window.calqueSupprimer = function(cle) {
-            let e = window.externalLayers[cle]; if (!e) return;
-            if (!confirm("Retirer le calque « " + e.name + " » ?")) return;
-            if (e.layer) window.map.removeLayer(e.layer);
+            let e = window.externalLayers[cle];
+            let it = window.calqueTrouver(cle);
+            let nom = (e && e.name) || (it && it.nom) || cle;
+            if (!confirm("Retirer le calque « " + nom + " » ?")) return;
+            if (e && e.layer && window.map) { try { window.map.removeLayer(e.layer); } catch (err) {} }
             delete window.externalLayers[cle];
+            delete window.calquesOuverts[cle];
+            delete window.calquesEtat.erreurs[cle];
             if (window.localDB) { try { const tx = window.localDB.transaction("kmz_layers", "readwrite"); tx.objectStore("kmz_layers").delete(cle); } catch (err) {} }
             window.renderCalquesUnifies();
         };
@@ -9681,6 +9860,17 @@
                     isVisible: visible === undefined ? true : !!visible, color: color, weight: weight });
             } catch(e) {}
         };
+        /* TOUS LES CALQUES SONT ÉTEINTS À L'OUVERTURE.
+
+           Un tracé est un outil qu'on sort au moment où on en a besoin, pas un fond de plan.
+           Rouvrir l'application sur quatre réseaux superposés — canalisations, pistes,
+           implantation, levée ADRE — rendait la carte illisible avant le premier regard, et
+           il fallait décocher quatre cases pour retrouver les canons.
+
+           Le fichier reste en base locale, prêt à s'afficher d'un clic et sans réseau : on
+           ne recharge rien, on rallume. Ce qu'on ignore ici, c'est uniquement l'état
+           affiché/masqué de la fois précédente ; couleur et épaisseur, elles, sont
+           conservées. */
         window.loadSavedLayersFromDB = function() {
             if(!window.localDB) return;
             const tx = window.localDB.transaction("kmz_layers", "readonly");
@@ -9689,7 +9879,7 @@
                 req.result.forEach(function(item) {
                     // Pas de recadrage au rétablissement : trois calques restaurés d'affilée
                     // faisaient sauter la carte trois fois avant même le premier regard.
-                    window.addGeoJsonToMap(item.id, item.name, item.geojson, item.isVisible,
+                    window.addGeoJsonToMap(item.id, item.name, item.geojson, false,
                         item.color || '#e67e22', item.weight || 4, true);
                 });
                 window.renderCalquesUnifies();
@@ -10134,7 +10324,7 @@
                 v = s.trim();
             }
             window.appSettings.prodSettings.saison = v;
-            localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings));
+            window.persisterReglages();
             window.renderProdSeasonSelect();
             if (window.mainTheme === 'production') window.renderProductionWorkspace();
         };
@@ -10328,7 +10518,7 @@
                 decimales: parseInt(g('prod-set-dec', 2), 10) || 0,
                 devise: (g('prod-set-dev', '€') || '€').toString().trim() || '€'
             });
-            localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings));
+            window.persisterReglages();
             window.renderProductionWorkspace();
             if (document.getElementById('production-panel').style.display === 'flex') window.refreshProductionCalc();
         };
@@ -10496,7 +10686,7 @@
                     window.productionRows.push(r);
                 }
                 window.appSettings.prodSettings.saison = r.saison;
-                localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings));
+                window.persisterReglages();
 
                 // Insérer ou corriger une production décale les cumuls de toutes celles qui suivent :
                 // l'affichage les recalcule, mais le Sheet resterait faux sans cette repropagation.
@@ -11161,7 +11351,7 @@
             if (!Array.isArray(window.appSettings.meteo.secteurs)) window.appSettings.meteo.secteurs = [];
             return window.appSettings.meteo;
         };
-        window.meteoSaveCfg = function() { try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch(e) {} };
+        window.meteoSaveCfg = function() { try { window.persisterReglages(); } catch(e) {} };
 
         // Température humide par résolution de l'équation psychrométrique, et non par la formule
         // approchée de Stull : cette dernière, testée sur la plage d'enneigement (−12 à +3 °C), rend
@@ -12597,7 +12787,7 @@
         };
         window.onPrintMarginsChange = function() {
             window.appSettings.printMargins = window.getPrintMargins();
-            localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings));
+            window.persisterReglages();
             window.buildPrintPageSheet();
         };
 
@@ -13371,7 +13561,7 @@
             return liste.filter(function(p) { return !window.planEstMasquee(p.cle); });
         };
         window.planSave = function() {
-            try { localStorage.setItem('gmao_settings_v5', JSON.stringify(window.appSettings)); } catch (e) {}
+            try { window.persisterReglages(); } catch (e) {}
             // Toute modification du plan change ce que la carte doit peindre : l'index est jeté ici,
             // au seul endroit par lequel passent les enregistrements.
             window.planPrioCache = null;
@@ -15182,6 +15372,8 @@
                 window.planResumeMenu();
                 // Réglages : on écoute les changements et on les pousse au classeur.
                 window.reglagesDemarrerSurveillance();
+                // Données : on vérifie qu'elles n'ont pas vieilli pendant une mise en veille.
+                window.donneesSurveiller();
                 // Index des documents Drive : reconstruit en arrière-plan quand il vieillit, JAMAIS
                 // pendant le démarrage — c'est ce balayage qui bloquait l'ouverture de l'application.
                 window.rafraichirIndexDrive().catch(function() {});
