@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.19.0";
+        window.APP_VERSION = "5.20.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -703,6 +703,10 @@
             .print-page-sheet { box-shadow: none !important; page-break-after: always; transform: none !important; margin: 0 !important; }
             .print-page-sheet:last-child { page-break-after: auto; }
             .print-page-sheet::after { display: none !important; }
+            /* Les pastilles de canons et les cartouches de légende sont peints en fond CSS : sans
+               ceci, le navigateur les laisse en blanc sur le papier dès que « graphiques
+               d'arrière-plan » n'est pas coché, et la carte imprimée perd ses couleurs. */
+            .print-page-sheet, .print-page-sheet * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
     </style>
 </head>
@@ -3647,6 +3651,19 @@
             } catch(e) { alert("Échec réseau."); window.renderSelectionPanel(); }
         };
 
+        /* Avertissement affiché en tête des deux vues du suivi d'entretien quand l'onglet reçu
+           ne contient aucun numéro d'enneigeur connu (cf. CHAPITRE 5.A.4). Mieux vaut dire que
+           les statuts affichés ne veulent rien dire que de les laisser passer pour vrais. */
+        window.suiviBandeauHtml = function() {
+            if (!window.suiviFeuilleSuspecte) return '';
+            let nom = window.suiviFeuilleNom ? ' (onglet reçu : « ' + window.prodEsc(window.suiviFeuilleNom) + ' »)' : '';
+            return '<div style="background:#fdf2f2; border:1px solid #f5c6c0; border-left:4px solid #c0392b; border-radius:6px; padding:10px 12px; margin-bottom:12px; font-size:11px; color:#922b21;">'
+                 + '<b><i class="fa-solid fa-triangle-exclamation"></i> Onglet de suivi non reconnu' + nom + '.</b><br>'
+                 + "Aucune ligne reçue ne porte un numéro d'enneigeur connu : les statuts ci-dessous sont ceux par défaut, pas les vôtres. "
+                 + "Mettez Code.gs à jour côté Apps Script, puis redéployez."
+                 + '</div>';
+        };
+
         window.saveMultiSuivi = async function(btn) {
             let payloads = [];
             window.selectedCannonsMap.forEach((layer, idCanon) => {
@@ -3897,7 +3914,7 @@
                 let topBuse = Object.entries(bYearCounts).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>`${x[0]} <span style="color:#7f8c8d">(${x[1]})</span>`).join('<br>'); let topVanne = Object.entries(vYearCounts).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>`${x[0]} <span style="color:#7f8c8d">(${x[1]})</span>`).join('<br>');
                 html += `<div style="display:flex; gap:10px; text-align:center; margin-bottom:15px;"><div style="flex:1; background:#fff; border:1px solid #ccc; border-radius:6px; padding:10px;"><b style="font-size:20px; color:#27ae60;">${cDec}</b><br><span style="font-size:10px;">Déconnectés</span></div><div style="flex:1; background:#fff; border:1px solid #ccc; border-radius:6px; padding:10px;"><b style="font-size:20px; color:#9b59b6;">${cPrev}</b><br><span style="font-size:10px;">Préventifs</span></div></div><div style="display:flex; gap:10px; margin-bottom:15px; font-size:11px;"><div style="flex:1; background:#fdfdfe; border:1px solid #e1e8ed; padding:10px; border-radius:6px;"><h4 style="margin:0 0 5px 0; color:#3498db;">Top Années Buse</h4>${topBuse || "Aucune info"}</div><div style="flex:1; background:#fdfdfe; border:1px solid #e1e8ed; padding:10px; border-radius:6px;"><h4 style="margin:0 0 5px 0; color:#e67e22;">Top Années Vanne</h4>${topVanne || "Aucune info"}</div></div>` + window.buildDashBlockHtml('suivi_statuts', 'Statuts Principaux', 'doughnut', 'suivi-pie-global', 190);
                 let pistes = Array.from(window.columnValuesSets[window.keyPiste] || []).sort(); let selectHtml = `<div style="background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #ddd; margin-top:15px;"><div class="edit-label">Sélectionner une piste pour l'entretien :</div><select class="edit-input" style="margin-bottom:0;" onchange="window.renderSuiviList(this.value)"><option value="">-- Choisir une piste --</option>${pistes.map(p => `<option value="${p}">${p}</option>`).join('')}</select></div><div id="suivi-canons-container"></div>`;
-                document.getElementById('multi-tools').style.display = 'flex'; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none'; document.getElementById('selected-list').innerHTML = html + selectHtml;
+                document.getElementById('multi-tools').style.display = 'flex'; document.getElementById('view-selection').style.display = 'block'; document.getElementById('view-edit').style.display = 'none'; document.getElementById('selected-list').innerHTML = window.suiviBandeauHtml() + html + selectHtml;
                 setTimeout(() => { window.drawDashChart('suivi_statuts', 'suivi-pie-global', ['En Défaut', 'Préventif Usine', 'Déconnecté', 'Connecté ()'], [cDef, cPrev, cDec, cOk], ['#e74c3c', '#9b59b6', '#27ae60', '#f1c40f'], 'doughnut'); }, 100); return;
             } else if (window.mainTheme === 'entretien_tete') {
                 let rt = document.getElementById('right-title'); if(rt) rt.innerText = "Dashboard Entretien Buses"; window.renderEntretienDashboard('all'); return;
@@ -4218,7 +4235,7 @@
             let s = window.appSettings;
             let colors = { defaut: s.colUrgent || '#e74c3c', preventif: s.colSuiviPrev || '#9b59b6', deconnecte: s.colSuiviDec || '#27ae60', connecte: s.colSuiviOk || '#f1c40f' };
 
-            let html = `<div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #27ae60; margin-bottom:15px;"><h2 style="margin:0; color:#2c3e50;"><i class="fa-solid fa-screwdriver-wrench"></i> Suivi Entretien — Liste</h2><span style="font-size:12px; color:#7f8c8d;">${filtered.length} canon(s)</span></div>`;
+            let html = window.suiviBandeauHtml() + `<div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:2px solid #27ae60; margin-bottom:15px;"><h2 style="margin:0; color:#2c3e50;"><i class="fa-solid fa-screwdriver-wrench"></i> Suivi Entretien — Liste</h2><span style="font-size:12px; color:#7f8c8d;">${filtered.length} canon(s)</span></div>`;
             html += `<div style="margin-bottom:15px;"><select class="edit-input" style="margin:0; width:auto; min-width:200px;" onchange="window.setListFilter('statutEntretien', this.value)"><option value="">Tous les statuts</option>${Object.keys(labels).map(k => `<option value="${k}" ${k === catFilter ? 'selected' : ''}>${labels[k]}</option>`).join('')}</select></div>`;
 
             if (filtered.length === 0) { html += `<div style="text-align:center; color:#7f8c8d; padding:30px; background:#fff; border-radius:8px; border:1px solid #eee;">Aucun canon ne correspond aux filtres.</div>`; }
@@ -8232,6 +8249,37 @@
             }
 
             Object.values(dictGeneral).forEach(canon => { if (canon.lat !== undefined && canon.lng !== undefined && !isNaN(canon.lat) && !isNaN(canon.lng) && canon.lat !== 0) { window.snowCannons.features.push({ "type": "Feature", "geometry": { "type": "Point", "coordinates": [canon.lng, canon.lat] }, "properties": canon }); } });
+
+            /* CHAPITRE 5.A.4 — L'ONGLET DE SUIVI D'ENTRETIEN EST-IL BIEN CELUI QU'ON CROIT ?
+             *
+             * Le serveur retrouve chaque onglet par mots-clés. Tant que la recherche laissait
+             * l'ordre des onglets décider, « production webapp » ou « reglages webapp » pouvait
+             * être envoyé à la place de « suivi entretient webapp » : les colonnes ne voulaient
+             * plus rien dire, aucune ligne ne correspondait à un numéro d'enneigeur, et chaque
+             * canon retombait sur sa valeur par défaut — donc « connecté » — à chaque
+             * rechargement, alors même que la sauvegarde partait au bon endroit. C'est corrigé
+             * dans Code.gs, mais le contrôle reste : une erreur d'appariement doit se VOIR, pas
+             * se traduire en statuts faux et silencieux.
+             *
+             * Le test est simple : au moins une ligne du suivi doit porter, en première colonne,
+             * un numéro d'enneigeur existant. Sinon l'onglet reçu n'est pas le bon. */
+            window.suiviFeuilleNom = (data.feuilles && data.feuilles["suivi entretient webapp"]) || "";
+            window.suiviFeuilleSuspecte = false; window.suiviConcordances = 0;
+            try {
+                let lignesSuivi = window.suiviEntretienData || [];
+                // Il faut au moins une ligne de données sous l'en-tête pour pouvoir juger : un onglet
+                // neuf, réduit à sa ligne de titres, n'est pas un mauvais onglet.
+                if (lignesSuivi.length >= 2 && window.snowCannons.features.length) {
+                    let idsConnus = {};
+                    window.snowCannons.features.forEach(function(f) { idsConnus[String(f.properties.id).trim()] = 1; });
+                    for (let i = 0; i < lignesSuivi.length; i++) {
+                        let c = lignesSuivi[i] && lignesSuivi[i][0];
+                        if (c === undefined || c === null || c === "") continue;
+                        if (idsConnus[String(c).trim()]) window.suiviConcordances++;
+                    }
+                    window.suiviFeuilleSuspecte = (window.suiviConcordances === 0);
+                }
+            } catch (e) {}
 
             window.setLoaderProgress(100);
             let lt = document.getElementById('loading-title');
@@ -12915,6 +12963,126 @@
         // En mode "pleine page" (paysage), l'emprise est élargie pour coller au ratio réel de la page
         // (sans quoi l'image serait déformée ou laisserait des bandes vides), et la légende du thème
         // actif est incrustée en coin plutôt que d'être un bloc séparé.
+        /* CHAPITRE 8.D.2.bis — LES CALQUES KMZ SUR LA CARTE IMPRIMÉE
+         *
+         * L'aperçu d'impression n'est pas une photographie de la carte : c'est une carte
+         * REFABRIQUÉE — un fond satellite demandé à ArcGIS sur l'emprise visible, plus les
+         * pastilles des canons posées dessus par calcul. Tout ce qui n'était pas explicitement
+         * redessiné ici n'existait donc pas sur le papier, et les tracés KMZ affichés à l'écran
+         * (canalisations, pistes, implantation RM, réseau ADRE, plan de circulation) en faisaient
+         * partie : on les voyait à l'écran, ils disparaissaient à l'impression.
+         *
+         * Ils sont maintenant redessinés en SVG dans la même emprise, avec la couleur et
+         * l'épaisseur réglées pour chaque calque. Le viewBox reprend exactement les dimensions
+         * demandées à ArcGIS : l'échelle est donc la même sur les deux axes, et les tracés se
+         * calent au pixel sur le fond. Seuls les calques réellement allumés sont dessinés —
+         * l'impression montre la carte telle qu'elle est à l'écran, ni plus ni moins. */
+        window.tracesCarteVisibles = function() {
+            let traces = [];
+            let ext = window.externalLayers || {};
+            Object.keys(ext).forEach(function(k) {
+                let e = ext[k];
+                if (!e || !e.visible || !e.geojson) return;
+                traces.push({ nom: e.name || k, couleur: e.color || '#e67e22', epaisseur: e.weight || 4, geo: e.geojson });
+            });
+            if (window.planVisible && window.planCirculation && window.planCirculation.lignes) {
+                window.planCirculation.lignes.forEach(function(l) {
+                    traces.push({ nom: null, couleur: (window.PLAN_COULEURS && window.PLAN_COULEURS[l.classe]) || '#95a5a6',
+                                  epaisseur: 3, geo: { type: "LineString", coordinates: l.coords } });
+                });
+            }
+            return traces;
+        };
+
+        window.buildTracesSvg = function(minLng, maxLng, minLat, maxLat, w, h) {
+            let traces = window.tracesCarteVisibles();
+            if (!traces.length) return null;
+            const NS = 'http://www.w3.org/2000/svg';
+            const dLng = (maxLng - minLng) || 1e-9, dLat = (maxLat - minLat) || 1e-9;
+            const X = function(c) { return ((c[0] - minLng) / dLng * w).toFixed(2); };
+            const Y = function(c) { return ((1 - (c[1] - minLat) / dLat) * h).toFixed(2); };
+            let svg = document.createElementNS(NS, 'svg');
+            svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+            svg.setAttribute('preserveAspectRatio', 'none');
+            svg.setAttribute('style', 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; pointer-events:none;');
+            let dessines = 0;
+
+            const dansEmprise = function(c) { return c && c.length >= 2 && c[0] >= minLng && c[0] <= maxLng && c[1] >= minLat && c[1] <= maxLat; };
+
+            const ligne = function(coords, t, ferme) {
+                if (!coords || coords.length < 2) return;
+                // Un tracé entièrement hors cadre n'est pas dessiné ; dès qu'un point tombe dedans,
+                // on garde la ligne entière (le débordement est masqué par le conteneur).
+                if (!coords.some(dansEmprise)) return;
+                let d = '';
+                for (let i = 0; i < coords.length; i++) {
+                    let c = coords[i]; if (!c || c.length < 2) continue;
+                    d += (d ? 'L' : 'M') + X(c) + ' ' + Y(c) + ' ';
+                }
+                if (!d) return;
+                if (ferme) d += 'Z';
+                let path = document.createElementNS(NS, 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('fill', ferme ? t.couleur : 'none');
+                if (ferme) path.setAttribute('fill-opacity', '0.15');
+                path.setAttribute('stroke', t.couleur);
+                path.setAttribute('stroke-width', String(t.epaisseur));
+                path.setAttribute('stroke-linejoin', 'round');
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('vector-effect', 'non-scaling-stroke');
+                svg.appendChild(path); dessines++;
+            };
+
+            const point = function(c, t) {
+                if (!dansEmprise(c)) return;
+                let circ = document.createElementNS(NS, 'circle');
+                circ.setAttribute('cx', X(c)); circ.setAttribute('cy', Y(c)); circ.setAttribute('r', '5');
+                circ.setAttribute('fill', t.couleur); circ.setAttribute('stroke', '#ffffff');
+                circ.setAttribute('stroke-width', '1'); circ.setAttribute('vector-effect', 'non-scaling-stroke');
+                svg.appendChild(circ); dessines++;
+            };
+
+            const geometrie = function(g, t) {
+                if (!g) return;
+                let ty = g.type, co = g.coordinates;
+                if (ty === 'Point') point(co, t);
+                else if (ty === 'MultiPoint') (co || []).forEach(function(c) { point(c, t); });
+                else if (ty === 'LineString') ligne(co, t, false);
+                else if (ty === 'MultiLineString') (co || []).forEach(function(l) { ligne(l, t, false); });
+                else if (ty === 'Polygon') (co || []).forEach(function(anneau) { ligne(anneau, t, true); });
+                else if (ty === 'MultiPolygon') (co || []).forEach(function(poly) { (poly || []).forEach(function(anneau) { ligne(anneau, t, true); }); });
+                else if (ty === 'GeometryCollection') (g.geometries || []).forEach(function(sg) { geometrie(sg, t); });
+            };
+
+            traces.forEach(function(t) {
+                let g = t.geo;
+                if (!g) return;
+                if (g.type === 'FeatureCollection') (g.features || []).forEach(function(f) { if (f) geometrie(f.geometry, t); });
+                else if (g.type === 'Feature') geometrie(g.geometry, t);
+                else geometrie(g, t);
+            });
+
+            return dessines ? svg : null;
+        };
+
+        // Petit cartouche des calques allumés, posé sur la carte imprimée : sans lui, les tracés
+        // sont là mais rien ne dit ce qu'ils représentent.
+        window.tracesLegendeHtml = function() {
+            let noms = [];
+            let ext = window.externalLayers || {};
+            Object.keys(ext).forEach(function(k) {
+                let e = ext[k];
+                if (e && e.visible && e.geojson) noms.push({ nom: e.name || k, couleur: e.color || '#e67e22' });
+            });
+            if (window.planVisible && window.planCirculation) noms.push({ nom: 'Plan de circulation', couleur: '#95a5a6' });
+            if (!noms.length) return '';
+            return noms.map(function(n) {
+                return '<div style="display:flex; align-items:center; gap:5px; margin-top:2px;">'
+                     + '<span style="display:inline-block; width:14px; height:3px; background:' + n.couleur + '; border-radius:2px; flex:none;"></span>'
+                     + '<span>' + window.prodEsc(n.nom) + '</span></div>';
+            }).join('');
+        };
+
         window.buildMapSnapshotNode = function(fillPage, legendHtmlForOverlay, targetRatio) {
             return new Promise(resolve => {
                 if (!window.map) { resolve(null); return; }
@@ -12939,6 +13107,13 @@
                     let img = document.createElement('img');
                     img.style.cssText = fillPage ? 'width:100%; height:100%; display:block; object-fit:cover;' : 'width:100%; display:block;';
 
+                    // Les calques KMZ allumés, redessinés dans l'emprise du fond (cf. 8.D.2.bis).
+                    // Posés avant les pastilles : les canons restent au-dessus des tracés.
+                    try {
+                        let svgTraces = window.buildTracesSvg(minLng, maxLng, minLat, maxLat, w, h);
+                        if (svgTraces) container.appendChild(svgTraces);
+                    } catch (errTr) {}
+
                     window.snowCannons.features.forEach(f => {
                         if (!f.properties._isVisible) return;
                         let lng = f.geometry.coordinates[0], lat = f.geometry.coordinates[1];
@@ -12957,6 +13132,18 @@
                         legendBox.innerHTML = legendHtmlForOverlay;
                         container.appendChild(legendBox);
                     }
+
+                    // Cartouche des calques : affiché dans les deux modes, y compris quand la
+                    // légende du thème est un bloc séparé — sinon les tracés seraient muets.
+                    try {
+                        let calquesHtml = window.tracesLegendeHtml();
+                        if (calquesHtml) {
+                            let boxC = document.createElement('div');
+                            boxC.style.cssText = 'position:absolute; bottom:8px; right:8px; background:rgba(255,255,255,0.92); border:1px solid #ccc; border-radius:6px; padding:6px 8px; font-size:9px; max-width:45%; z-index:3;';
+                            boxC.innerHTML = '<div style="font-weight:bold; color:#2c3e50; margin-bottom:2px;">Calques</div>' + calquesHtml;
+                            container.appendChild(boxC);
+                        }
+                    } catch (errLg) {}
 
                     let done = false;
                     const finish = () => { if (done) return; done = true; resolve(container); };
