@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.20.0";
+        window.APP_VERSION = "5.21.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -1555,7 +1555,7 @@
             let etapes = ['applySettingsUI', 'applySidebarLayout', 'renderViewToggles', 'renderSidebarOrderSettings',
                           'renderBtnColorSettings', 'renderLegendRepTransfoSettings', 'renderFicheCanonSettings',
                           'renderMeteoSettings', 'renderSatSettings', 'renderProxPanel', 'renderProdSeasonSelect',
-                          'updateLegend', 'updateMap', 'planResumeMenu'];
+                          'updateLegend', 'updateMap', 'planResumeMenu', 'renderDiagnostic'];
             etapes.forEach(function(f) { if (typeof window[f] === 'function') { try { window[f](); } catch (e) {} } });
             if (window.mainTheme === 'planneige' && window.refreshListViewIfActive) { try { window.refreshListViewIfActive(); } catch (e) {} }
         };
@@ -7608,6 +7608,9 @@
         /* Chaque chiffre est accompagné de son effectif. Une intervention citée      */
         /* « 1 fois sur 1 » n'a pas la valeur d'une intervention citée 14 fois sur    */
         /* 17, et l'écran doit permettre de faire la différence d'un coup d'œil.      */
+        /*                                                                           */
+        /* Deux entrées : un canon et son défaut, ou un défaut / une catégorie de     */
+        /* défaut cherché sur tout le parc (CHAPITRE 4.H.0 pour les catégories).      */
         /* ========================================================================= */
         window.diagNorm = function(t) {
             return (t === null || t === undefined ? '' : t.toString())
@@ -7659,17 +7662,199 @@
             return Object.keys(c).map(function(k) { return c[k]; }).sort(function(a, b) { return b.n - a.n; });
         };
 
-        window.diagAnalyser = function(idCanon, defautChoisi) {
-            let tous = window.rawTickets || [];
-            let duCanon = tous.filter(function(t) { return t.idCanon === idCanon; });
-            let actifs = window.getActiveTickets(idCanon);
-            let cible = defautChoisi || (actifs[0] ? actifs[0].defaut : (duCanon[0] ? duCanon[0].defaut : ''));
-            if (!cible) return { err: "Aucun défaut déclaré sur ce canon.", defauts: [] };
+        /* ------------------------------------------------------------------------- */
+        /* CHAPITRE 4.H.0 — CATÉGORIES DE DÉFAUT                                      */
+        /*                                                                           */
+        /* Les défauts sont saisis à la main, et une même panne porte dix noms :      */
+        /* « dialogue », « défaut dialogue », « pas de dialogue », « perte com »,     */
+        /* « plus de liaison »… La ressemblance de mots (diagSimilarite) rapproche    */
+        /* les trois premiers, jamais « dialogue » et « perte com », qui n'ont pas un */
+        /* mot en commun. Chaque dénomination est donc rangée dans une CATÉGORIE, par */
+        /* mots-clés, et le diagnostic peut porter sur la catégorie entière.          */
+        /*                                                                           */
+        /* Règles de reconnaissance :                                                */
+        /*   • le mot-clé se compare au libellé sans accents ni majuscules, mot par   */
+        /*     mot : « com » reconnaît « défaut com », pas « compresseur » ;          */
+        /*   • terminé par *, c'est un début de mot : « dialog* » couvre dialogue,    */
+        /*     dialoguer ; sans *, seul le pluriel est admis (« bus » ne doit pas     */
+        /*     reconnaître « buse ») ;                                                */
+        /*   • une expression de plusieurs mots l'emporte sur un mot seul :           */
+        /*     « fuite air » va en Compresseur / air, pas en Eau ;                    */
+        /*   • à égalité, la catégorie placée le plus haut dans la liste gagne :      */
+        /*     « défaut dialogue automate » est un défaut de dialogue ;               */
+        /*   • « Arrêt / indisponible » ne sert que de repli : « arrêt défaut com »   */
+        /*     reste un défaut de dialogue.                                           */
+        /*                                                                           */
+        /* Ce qu'aucun mot-clé ne reconnaît reste « Non classé » et se range à la     */
+        /* main (bouton « Classer les dénominations »). Ce choix est gardé dans       */
+        /* appSettings.diagRangements, donc partagé entre les postes (CHAPITRE 2.D),  */
+        /* et prime toujours sur les mots-clés.                                       */
+        /* ------------------------------------------------------------------------- */
+        window.DIAG_CATEGORIES = [
+            { id: 'dialogue', nom: 'Défaut dialogue', couleur: '#1a5276',
+              mots: ['dialog*', 'dial', 'communic*', 'com', 'comm', 'liaison', 'hors ligne', 'offline', 'bus', 'canbus', 'can bus', 'profibus', 'modbus',
+                     'ethernet', 'reseau*', 'fibre*', 'modem*', 'radio*', 'wifi', 'antenne*', 'repeteur*', 'switch', 'timeout', 'time out',
+                     'perte connexion', 'ne repond plus', 'ne repond pas', 'injoignable'] },
+            { id: 'securite', nom: "Arrêt d'urgence / sécurité", couleur: '#c0392b',
+              mots: ['arret d urgence', 'arret urgence', 'bouton d urgence', 'bouton urgence', 'coup de poing', 'boucle de securite', 'chaine de securite', 'securite*', 'secu'] },
+            // Câbles avant sondes et tête : « câble sonde HS », « câble tête HS », « câble VAR HS » ont
+            // la même cause (les bêtes au pâturage) et la même réparation (changer le câble).
+            { id: 'cables', nom: 'Câbles', couleur: '#a04000',
+              mots: ['cable*', 'cablage*', 'fil', 'fils', 'rallonge electrique'] },
+            { id: 'capteur', nom: 'Sonde / capteur', couleur: '#8e44ad',
+              mots: ['sonde*', 'capteur*', 'temperature*', 'hygro*', 'humidite*', 'anemo*', 'vent', 'girouette*', 'meteo', 'station meteo',
+                     'thermometre*', 'pressostat*', 'transmetteur*', 'fin de course', 'fdc', 'codeur*', 'potentiometre*', 'inclinometre*', 'detecteur*',
+                     'debitmetre*', 'debimetre*', 'mesure*'] },
+            { id: 'automate', nom: 'Automate / électronique', couleur: '#2c3e50',
+              mots: ['automate*', 'api', 'plc', 'cpu', 'carte', 'electronique*', 'ecran*', 'ihm', 'afficheur*', 'affichage', 'console', 'programm*',
+                     'logiciel*', 'software', 'firmware', 'parametr*', 'reset', 'bug*', 'plant*', 'relais', 'contacteur*', 'module*', 'reboot'] },
+            { id: 'orientation', nom: 'Orientation / inclinaison', couleur: '#16a085',
+              mots: ['orient*', 'rotation', 'rotation libre', 'canon libre', 'tourne dans le vide', 'pivot*', 'tourelle*', 'inclinaison', 'inclin*',
+                     'angle*', 'elevation', 'verin*', 'balayage', 'oscill*', 'reducteur*', 'motoreducteur*', 'moteur orientation', 'moteur d orientation',
+                     'couronne d orientation', 'fin de course orientation', 'plaquette*', 'cremaillere*'] },
+            { id: 'air', nom: 'Compresseur / air', couleur: '#717d7e',
+              mots: ['compress*', 'air', 'pression air', 'pression d air', 'fuite air', 'fuite d air', 'manque air', 'manque d air', 'pas d air',
+                     'air comprime', 'huile', 'secheur*', 'electrovanne air', 'ev air'] },
+            { id: 'gel', nom: 'Gel / chauffage', couleur: '#5dade2',
+              mots: ['gel', 'gele*', 'givr*', 'glace*', 'prise en glace', 'pris en glace', 'degivr*', 'chauffage*', 'chauffant*', 'chauffe',
+                     'resistance*', 'rechauff*', 'hors gel', 'cordon chauffant'] },
+            // « Tête » désigne ici la tête de perche (Sufag, Safyr, Tairus…) : buses, nucléateurs, capot
+            // et moteur de tête vont ensemble.
+            { id: 'tete', nom: 'Tête / buses', couleur: '#7d8c1e',
+              mots: ['tete*', 'tete de lance', 'buse*', 'gicleur*', 'nucleat*', 'nucleur*', 'couronne*', 'rampe*', 'bouche*', 'colmat*', 'obstru*',
+                     'jet', 'pulveris*', 'borax', 'moteur tete'] },
+            { id: 'moteur', nom: 'Ventilateur / moteur', couleur: '#e67e22',
+              mots: ['ventil*', 'turbine*', 'helice*', 'pale', 'moteur*', 'variateur*', 'surintensite*', 'thermique*', 'surchauffe*', 'temperature moteur',
+                     'roulement*', 'vibr*', 'balourd*', 'palier*', 'rotor*', 'accouplement*', 'courroie*', 'bobinage*'] },
+            // Vanne de regard (YA, YB, V2000) et son moteur C3 : ouverture, fermeture, mode manuel.
+            { id: 'vanne', nom: 'Vanne', couleur: '#0b5345',
+              mots: ['vanne*', 'electrovanne*', 'ev', 'ya', 'yb', 'v2000', '2v2000', 'c3', 'moteur c3', 'clapet*', 'ne se referme pas', 'referm*',
+                     'fermeture*', 'ouverture*', 'ne s ouvre pas', 'manu', 'manuel*', 'quart de tour', '1 4 de tour', 'decharge*', 'clarinette*'] },
+            { id: 'electrique', nom: 'Alimentation électrique', couleur: '#d4ac0d',
+              mots: ['alim*', 'tension', 'pas de courant', 'courant', 'coupure', 'disjonct*', 'differentiel*', 'diff', 'fusible*', 'court circuit',
+                     'phase', 'terre', 'isolement', 'resistance d isolement', 'defaut d isolement', 'electri*', 'elec', 'prise', 'borne electrique',
+                     'boite elec', 'coffret*', 'armoire*', 'transfo*', 'sectionneur*', 'surtension*', 'foudre', '400v', '380v', '230v', '24v'] },
+            { id: 'eau', nom: 'Eau / hydraulique', couleur: '#3498db',
+              mots: ['eau', 'fuite*', 'pression*', 'pression eau', 'pression d eau', 'debit*', 'manque d eau', 'pas d eau', 'flex', 'flexible*',
+                     'raccord*', 'joint*', 'vidange*', 'purge*', 'filtre*', 'crepine*', 'hydrant*', 'borne', 'regard*', 'inond*', 'innond*',
+                     'canalisation*', 'tuyau*', 'belier', 'coup de belier', 'pompe*', 'surpression', 'etage*', 'hydraulique*', 'kamlock*'] },
+            { id: 'eclairage', nom: 'Éclairage / signalisation', couleur: '#f5b041',
+              mots: ['eclairage*', 'lampe*', 'feu', 'feux', 'phare*', 'gyrophare*', 'gyro', 'flash', 'led', 'balise*', 'signalisation', 'voyant*',
+                     'projecteur*', 'lumiere*'] },
+            { id: 'mecanique', nom: 'Mécanique / structure', couleur: '#795548',
+              mots: ['mecani*', 'structure', 'chassis', 'mat', 'bras', 'perche*', 'tour', 'casse*', 'fissur*', 'fendu*', 'deform*', 'tordu*', 'choc',
+                     'accident*', 'dameuse', 'fixation*', 'boulon*', 'vis', 'serrage', 'blocage', 'bloquage', 'taraudage*', 'goupille*', 'axe', 'manivelle*',
+                     'soudure*', 'carter*', 'capot*', 'porte', 'trappe*', 'roue*', 'pneu*', 'crev*', 'patin*', 'traineau*', 'serrure*', 'charniere*',
+                     'support*', 'colonne*', 'embase*', 'ancrage*', 'bride*'] },
+            { id: 'production', nom: 'Production / qualité de neige', couleur: '#85929e',
+              mots: ['neige*', 'qualite*', 'production', 'ne produit pas', 'produit pas', 'fait de l eau', 'fait de la flotte', 'rendement*', 'mouill*',
+                     'crach*', 'goutte*', 'pluie', 'humide'] },
+            { id: 'installation', nom: 'Installation / branchement', couleur: '#a569bd',
+              mots: ['connect*', 'branch*', 'pose', 'installation*', 'deplacement*', 'montage', 'demontage', 'mise en place', 'cascade de glace'] },
+            { id: 'arret', nom: 'Arrêt / indisponible', couleur: '#616a6b', repli: true,
+              mots: ['demarr*', 'arret*', 'ne tourne pas', 'tourne pas', 'bloque*', 'panne*', 'ne fonctionne pas', 'fonctionne pas', 'marche pas',
+                     'stop*', 'hs', 'hors service', 'plus rien', 'indispo*'] }
+        ];
+        window.DIAG_NON_CLASSE = { id: 'aucune', nom: 'Non classé', couleur: '#95a5a6', mots: [] };
 
-            // Cas comparables : même défaut (ou très proche) partout sur le parc, hors ticket en cours.
-            let cas = tous.filter(function(t) {
-                return window.diagSimilarite(t.defaut, cible) >= window.DIAG_SEUIL;
+        window.diagMotifs = null;
+        window.diagCompiler = function() {
+            window.diagMotifs = window.DIAG_CATEGORIES.map(function(c) {
+                return { cat: c, regles: c.mots.map(function(m) {
+                    let debut = /\*$/.test(m);
+                    // diagNorm ne laisse que [a-z0-9 ] : la base s'insère telle quelle dans l'expression.
+                    let base = window.diagNorm(m.replace(/\*$/, ''));
+                    return { re: new RegExp('(^| )' + base + (debut ? '' : '(s|x)?( |$)')), expression: base.indexOf(' ') > -1 };
+                }) };
             });
+        };
+        window.diagCategorieAuto = function(libelle) {
+            if (!window.diagMotifs) window.diagCompiler();
+            let n = window.diagNorm(libelle);
+            if (!n) return window.DIAG_NON_CLASSE;
+            let meilleur = null, score = 0;
+            window.diagMotifs.forEach(function(m) {
+                let s = 0;
+                m.regles.forEach(function(r) { if (r.re.test(n)) s = Math.max(s, r.expression ? 2 : 1); });
+                if (s && m.cat.repli) s = 0.5;
+                if (s > score) { score = s; meilleur = m.cat; }   // strictement : à égalité, la première gagne
+            });
+            return meilleur || window.DIAG_NON_CLASSE;
+        };
+        window.diagCategorieParId = function(id) {
+            if (id === window.DIAG_NON_CLASSE.id) return window.DIAG_NON_CLASSE;
+            return window.DIAG_CATEGORIES.find(function(c) { return c.id === id; }) || null;
+        };
+        // Un rangement fait à la main remplace l'objet diagRangements (jamais modifié en place), et
+        // un rangement repris d'un autre poste aussi : le changement de référence suffit à vider le
+        // cache, sans avoir à surveiller les points d'écriture.
+        window.diagCache = new Map(); window.diagCacheRef = undefined;
+        window.diagRangementManuel = function(libelle) {
+            let r = window.appSettings.diagRangements, n = window.diagNorm(libelle);
+            return (r && Object.prototype.hasOwnProperty.call(r, n)) ? r[n] : '';
+        };
+        window.diagCategorie = function(libelle) {
+            let ref = window.appSettings.diagRangements;
+            if (ref !== window.diagCacheRef) { window.diagCache = new Map(); window.diagCacheRef = ref; }
+            let n = window.diagNorm(libelle);
+            if (window.diagCache.has(n)) return window.diagCache.get(n);
+            let force = window.diagRangementManuel(libelle);
+            let c = (force && window.diagCategorieParId(force)) || window.diagCategorieAuto(libelle);
+            window.diagCache.set(n, c);
+            return c;
+        };
+        window.setDiagRangement = function(norm, catId) {
+            let r = Object.assign({}, window.appSettings.diagRangements || {});
+            if (catId) r[norm] = catId; else delete r[norm];
+            window.appSettings.diagRangements = r;
+            window.persisterReglages();
+            window.renderDiagnostic(true);
+        };
+
+        // Toutes les dénominations du parc, regroupées par forme normalisée, avec leur catégorie.
+        window.diagDenominations = function() {
+            let m = new Map();
+            (window.rawTickets || []).forEach(function(t) {
+                let n = window.diagNorm(t.defaut); if (!n) return;
+                if (!m.has(n)) m.set(n, { norm: n, texte: (t.defaut || '').toString().trim(), n: 0, canons: new Set() });
+                let d = m.get(n); d.n++; d.canons.add(t.idCanon);
+            });
+            return Array.from(m.values()).map(function(d) {
+                d.cat = window.diagCategorie(d.texte); d.manuel = window.diagRangementManuel(d.texte); return d;
+            }).sort(function(a, b) { return b.n - a.n; });
+        };
+        // Effectif par catégorie, dans l'ordre de la liste ; « Non classé » en dernier.
+        window.diagComptesCategories = function() {
+            let c = {};
+            (window.rawTickets || []).forEach(function(t) { let k = window.diagCategorie(t.defaut).id; c[k] = (c[k] || 0) + 1; });
+            return window.DIAG_CATEGORIES.concat([window.DIAG_NON_CLASSE])
+                .map(function(cat) { return { cat: cat, n: c[cat.id] || 0 }; });
+        };
+
+        /* Le diagnostic porte sur :
+             - un canon et l'un de ses défauts (mode « par canon ») ;
+             - ou un défaut tapé / une catégorie, sans canon (mode « par défaut / catégorie »).
+           La portée dit ce qui est « comparable » : le libellé et ses variantes proches
+           (diagSimilarite), ou toute sa catégorie. Un défaut non classé ne peut être comparé que
+           par ressemblance : « tous les non classés » ne forment pas une panne. */
+        window.diagAnalyser = function(o) {
+            let tous = window.rawTickets || [];
+            let duCanon = o.canon ? tous.filter(function(t) { return t.idCanon === o.canon; }) : [];
+            let cible = o.defaut || '';
+            if (o.canon && !cible && !o.catId) {
+                let actifs = window.getActiveTickets(o.canon);
+                cible = actifs[0] ? actifs[0].defaut : (duCanon[0] ? duCanon[0].defaut : '');
+            }
+            if (!cible && !o.catId) return { err: o.canon ? "Aucun défaut déclaré sur ce canon." : "", defauts: [] };
+
+            let categorie = o.catId ? (window.diagCategorieParId(o.catId) || window.DIAG_NON_CLASSE) : window.diagCategorie(cible);
+            let parCategorie = !!o.catId || (o.portee === 'categorie' && categorie.id !== window.DIAG_NON_CLASSE.id);
+            let comparable = parCategorie
+                ? function(t) { return window.diagCategorie(t.defaut).id === categorie.id; }
+                : function(t) { return window.diagSimilarite(t.defaut, cible) >= window.DIAG_SEUIL; };
+            window.diagComparable = comparable;
+
+            let cas = tous.filter(comparable);
             let resolus = cas.filter(function(t) { return (t.statut || '').indexOf('fait') > -1; });
 
             let delais = [];
@@ -7690,15 +7875,22 @@
 
             // Historique propre au canon : un défaut qui revient sans cesse ne se traite pas comme un
             // défaut isolé, et c'est l'information que la moyenne du parc masque.
-            let recurrence = duCanon.filter(function(t) { return window.diagSimilarite(t.defaut, cible) >= window.DIAG_SEUIL; });
+            let recurrence = duCanon.filter(comparable);
             let derniere = null;
             recurrence.forEach(function(t) { let d = window.parseFrDate(t.date); if (d && (!derniere || d > derniere)) derniere = d; });
 
+            let parCanon = {};
+            cas.forEach(function(t) { parCanon[t.idCanon] = (parCanon[t.idCanon] || 0) + 1; });
+            let canons = Object.keys(parCanon).map(function(id) {
+                return { id: id, n: parCanon[id], actif: window.getActiveTickets(id).some(comparable) };
+            }).sort(function(a, b) { return (b.actif - a.actif) || (b.n - a.n); });
+
             return {
-                err: "", canon: idCanon, defaut: cible,
+                err: "", canon: o.canon || '', defaut: cible, categorie: categorie, parCategorie: parCategorie,
                 defauts: window.diagClasser(duCanon.map(function(t) { return t.defaut; })),
                 nbCas: cas.length, nbResolus: resolus.length,
-                canonsConcernes: Array.from(new Set(cas.map(function(t) { return t.idCanon; }))).length,
+                canonsConcernes: canons.length, canons: canons,
+                libelles: window.diagClasser(cas.map(function(t) { return t.defaut; })),
                 causes: window.diagClasser(resolus.map(function(t) { return window.diagChamp(t, ['cause']); })),
                 interventions: window.diagClasser(resolus.map(function(t) { return window.diagChamp(t, ['intervention', 'action', 'travaux']); })),
                 pieces: window.diagClasser(pieces),
@@ -7709,11 +7901,19 @@
         };
 
         window.diagCanon = null;
+        window.diagDefaut = null;
+        window.diagMode = 'canon';          // 'canon' | 'panne'
+        window.diagPortee = 'categorie';    // 'categorie' | 'proche'
+        window.diagRecherche = '';          // mode 'panne' : 'cat:<id>' ou texte libre
+        window.diagVue = 'resultats';       // mode 'panne' : 'resultats' | 'classement'
+        window.diagClassementFiltre = '';
+        window.diagClassementCat = '';
+
         window.openDiagnostic = function(id) {
             // ouvrirPanneauDroite coupe au passage le mode dessin de la fiche de route : sans cela, un
             // clic sur la carte relançait le calcul de tournée, qui réécrivait ce panneau-ci.
             if (!window.ouvrirPanneauDroite('diag', "<i class='fa-solid fa-stethoscope'></i> Aide au diagnostic")) return;
-            if (id) window.diagCanon = id;
+            if (id) { window.diagCanon = id; window.diagMode = 'canon'; }
             else if (!window.diagCanon && window.selectedCannonsMap.size) window.diagCanon = Array.from(window.selectedCannonsMap.keys())[0];
             window.renderDiagnostic();
         };
@@ -7728,15 +7928,57 @@
         };
         window.setDiagCanon = function(v) { window.diagCanon = v; window.diagDefaut = null; window.renderDiagnostic(); };
         window.setDiagDefaut = function(v) { window.diagDefaut = v; window.renderDiagnostic(); };
+        window.setDiagMode = function(v) { window.diagMode = v; window.diagVue = 'resultats'; window.renderDiagnostic(); };
+        window.setDiagPortee = function(v) { window.diagPortee = v; window.renderDiagnostic(); };
+        window.setDiagVue = function(v, catId) {
+            window.diagVue = v;
+            if (catId !== undefined) { window.diagClassementCat = catId; window.diagClassementFiltre = ''; }
+            window.renderDiagnostic();
+        };
+        // Un nom de catégorie tapé tel quel (ou choisi dans les suggestions) vaut la catégorie entière.
+        window.setDiagRecherche = function(v) {
+            v = (v || '').toString().trim();
+            if (v && v.indexOf('cat:') !== 0) {
+                let n = window.diagNorm(v);
+                let c = window.DIAG_CATEGORIES.concat([window.DIAG_NON_CLASSE]).find(function(k) { return window.diagNorm(k.nom) === n; });
+                if (c) v = 'cat:' + c.id;
+            }
+            window.diagRecherche = v;
+            window.diagVue = 'resultats';
+            window.renderDiagnostic();
+        };
+        // Depuis la liste des canons touchés : on bascule sur ce canon, sur le défaut qui l'a fait
+        // apparaître dans la liste (en cours de préférence, sinon le plus récent).
+        window.diagOuvrirCanon = function(id) {
+            let tk = (window.rawTickets || []).filter(function(t) { return t.idCanon === id && window.diagComparable && window.diagComparable(t); });
+            let actifs = window.getActiveTickets(id).filter(function(t) { return tk.indexOf(t) > -1; });
+            tk.sort(function(a, b) { return (window.parseFrDate(b.date) || 0) - (window.parseFrDate(a.date) || 0); });
+            let choisi = actifs[0] || tk[0];
+            window.diagCanon = id;
+            window.diagDefaut = choisi ? choisi.defaut : null;
+            if (window.diagRecherche.indexOf('cat:') === 0) window.diagPortee = 'categorie';
+            window.diagMode = 'canon';
+            window.renderDiagnostic();
+        };
+        window.diagFiltrerClassement = function(q) {
+            window.diagClassementFiltre = q;
+            let n = window.diagNorm(q), vus = 0;
+            document.querySelectorAll('#diag-classement [data-diag-norm]').forEach(function(el) {
+                let ok = !n || el.getAttribute('data-diag-norm').indexOf(n) > -1;
+                el.style.display = ok ? '' : 'none';
+                if (ok) vus++;
+            });
+            let v = document.getElementById('diag-classement-vide'); if (v) v.style.display = vus ? 'none' : 'block';
+        };
 
         window.diagBarre = function(n, total, couleur) {
             let pct = total ? Math.round(n / total * 100) : 0;
             return `<div style="height:5px; background:#eef2f5; border-radius:3px; overflow:hidden; margin-top:3px;">
                 <div style="height:100%; width:${pct}%; background:${couleur};"></div></div>`;
         };
-        window.diagListe = function(titre, items, total, couleur, vide) {
+        window.diagListe = function(titre, items, total, couleur, vide, max) {
             if (!items.length) return `<div style="font-size:11px; color:#95a5a6; padding:6px 0;">${vide}</div>`;
-            return items.slice(0, 6).map(function(it) {
+            return items.slice(0, max || 6).map(function(it) {
                 let pct = total ? Math.round(it.n / total * 100) : 0;
                 return `<div style="padding:6px 0; border-bottom:1px solid #f0f3f6;">
                     <div style="display:flex; gap:8px; font-size:12px;">
@@ -7745,10 +7987,19 @@
                     </div>${window.diagBarre(it.n, total, couleur)}</div>`;
             }).join('');
         };
+        window.diagPastille = function(cat, petit) {
+            return `<span style="display:inline-block; background:${cat.couleur}; color:#fff; border-radius:10px; padding:${petit ? '1px 7px' : '2px 9px'}; font-size:${petit ? 10 : 11}px; font-weight:bold; white-space:nowrap;">${window.prodEsc(cat.nom)}</span>`;
+        };
+        window.diagBouton = function(actif, onclick, texte, titre) {
+            return `<button onclick="${onclick}"${titre ? ` title="${window.prodEsc(titre)}"` : ''} style="flex:1; border:none; padding:8px 6px; font-size:11px; font-weight:bold; cursor:pointer; background:${actif ? '#2980b9' : '#fff'}; color:${actif ? '#fff' : '#2980b9'};">${texte}</button>`;
+        };
 
-        window.renderDiagnostic = function() {
+        // reprendreDefilement : après un rangement, le panneau est redessiné en entier ; sans cela,
+        // la liste des dénominations remontait en haut à chaque choix.
+        window.renderDiagnostic = function(reprendreDefilement) {
             let sl = document.getElementById('selected-list'); if (!sl) return;
             if (window.panneauDroite !== 'diag') return;
+            let rc = sl.closest('.right-content'), haut = rc ? rc.scrollTop : 0;
             // Une exception ici laissait autrefois le contenu précédent en place : on voyait la fiche de
             // route sous le titre « Aide au diagnostic », sans la moindre indication de la panne.
             try { window.renderDiagnosticCorps(sl); }
@@ -7757,45 +8008,42 @@
                     <b>L'aide au diagnostic n'a pas pu s'afficher.</b><br>${window.prodEsc(e.message)}<br>
                     <span style="font-size:11px;">Cela vient en général d'un ticket dont une colonne attendue est vide. Le reste de l'application n'est pas affecté.</span></div>`;
             }
+            if (reprendreDefilement && rc) rc.scrollTop = haut;
         };
         window.renderDiagnosticCorps = function(sl) {
-            let feats = ((window.snowCannons && window.snowCannons.features) || []);
-            let avecTickets = feats.filter(function(f) { return (window.rawTickets || []).some(function(t) { return t.idCanon === f.properties.id; }); });
-            let opts = avecTickets.map(function(f) {
-                let id = f.properties.id;
-                let a = window.getActiveTickets(id).length;
-                return `<option value="${window.prodEsc(id)}"${id === window.diagCanon ? ' selected' : ''}>Canon ${window.prodEsc(id)}${a ? ' — ' + a + ' défaut(s) en cours' : ''}</option>`;
-            }).join('');
-
             let html = `<div style="display:flex; flex-direction:column; gap:10px;">
-                <div>
-                    <span class="edit-label">Canon à diagnostiquer</span>
-                    <select class="edit-input" style="margin:0;" onchange="window.setDiagCanon(this.value)">
-                        <option value="">— choisir —</option>${opts}
-                    </select>
+                <div style="display:flex; border:1px solid #2980b9; border-radius:6px; overflow:hidden;">
+                    ${window.diagBouton(window.diagMode === 'canon', "window.setDiagMode('canon')", "<i class='fa-solid fa-snowflake'></i> Par canon")}
+                    ${window.diagBouton(window.diagMode === 'panne', "window.setDiagMode('panne')", "<i class='fa-solid fa-layer-group'></i> Par défaut / catégorie")}
                 </div>`;
-
-            if (!window.diagCanon) {
-                html += `<div style="font-size:12px; color:#7f8c8d; background:#f8fafc; border:1px solid #e6ecf2; border-radius:6px; padding:12px;">
-                    Choisissez un canon. L'outil recherche dans l'historique de <b>tous</b> les canons les pannes comparables à celle qui est déclarée ici, et classe ce qui les a résolues.</div></div>`;
-                sl.innerHTML = html; return;
+            if (window.diagMode === 'panne') {
+                html += window.diagVue === 'classement' ? window.diagHtmlClassement() : window.diagHtmlPanne();
+            } else {
+                html += window.diagHtmlCanon();
             }
+            sl.innerHTML = html + `</div>`;
+            if (window.diagClassementFiltre && document.getElementById('diag-classement')) window.diagFiltrerClassement(window.diagClassementFiltre);
+        };
 
-            let dejaDansTrajet = window.routeSelection.indexOf(window.diagCanon) > -1;
-            let a = window.diagAnalyser(window.diagCanon, window.diagDefaut);
-            if (a.err) { sl.innerHTML = html + `<div style="font-size:12px; color:#c0392b; padding:12px;">${a.err}</div>
-                <button onclick="window.diagAjouterAuTrajet('${window.prodEsc(window.diagCanon)}', false)" style="background:#e67e22; color:#fff; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; margin:0 12px 12px;"><i class="fa-solid fa-plus"></i> Ajouter au trajet</button></div>`; return; }
+        // Choix de portée, commun aux deux modes. Rien à choisir pour un défaut non classé.
+        window.diagHtmlPortee = function(a) {
+            if (a.categorie.id === window.DIAG_NON_CLASSE.id) {
+                return `<div style="font-size:11px; color:#7f8c8d; background:#f8fafc; border:1px solid #e6ecf2; border-radius:6px; padding:8px;">
+                    Ce défaut n'entre dans aucune catégorie : seuls ses libellés proches sont comparés.
+                    <a href="#" onclick="window.diagMode='panne'; window.setDiagVue('classement', 'aucune'); return false;" style="color:#2980b9;">Le ranger dans une catégorie</a></div>`;
+            }
+            return `<div>
+                    <span class="edit-label">Comparer avec</span>
+                    <div style="display:flex; border:1px solid #2980b9; border-radius:6px; overflow:hidden;">
+                        ${window.diagBouton(a.parCategorie, "window.setDiagPortee('categorie')", "Toute la catégorie", "Toutes les dénominations rangées dans « " + a.categorie.nom + " »")}
+                        ${window.diagBouton(!a.parCategorie, "window.setDiagPortee('proche')", "Ce libellé et ses variantes", "Seulement les libellés qui ressemblent à « " + a.defaut + " »")}
+                    </div>
+                </div>`;
+        };
 
-            let defOpts = a.defauts.map(function(d) {
-                return `<option value="${window.prodEsc(d.texte)}"${d.texte === a.defaut ? ' selected' : ''}>${window.prodEsc(d.texte)} (${d.n}×)</option>`;
-            }).join('');
-
-            html += `<div>
-                    <span class="edit-label">Défaut analysé</span>
-                    <select class="edit-input" style="margin:0;" onchange="window.setDiagDefaut(this.value)">${defOpts}</select>
-                </div>
-
-                <div style="border:2px solid #2980b9; border-radius:8px; overflow:hidden;">
+        // Bloc de chiffres, avertissement de faible effectif, causes, interventions, pièces.
+        window.diagHtmlResultats = function(a) {
+            let html = `<div style="border:2px solid #2980b9; border-radius:8px; overflow:hidden;">
                     <div style="background:#2980b9; color:#fff; padding:10px; display:flex; gap:10px; text-align:center;">
                         <div style="flex:1;"><div style="font-size:18px; font-weight:bold;">${a.nbCas}</div><div style="font-size:10px; opacity:0.9;">CAS COMPARABLES</div></div>
                         <div style="flex:1;"><div style="font-size:18px; font-weight:bold;">${a.nbResolus}</div><div style="font-size:10px; opacity:0.9;">RÉSOLUS</div></div>
@@ -7826,26 +8074,185 @@
                     ${window.diagListe('pieces', a.pieces, a.nbResolus, '#e67e22', "Aucune pièce enregistrée sur les cas comparables.")}
                     ${a.pieces.length ? `<div style="font-size:10px; color:#888; margin-top:6px;">À prévoir avant de monter : ${a.pieces.slice(0, 3).map(function(p) { return window.prodEsc(p.texte); }).join(', ')}.</div>` : ''}
                 </div>`;
+            return html;
+        };
+
+        // Ce que la recherche a rassemblé : c'est ici qu'on voit si le regroupement est juste.
+        window.diagHtmlLibelles = function(a) {
+            if (a.libelles.length < 2 && !a.parCategorie) return '';
+            return `<div style="border:1px solid #e1e8ed; border-radius:6px; padding:10px;">
+                    <b style="font-size:12px; color:#2c3e50;"><i class="fa-solid fa-tags"></i> Dénominations regroupées (${a.libelles.length})</b>
+                    ${window.diagListe('libelles', a.libelles, a.nbCas, a.categorie.couleur, "Aucun ticket.", 12)}
+                    ${a.libelles.length > 12 ? `<div style="font-size:10px; color:#888; margin-top:4px;">… et ${a.libelles.length - 12} autre(s).</div>` : ''}
+                    <a href="#" onclick="window.diagMode='panne'; window.setDiagVue('classement', '${a.categorie.id}'); return false;" style="display:inline-block; margin-top:6px; font-size:11px; color:#2980b9;"><i class="fa-solid fa-pen"></i> Corriger le classement</a>
+                </div>`;
+        };
+
+        window.diagHtmlCanon = function() {
+            let feats = ((window.snowCannons && window.snowCannons.features) || []);
+            let avecTickets = feats.filter(function(f) { return (window.rawTickets || []).some(function(t) { return t.idCanon === f.properties.id; }); });
+            let opts = avecTickets.map(function(f) {
+                let id = f.properties.id;
+                let a = window.getActiveTickets(id).length;
+                return `<option value="${window.prodEsc(id)}"${id === window.diagCanon ? ' selected' : ''}>Canon ${window.prodEsc(id)}${a ? ' — ' + a + ' défaut(s) en cours' : ''}</option>`;
+            }).join('');
+
+            let html = `<div>
+                    <span class="edit-label">Canon à diagnostiquer</span>
+                    <select class="edit-input" style="margin:0;" onchange="window.setDiagCanon(this.value)">
+                        <option value="">— choisir —</option>${opts}
+                    </select>
+                </div>`;
+
+            if (!window.diagCanon) {
+                return html + `<div style="font-size:12px; color:#7f8c8d; background:#f8fafc; border:1px solid #e6ecf2; border-radius:6px; padding:12px;">
+                    Choisissez un canon. L'outil recherche dans l'historique de <b>tous</b> les canons les pannes comparables à celle qui est déclarée ici, et classe ce qui les a résolues.<br><br>
+                    Pour chercher une panne sans partir d'un canon (« dialogue », « fuite »…), passez sur <b>Par défaut / catégorie</b>.</div>`;
+            }
+
+            let dejaDansTrajet = window.routeSelection.indexOf(window.diagCanon) > -1;
+            let a = window.diagAnalyser({ canon: window.diagCanon, defaut: window.diagDefaut, portee: window.diagPortee });
+            if (a.err) return html + `<div style="font-size:12px; color:#c0392b; padding:12px;">${a.err}</div>
+                <button onclick="window.diagAjouterAuTrajet('${window.prodEsc(window.diagCanon)}', false)" style="background:#e67e22; color:#fff; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; margin:0 12px 12px;"><i class="fa-solid fa-plus"></i> Ajouter au trajet</button>`;
+
+            // Les défauts du canon, rangés par catégorie dans la liste déroulante.
+            let groupes = {};
+            a.defauts.forEach(function(d) { let c = window.diagCategorie(d.texte); (groupes[c.id] = groupes[c.id] || { cat: c, items: [] }).items.push(d); });
+            let defOpts = window.DIAG_CATEGORIES.concat([window.DIAG_NON_CLASSE]).filter(function(c) { return groupes[c.id]; }).map(function(c) {
+                return `<optgroup label="${window.prodEsc(c.nom)}">` + groupes[c.id].items.map(function(d) {
+                    return `<option value="${window.prodEsc(d.texte)}"${window.diagNorm(d.texte) === window.diagNorm(a.defaut) ? ' selected' : ''}>${window.prodEsc(d.texte)} (${d.n}×)</option>`;
+                }).join('') + `</optgroup>`;
+            }).join('');
+
+            html += `<div>
+                    <span class="edit-label">Défaut analysé</span>
+                    <select class="edit-input" style="margin:0;" onchange="window.setDiagDefaut(this.value)">${defOpts}</select>
+                    <div style="margin-top:5px; font-size:11px; color:#7f8c8d;">Catégorie : ${window.diagPastille(a.categorie, true)}</div>
+                </div>
+                ${window.diagHtmlPortee(a)}
+                ${window.diagHtmlResultats(a)}
+                ${window.diagHtmlLibelles(a)}`;
 
             if (a.recurrence > 1) {
                 html += `<div style="background:#fdedec; border:1px solid #f5b7b1; border-radius:6px; padding:10px; font-size:12px; color:#922b21;">
                     <b><i class="fa-solid fa-triangle-exclamation"></i> Défaut récurrent sur ce canon</b><br>
-                    Déjà survenu <b>${a.recurrence} fois</b> ici${a.derniere ? `, la dernière le ${a.derniere.toLocaleDateString('fr-FR')}` : ''}.
+                    ${a.parCategorie ? `Un défaut de la catégorie « ${window.prodEsc(a.categorie.nom)} » est` : 'Déjà'} survenu <b>${a.recurrence} fois</b> ici${a.derniere ? `, la dernière le ${a.derniere.toLocaleDateString('fr-FR')}` : ''}.
                     Une réparation qui ne tient pas mérite qu'on cherche la cause en amont plutôt que de refaire le même geste.</div>`;
             }
 
+            // Historique du canon par catégorie : trois « dialogue », deux « com » et un « liaison »
+            // font six défauts de dialogue, pas six défauts isolés.
+            let parCat = window.diagClasser(window.rawTickets.filter(function(t) { return t.idCanon === window.diagCanon; }).map(function(t) { return window.diagCategorie(t.defaut).nom; }));
             html += `<div style="border:1px solid #e1e8ed; border-radius:6px; padding:10px;">
-                    <b style="font-size:12px; color:#2c3e50;"><i class="fa-solid fa-chart-column"></i> Historique de ce canon (${a.totalCanon} ticket(s))</b>
-                    ${window.diagListe('hist', a.defauts, a.totalCanon, '#34495e', "Aucun historique.")}
+                    <b style="font-size:12px; color:#2c3e50;"><i class="fa-solid fa-chart-column"></i> Historique de ce canon par catégorie (${a.totalCanon} ticket(s))</b>
+                    ${window.diagListe('hist', parCat, a.totalCanon, '#34495e', "Aucun historique.", 20)}
                 </div>
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                     <button onclick="window.zoomSurCanon('${window.prodEsc(window.diagCanon)}')" style="flex:1 1 100%; background:#2980b9; color:#fff; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-bullseye"></i> Voir ce canon sur la carte</button>
                     <button onclick="window.diagAjouterAuTrajet('${window.prodEsc(window.diagCanon)}', false)" style="flex:1 1 60%; background:#e67e22; color:#fff; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-plus"></i> Ajouter au trajet ${dejaDansTrajet ? '(déjà dedans)' : '(' + (window.routeSelection.length + 1) + 'ᵉ arrêt)'}</button>
                     <button onclick="window.diagAjouterAuTrajet('${window.prodEsc(window.diagCanon)}', true)" style="flex:1 1 34%; background:#34495e; color:#fff; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;" title="Ajouter puis ouvrir la fiche de route"><i class="fa-solid fa-map"></i> Fiche</button>
                 </div>
-                <p style="font-size:10px; color:#888; margin:0;">Le canon <b>s'ajoute</b> à la tournée en cours (${window.routeSelection.length} arrêt(s)) : elle n'est jamais remplacée.</p>
-            </div>`;
-            sl.innerHTML = html;
+                <p style="font-size:10px; color:#888; margin:0;">Le canon <b>s'ajoute</b> à la tournée en cours (${window.routeSelection.length} arrêt(s)) : elle n'est jamais remplacée.</p>`;
+            return html;
+        };
+
+        window.diagHtmlPanne = function() {
+            let comptes = window.diagComptesCategories().filter(function(c) { return c.n; });
+            let rech = window.diagRecherche;
+            let catChoisie = rech.indexOf('cat:') === 0 ? rech.slice(4) : '';
+            let texte = catChoisie ? ((window.diagCategorieParId(catChoisie) || {}).nom || '') : rech;
+            let suggestions = window.DIAG_CATEGORIES.map(function(c) { return c.nom; })
+                .concat(window.diagDenominations().map(function(d) { return d.texte; }));
+
+            let html = `<div>
+                    <span class="edit-label">Défaut ou catégorie recherché</span>
+                    <input type="search" class="edit-input" style="margin:0;" list="diag-dl-recherche" value="${window.prodEsc(texte)}"
+                        placeholder="ex : dialogue, pas de com, fuite, sonde…" onchange="window.setDiagRecherche(this.value)"
+                        onkeydown="if (event.key === 'Enter') { this.blur(); }">
+                    <datalist id="diag-dl-recherche">${suggestions.map(function(s) { return `<option value="${window.prodEsc(s)}"></option>`; }).join('')}</datalist>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                    ${comptes.map(function(c) {
+                        let actif = catChoisie === c.cat.id;
+                        return `<button onclick="window.setDiagRecherche('cat:${c.cat.id}')" style="border:1px solid ${c.cat.couleur}; background:${actif ? c.cat.couleur : '#fff'}; color:${actif ? '#fff' : c.cat.couleur}; border-radius:12px; padding:3px 9px; font-size:11px; font-weight:bold; cursor:pointer;">${window.prodEsc(c.cat.nom)} <span style="opacity:0.75;">${c.n}</span></button>`;
+                    }).join('') || `<span style="font-size:11px; color:#95a5a6;">Aucun ticket chargé.</span>`}
+                </div>`;
+
+            if (!rech) {
+                return html + `<div style="font-size:12px; color:#7f8c8d; background:#f8fafc; border:1px solid #e6ecf2; border-radius:6px; padding:12px;">
+                    Tapez un défaut (« pas de dialogue », « fuite eau »…) ou choisissez une catégorie. Les dénominations différentes d'une même panne sont regroupées : « dialogue », « défaut dialogue », « pas de dialogue », « perte com » relèvent toutes de <b>Défaut dialogue</b>.</div>
+                    <button onclick="window.setDiagVue('classement', '')" style="background:#fff; color:#2980b9; border:1px solid #2980b9; padding:8px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-list-check"></i> Classer les dénominations</button>`;
+            }
+
+            // Les non classés ne forment pas une panne : on les montre pour qu'on les range.
+            if (catChoisie === window.DIAG_NON_CLASSE.id) { window.diagClassementCat = 'aucune'; return html + window.diagHtmlClassement(true); }
+
+            let a = catChoisie ? window.diagAnalyser({ catId: catChoisie }) : window.diagAnalyser({ defaut: rech, portee: window.diagPortee });
+            if (!catChoisie) {
+                html += `<div style="font-size:11px; color:#7f8c8d;">Catégorie reconnue : ${window.diagPastille(a.categorie, true)}</div>${window.diagHtmlPortee(a)}`;
+            }
+            if (!a.nbCas) {
+                return html + `<div style="font-size:12px; color:#7e5109; background:#fef5e7; border:1px solid #f5cba7; border-radius:6px; padding:12px;">
+                    Aucun ticket comparable dans l'historique${a.parCategorie ? '' : ` pour « ${window.prodEsc(rech)} »`}.${!a.parCategorie && a.categorie.id !== window.DIAG_NON_CLASSE.id ? ' Essayez <b>Toute la catégorie</b>.' : ''}</div>`;
+            }
+
+            html += window.diagHtmlResultats(a) + window.diagHtmlLibelles(a);
+            html += `<div style="border:1px solid #e1e8ed; border-radius:6px; padding:10px;">
+                    <b style="font-size:12px; color:#2c3e50;"><i class="fa-solid fa-snowflake"></i> Canons touchés (${a.canons.length})</b>
+                    <div style="font-size:10px; color:#888; margin:2px 0 4px;">En rouge : défaut de ce type encore en cours. Toucher un canon pour l'analyser.</div>
+                    ${a.canons.slice(0, 30).map(function(c) {
+                        return `<div onclick="window.diagOuvrirCanon('${window.prodEsc(c.id)}')" style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 4px; border-bottom:1px solid #f0f3f6; font-size:12px; cursor:pointer;">
+                            <span><b style="color:${c.actif ? '#c0392b' : '#2c3e50'};">Canon ${window.prodEsc(c.id)}</b>${c.actif ? ' <span style="font-size:10px; color:#c0392b;">en cours</span>' : ''}</span>
+                            <span style="color:#7f8c8d; white-space:nowrap;">${c.n} ticket(s) <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i></span></div>`;
+                    }).join('')}
+                    ${a.canons.length > 30 ? `<div style="font-size:10px; color:#888; margin-top:4px;">… et ${a.canons.length - 30} autre(s).</div>` : ''}
+                </div>`;
+            return html;
+        };
+
+        /* Classement des dénominations : chaque libellé distinct du parc, sa catégorie reconnue et
+           la possibilité de la corriger. « Automatique » laisse décider les mots-clés — c'est aussi
+           ainsi qu'on annule un rangement manuel. */
+        window.diagHtmlClassement = function(integre) {
+            let cat = window.diagClassementCat;
+            let toutes = window.DIAG_CATEGORIES.concat([window.DIAG_NON_CLASSE]);
+            let denoms = window.diagDenominations();
+            let liste = denoms.filter(function(d) { return !cat || d.cat.id === cat; });
+            let nbNonClasses = denoms.filter(function(d) { return d.cat.id === window.DIAG_NON_CLASSE.id; }).length;
+
+            let html = integre ? '' : `<div style="display:flex; align-items:center; gap:8px;">
+                    <button onclick="window.setDiagVue('resultats')" style="background:none; border:1px solid #bdc3c7; border-radius:4px; padding:4px 8px; font-size:11px; cursor:pointer;"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+                    <b style="font-size:13px; color:#2c3e50;">Classement des dénominations</b>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <select class="edit-input" style="margin:0; flex:1;" onchange="window.setDiagVue('classement', this.value)">
+                        <option value="">Toutes les catégories</option>
+                        ${toutes.map(function(c) { return `<option value="${c.id}"${c.id === cat ? ' selected' : ''}>${window.prodEsc(c.nom)}</option>`; }).join('')}
+                    </select>
+                </div>`;
+            html += `<div style="font-size:11px; color:#7f8c8d; background:#f8fafc; border:1px solid #e6ecf2; border-radius:6px; padding:8px;">
+                    ${nbNonClasses ? `<b style="color:#c0392b;">${nbNonClasses}</b> dénomination(s) non classée(s) sur l'ensemble du parc.` : `Toutes les dénominations sont rangées dans une catégorie.`}
+                    Le choix fait ici prime sur la reconnaissance automatique et est partagé avec les autres postes.</div>
+                <input type="search" class="edit-input" style="margin:0;" placeholder="Filtrer les dénominations…" value="${window.prodEsc(window.diagClassementFiltre)}" oninput="window.diagFiltrerClassement(this.value)">
+                <div id="diag-classement" style="display:flex; flex-direction:column;">
+                    ${liste.map(function(d) {
+                        let opts = `<option value="">Automatique${d.manuel ? ' (' + window.prodEsc(window.diagCategorieAuto(d.texte).nom) + ')' : ''}</option>` +
+                            toutes.map(function(c) { return `<option value="${c.id}"${d.manuel === c.id ? ' selected' : ''}>${window.prodEsc(c.nom)}</option>`; }).join('');
+                        return `<div data-diag-norm="${window.prodEsc(d.norm)}" style="padding:7px 0; border-bottom:1px solid #f0f3f6;">
+                            <div style="display:flex; justify-content:space-between; gap:8px; font-size:12px;">
+                                <span style="flex:1; word-break:break-word;">${window.prodEsc(d.texte)}</span>
+                                <span style="color:#7f8c8d; white-space:nowrap; font-size:11px;">${d.n}× · ${d.canons.size} canon(s)</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                                ${window.diagPastille(d.cat, true)}
+                                ${d.manuel ? '<span style="font-size:10px; color:#8e44ad; font-weight:bold;">rangé à la main</span>' : ''}
+                                <select class="edit-input" data-norm="${window.prodEsc(d.norm)}" onchange="window.setDiagRangement(this.dataset.norm, this.value)" style="margin:0 0 0 auto; width:auto; max-width:55%; padding:3px; font-size:11px;">${opts}</select>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                    <div id="diag-classement-vide" style="display:${liste.length ? 'none' : 'block'}; text-align:center; color:#7f8c8d; font-size:12px; padding:10px;">Aucune dénomination.</div>
+                </div>`;
+            return html;
         };
 
         /* ------------------------------------------------------------------------- */
