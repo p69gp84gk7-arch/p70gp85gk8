@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.21.0";
+        window.APP_VERSION = "5.22.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -405,6 +405,12 @@
         #map-container{flex-grow:1;position:relative;height:100%;background:#222;}
         #map{position:absolute;top:0;bottom:0;left:0;right:0;width:100%;height:100%;z-index:1;}
         .custom-cannon-icon{background:none;border:none;}
+        /* CHAPITRE 3.B — Vue 3D : seconde carte posée sur la première, dans le même cadre. */
+        #map3d{position:absolute;inset:0;z-index:2;background:#dce9f3;}
+        #map3d[hidden]{display:none;}
+        #map3d .maplibregl-map{position:absolute;inset:0;}
+        #map3d-commandes{position:absolute;top:10px;right:10px;z-index:5;width:210px;background:rgba(255,255,255,0.95);border-radius:8px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,0.25);font-size:12px;color:#2c3e50;box-sizing:border-box;}
+        .marqueur-3d{cursor:pointer;}
         .cannon-circle{border-radius:50%;color:white;font-weight:bold;text-align:center;text-shadow:1px 1px 2px rgba(0,0,0,0.8);box-sizing:border-box;box-shadow:0 3px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
         .cannon-circle:hover{transform:scale(1.2);z-index:1000 !important;cursor:pointer;}
         .camera-icon{font-size:24px;text-shadow:2px 2px 4px rgba(0,0,0,0.8);text-align:center;line-height:24px;cursor:pointer;}
@@ -769,6 +775,7 @@
             <button class="topbar-btn" data-btnkey="dashboard" data-btnlabel="Tableau de Bord" onclick="window.toggleRightSidebar()"><i class="fa-solid fa-chart-line"></i> <span class="btn-text">Tableau de Bord</span></button>
         </div>
         <div class="topbar-actions">
+            <button class="topbar-btn" data-btnkey="vue3d" data-btnlabel="Vue 3D" onclick="window.basculerVue3d()" style="background:#0e6655; border-color:#138d75;"><i class="fa-solid fa-mountain"></i> <span class="btn-text">Vue 3D</span></button>
             <button class="topbar-btn" data-btnkey="documents" data-btnlabel="Documents" onclick="window.openPdfModal()" style="background:#8e44ad; border-color:#9b59b6;"><i class="fa-solid fa-book-open"></i> <span class="btn-text">Documents</span></button>
             <button class="topbar-btn" data-btnkey="settings" data-btnlabel="Paramètres" onclick="window.promptSettings()" style="background:#2c3e50; border-color:#34495e;"><i class="fa-solid fa-gear"></i> <span class="btn-text">Paramètres</span></button>
             <!-- Tous les autres outils sont regroupés derrière ce bouton sur PC ; sur mobile le bandeau
@@ -785,6 +792,7 @@
                     <button class="topbar-btn" data-btnkey="plan" data-btnlabel="Plan d'enneigement" onclick="window.openPlanNeige()" style="background:#0072ff; border-color:#3498db;"><i class="fa-solid fa-snowflake"></i> <span class="btn-text">Plan d'enneigement</span></button>
                     <button class="topbar-btn" data-btnkey="route" data-btnlabel="Fiche de route" onclick="window.openFicheRoute()"><i class="fa-solid fa-route"></i> <span class="btn-text">Fiche de route</span></button>
                     <button class="topbar-btn" data-btnkey="diag" data-btnlabel="Aide au diagnostic" onclick="window.openDiagnostic()"><i class="fa-solid fa-stethoscope"></i> <span class="btn-text">Aide au diagnostic</span></button>
+                    <button class="topbar-btn" data-btnkey="vent" data-btnlabel="Analyse du vent" onclick="window.openAnalyseVent()" style="background:#00838f; border-color:#26a69a;"><i class="fa-solid fa-wind"></i> <span class="btn-text">Analyse du vent</span></button>
                     <button class="topbar-btn" data-btnkey="histmeteo" data-btnlabel="Hist. Météo" onclick="window.openMeteoHistoryModal(true)" style="background:#f39c12; border-color:#f1c40f;"><i class="fa-solid fa-temperature-half"></i> <span class="btn-text">Hist. Météo</span></button>
                     <button class="topbar-btn" data-btnkey="localiser" data-btnlabel="Localiser" onclick="window.geolocateUser()" style="background:#2980b9; border-color:#3498db;"><i class="fa-solid fa-location-crosshairs"></i> <span class="btn-text">Localiser</span></button>
                     <button class="topbar-btn" data-btnkey="print" data-btnlabel="Imprimer" onclick="window.openPrintMode()" style="background:#7f8c8d; border-color:#95a5a6;"><i class="fa-solid fa-print"></i> <span class="btn-text">Imprimer</span></button>
@@ -1263,6 +1271,7 @@
 
         <div id="map-container">
             <div id="map"></div>
+            <div id="map3d" hidden><div id="map3d-commandes"></div></div>
             <div id="atelier-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8; overflow-y:auto; padding:20px; box-sizing:border-box;"></div>
             <div id="stock-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8; overflow-y:auto; padding:20px; box-sizing:border-box;"></div>
             <div id="theme-list-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8; overflow-y:auto; padding:20px; box-sizing:border-box;"></div>
@@ -1341,7 +1350,7 @@
             meteo: { secteurs: [], seuilTH: -2.5, seuilBon: -5, jours: 3, ongletDefaut: 'production' }
         };
         window.listViewFilters = { defaut: '', statutTicket: '', statutEntretien: '', statutTete: '' };
-        window.defaultBtnColors = { menu: '#34495e', dashboard: '#34495e', documents: '#8e44ad', settings: '#2c3e50', tools: '#546e7a', compare: '#d35400', bi: '#16a085', meteo: '#34495e', webcams: '#34495e', satellite: '#00838f', route: '#e67e22', diag: '#2980b9', histmeteo: '#f39c12', localiser: '#2980b9', print: '#7f8c8d', calendar: '#e67e22' };
+        window.defaultBtnColors = { menu: '#34495e', dashboard: '#34495e', documents: '#8e44ad', settings: '#2c3e50', tools: '#546e7a', compare: '#d35400', bi: '#16a085', meteo: '#34495e', webcams: '#34495e', satellite: '#00838f', route: '#e67e22', diag: '#2980b9', vue3d: '#0e6655', vent: '#00838f', histmeteo: '#f39c12', localiser: '#2980b9', print: '#7f8c8d', calendar: '#e67e22' };
         window.overlayLayers = { hillshade: null, labels: null };
 
         // Plus de code d'accès : le PIN était en clair dans la page, il ne protégeait donc rien, et il
@@ -3089,6 +3098,338 @@
             let pt = l.getLatLng();
             requestAnimationFrame(function() { window.centrerSurPoint(pt, 17); });
         } }); };
+
+
+        /* ========================================================================= */
+        /* CHAPITRE 3.B : VUE 3D — RELIEF LIDAR HD DE L'IGN                          */
+        /*                                                                           */
+        /* La carte 2D (Leaflet) ne sait pas incliner la vue. La 3D est donc une      */
+        /* SECONDE carte (MapLibre), posée par-dessus la première dans le même cadre  */
+        /* et chargée seulement au premier usage : un million d'octets de moteur 3D   */
+        /* n'a pas à retarder chaque démarrage. La carte 2D reste vivante dessous —   */
+        /* thèmes, filtres, sélection continuent de s'y calculer, et la 3D en recopie */
+        /* le résultat (CHAPITRE 3.B.2).                                              */
+        /*                                                                           */
+        /* Le relief vient du Géoplateforme IGN, en altitudes brutes (flottants       */
+        /* 32 bits, service WMS) :                                                    */
+        /*   1. MNT LiDAR HD — le domaine et la vallée ;                               */
+        /*   2. RGE ALTI — là où le LiDAR HD n'est pas encore publié ;                 */
+        /*   3. SRTM — côté espagnol, que les deux premiers ne couvrent pas. Sans ce   */
+        /*      troisième niveau, la crête frontière retombait à zéro : un gouffre à  */
+        /*      5 km du domaine.                                                      */
+        /* L'IGN ne sert pas ces altitudes en tuiles de carte web : chaque tuile est  */
+        /* demandée en coordonnées géographiques, remise dans la grille Mercator,     */
+        /* puis codée en couleurs à la façon « terrain RGB » que lit MapLibre.        */
+        /* Le service worker garde les réponses de data.geopf.fr : un secteur déjà    */
+        /* vu en 3D reste consultable hors réseau.                                    */
+        /* ========================================================================= */
+        window.MAPLIBRE_VERSION = '5.24.0';
+        window.carte3d = null;
+        window.vue3dActive = false;
+        window.marqueurs3d = new Map();
+        window.IGN_WMS = 'https://data.geopf.fr/wms-r?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=&CRS=EPSG:4326&FORMAT=image/x-bil;bits=32';
+        window.IGN_WMTS = function(couche, format, jeu) {
+            return 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=' + couche +
+                '&STYLE=normal&FORMAT=' + format + '&TILEMATRIXSET=' + jeu + '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';
+        };
+        window.RELIEF_COUCHES = ['IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.WGS84G',
+                                 'ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES',
+                                 'ELEVATION.ELEVATIONGRIDCOVERAGE.SRTM3'];
+
+        window.reglages3d = function() {
+            let r = window.appSettings.vue3d;
+            if (!r || typeof r !== 'object') r = {};
+            return { exag: typeof r.exag === 'number' ? r.exag : 1.3, ombrage: r.ombrage !== false, fond: r.fond || 'appli' };
+        };
+        window.regler3d = function(cle, val) {
+            let r = window.reglages3d(); r[cle] = val;
+            window.appSettings.vue3d = r;
+            window.persisterReglages();
+            window.appliquerReglages3d();
+        };
+
+        window.chargerMapLibre = function() {
+            if (window.maplibregl) return Promise.resolve(window.maplibregl);
+            if (window.chargementMapLibre) return window.chargementMapLibre;
+            window.chargementMapLibre = new Promise(function(ok, ko) {
+                let base = 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/' + window.MAPLIBRE_VERSION + '/';
+                let css = document.createElement('link'); css.rel = 'stylesheet'; css.href = base + 'maplibre-gl.css';
+                document.head.appendChild(css);
+                let s = document.createElement('script'); s.src = base + 'maplibre-gl.js';
+                s.onload = function() { window.maplibregl ? ok(window.maplibregl) : ko(new Error("moteur 3D incomplet")); };
+                s.onerror = function() { window.chargementMapLibre = null; ko(new Error("moteur 3D injoignable — il faut du réseau à la première ouverture")); };
+                document.head.appendChild(s);
+            });
+            return window.chargementMapLibre;
+        };
+
+        /* ------------------------------------------------------------------------- */
+        /* CHAPITRE 3.B.1 — TUILES DE RELIEF                                           */
+        /* ------------------------------------------------------------------------- */
+        window.lireAltitudesIGN = async function(couche, sud, ouest, nord, est, n, signal) {
+            let u = window.IGN_WMS + '&LAYERS=' + couche + '&BBOX=' + [sud, ouest, nord, est].map(function(v) { return v.toFixed(7); }).join(',') + '&WIDTH=' + n + '&HEIGHT=' + n;
+            let r = await fetch(u, { signal: signal });
+            if (!r.ok) throw new Error('IGN ' + r.status);
+            let b = await r.arrayBuffer();
+            // Une erreur de service revient en XML, avec un code 200 : seule la taille la trahit.
+            if (b.byteLength !== n * n * 4) throw new Error('réponse IGN inattendue');
+            return new Float32Array(b);
+        };
+        // L'IGN marque l'absence de donnée par −9999 (LiDAR, SRTM) ou −99999 (RGE ALTI).
+        window.altitudeValide = function(v) { return v > -1000 && v < 9000; };
+
+        window.tuileRelief = async function(params, abort) {
+            let m = /(\d+)\/(\d+)\/(\d+)/.exec(params.url);
+            if (!m) throw new Error('adresse de tuile illisible');
+            let z = +m[1], x = +m[2], y = +m[3], N = 256, k = Math.pow(2, z);
+            let lon = function(t) { return t / k * 360 - 180; };
+            let lat = function(t) { return Math.atan(Math.sinh(Math.PI * (1 - 2 * t / k))) * 180 / Math.PI; };
+            let ouest = lon(x), est = lon(x + 1), nord = lat(y), sud = lat(y + 1);
+            let signal = abort && abort.signal;
+
+            // Premier service qui couvre tout, sinon on comble les trous avec le suivant.
+            let alt = null;
+            for (let c = 0; c < window.RELIEF_COUCHES.length; c++) {
+                let lu;
+                try { lu = await window.lireAltitudesIGN(window.RELIEF_COUCHES[c], sud, ouest, nord, est, N, signal); }
+                catch (e) { if (signal && signal.aborted) throw e; continue; }
+                if (!alt) alt = lu;
+                else for (let i = 0; i < alt.length; i++) if (!window.altitudeValide(alt[i]) && window.altitudeValide(lu[i])) alt[i] = lu[i];
+                let trous = 0; for (let i = 0; i < alt.length; i++) if (!window.altitudeValide(alt[i])) { trous++; break; }
+                if (!trous) break;
+            }
+            if (!alt) throw new Error('relief IGN indisponible');
+
+            // Les lignes reçues sont régulières en latitude ; celles de la tuile, en Mercator.
+            let im = new ImageData(N, N), d = im.data;
+            for (let j = 0; j < N; j++) {
+                let la = lat(y + (j + 0.5) / N);
+                let r = (nord - la) / (nord - sud) * N - 0.5;
+                let r0 = Math.max(0, Math.min(N - 1, Math.floor(r))), r1 = Math.min(N - 1, r0 + 1), f = Math.max(0, Math.min(1, r - r0));
+                for (let i = 0; i < N; i++) {
+                    let a = alt[r0 * N + i], b = alt[r1 * N + i];
+                    let h = window.altitudeValide(a) ? (window.altitudeValide(b) ? a + (b - a) * f : a) : (window.altitudeValide(b) ? b : 0);
+                    let v = Math.max(0, Math.round((h + 10000) * 10)), o = (j * N + i) * 4;
+                    d[o] = (v >> 16) & 255; d[o + 1] = (v >> 8) & 255; d[o + 2] = v & 255; d[o + 3] = 255;
+                }
+            }
+            let cv = document.createElement('canvas'); cv.width = cv.height = N;
+            cv.getContext('2d').putImageData(im, 0, 0);
+            let blob = await new Promise(function(ok) { cv.toBlob(ok, 'image/png'); });
+            return { data: await blob.arrayBuffer() };
+        };
+
+        window.urlFond3d = function() {
+            let f = window.reglages3d().fond;
+            if (f === 'ortho') return { url: window.IGN_WMTS('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg', 'PM_0_19'), attr: '© IGN — orthophotographie', max: 19 };
+            if (f === 'plan') return { url: window.IGN_WMTS('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png', 'PM_0_19'), attr: '© IGN — Plan IGN', max: 19 };
+            // Le fond choisi dans les paramètres de l'application, tel que Leaflet le demande.
+            let u = (window.satLayer && window.satLayer._url) || 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+            return { url: u.replace('{s}', 'a').replace('{r}', ''), attr: /arcgisonline/.test(u) ? 'Tiles © Esri' : '© CARTO, © OpenStreetMap', max: 18 };
+        };
+
+        window.style3d = function() {
+            let r = window.reglages3d(), fond = window.urlFond3d();
+            return {
+                version: 8,
+                sources: {
+                    fond: { type: 'raster', tiles: [fond.url], tileSize: 256, maxzoom: fond.max, attribution: fond.attr },
+                    ombrage: { type: 'raster', tiles: [window.IGN_WMTS('IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW', 'image/png', 'PM_0_18')], tileSize: 256, maxzoom: 18 },
+                    relief: { type: 'raster-dem', tiles: ['lidar://{z}/{x}/{y}'], tileSize: 256, maxzoom: 15, encoding: 'mapbox', attribution: 'Relief © IGN — LiDAR HD, RGE ALTI' },
+                    traces: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } }
+                },
+                layers: [
+                    { id: 'fond', type: 'raster', source: 'fond' },
+                    { id: 'ombrage', type: 'raster', source: 'ombrage', layout: { visibility: r.ombrage ? 'visible' : 'none' },
+                      paint: { 'raster-opacity': 0.4 } },
+                    { id: 'traces-surface', type: 'fill', source: 'traces', filter: ['==', ['geometry-type'], 'Polygon'],
+                      paint: { 'fill-color': ['get', 'couleur'], 'fill-opacity': ['get', 'remplissage'] } },
+                    { id: 'traces-ligne', type: 'line', source: 'traces',
+                      layout: { 'line-join': 'round', 'line-cap': 'round' },
+                      paint: { 'line-color': ['get', 'couleur'], 'line-width': ['get', 'epaisseur'], 'line-opacity': ['get', 'opacite'] } }
+                ],
+                terrain: { source: 'relief', exaggeration: r.exag },
+                sky: { 'sky-color': '#7fb2de', 'horizon-color': '#dce9f3', 'fog-color': '#eef3f7',
+                       'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.7, 'fog-ground-blend': 0.85, 'atmosphere-blend': 0.6 }
+            };
+        };
+
+        window.creerCarte3d = async function() {
+            let gl = await window.chargerMapLibre();
+            if (!window.protocoleLidar) { gl.addProtocol('lidar', window.tuileRelief); window.protocoleLidar = true; }
+            let cadre = document.getElementById('map3d');
+            let c = window.map.getCenter();
+            window.carte3d = new gl.Map({
+                container: cadre, style: window.style3d(),
+                // Les tuiles de MapLibre font 512 px quand Leaflet en affiche 256 : un cran de zoom d'écart.
+                center: [c.lng, c.lat], zoom: Math.max(0, window.map.getZoom() - 1), pitch: 62, bearing: -20,
+                maxPitch: 80, attributionControl: { compact: true }
+            });
+            window.carte3d.addControl(new gl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+            window.carte3d.on('error', function(e) {
+                // Une tuile de relief refusée ne doit pas inonder l'écran ; on la note, une fois.
+                if (!window.erreur3dNotee) { window.erreur3dNotee = true; if (window.signalerIncident) window.signalerIncident("Vue 3D : " + ((e && e.error && e.error.message) || 'tuile indisponible') + "."); }
+            });
+            window.carte3d.on('load', function() { window.synchroMarqueurs3d(); window.synchroTraces3d(); });
+        };
+
+        /* ------------------------------------------------------------------------- */
+        /* CHAPITRE 3.B.2 — CE QUE LA 3D RECOPIE DE LA CARTE 2D                        */
+        /*                                                                           */
+        /* Les pastilles des canons sont celles de Leaflet, recopiées telles quelles : */
+        /* le thème, la légende, les filtres et la sélection s'appliquent donc sans    */
+        /* qu'il faille rien réécrire. MapLibre les pose sur le relief.               */
+        /* Les tracés (calques KMZ, plan de circulation, fiche de route) sont repris   */
+        /* avec leur couleur et drapés sur le terrain.                                 */
+        /* ------------------------------------------------------------------------- */
+        window.synchroMarqueurs3d = function() {
+            if (!window.carte3d || !window.geojsonLayer || !window.maplibregl) return;
+            let vus = new Set();
+            window.geojsonLayer.eachLayer(function(l) {
+                let p = l.feature && l.feature.properties; if (!p) return;
+                let id = p.id;
+                if (!p._isVisible || !window.map.hasLayer(l)) return;
+                let ic = l.options.icon && l.options.icon.options;
+                if (!ic) return;
+                vus.add(id);
+                let ll = l.getLatLng(), html = ic.html || '', taille = ic.iconSize || [24, 24];
+                let m = window.marqueurs3d.get(id);
+                if (!m) {
+                    let el = document.createElement('div');
+                    el.className = 'custom-cannon-icon marqueur-3d';
+                    el.addEventListener('click', function(ev) { ev.stopPropagation(); window.focusCannon(id); });
+                    m = { marqueur: new window.maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([ll.lng, ll.lat]).addTo(window.carte3d), el: el, html: null };
+                    window.marqueurs3d.set(id, m);
+                }
+                if (m.html !== html) {
+                    m.el.innerHTML = html; m.html = html;
+                    m.el.style.width = taille[0] + 'px'; m.el.style.height = taille[1] + 'px';
+                }
+                m.marqueur.setLngLat([ll.lng, ll.lat]);
+            });
+            window.marqueurs3d.forEach(function(m, id) { if (!vus.has(id)) { m.marqueur.remove(); window.marqueurs3d.delete(id); } });
+        };
+        window.synchroTraces3d = function() {
+            if (!window.carte3d || !window.map || !window.carte3d.getSource('traces')) return;
+            let feats = [];
+            window.map.eachLayer(function(l) {
+                if (!(l instanceof L.Polyline) || !l.options || l.options.stroke === false) return;
+                let g; try { g = l.toGeoJSON(); } catch (e) { return; }
+                if (!g || !g.geometry) return;
+                let o = l.options;
+                g.properties = {
+                    couleur: o.color || '#3388ff', epaisseur: Math.max(1.5, +o.weight || 3),
+                    opacite: o.opacity === undefined ? 1 : +o.opacity,
+                    remplissage: (l instanceof L.Polygon && o.fill !== false) ? Math.min(0.35, o.fillOpacity === undefined ? 0.2 : +o.fillOpacity) : 0
+                };
+                feats.push(g);
+            });
+            window.carte3d.getSource('traces').setData({ type: 'FeatureCollection', features: feats });
+        };
+        // updateMap redessine la 2D à chaque changement de thème, de filtre ou de sélection : la 3D suit.
+        (function() {
+            let dessine2d = window.updateMap;
+            window.updateMap = function() {
+                let r = dessine2d.apply(this, arguments);
+                if (window.vue3dActive) {
+                    window.synchroMarqueurs3d();
+                    clearTimeout(window.minuteurTraces3d);
+                    window.minuteurTraces3d = setTimeout(window.synchroTraces3d, 300);
+                }
+                return r;
+            };
+        })();
+
+        /* ------------------------------------------------------------------------- */
+        /* CHAPITRE 3.B.3 — BASCULE ET COMMANDES                                       */
+        /* ------------------------------------------------------------------------- */
+        window.appliquerReglages3d = function() {
+            let r = window.reglages3d(), c = window.carte3d;
+            if (c && c.isStyleLoaded()) {
+                c.setTerrain({ source: 'relief', exaggeration: r.exag });
+                c.setLayoutProperty('ombrage', 'visibility', r.ombrage ? 'visible' : 'none');
+                let src = c.getSource('fond'), fond = window.urlFond3d();
+                let actuel = src && src.serialize ? (src.serialize().tiles || [])[0] : null;
+                if (src && actuel !== fond.url) {
+                    c.removeLayer('fond'); c.removeSource('fond');
+                    c.addSource('fond', { type: 'raster', tiles: [fond.url], tileSize: 256, maxzoom: fond.max, attribution: fond.attr });
+                    c.addLayer({ id: 'fond', type: 'raster', source: 'fond' }, 'ombrage');
+                }
+            }
+            window.renderCommandes3d();
+        };
+        window.renderCommandes3d = function() {
+            let el = document.getElementById('map3d-commandes'); if (!el) return;
+            let r = window.reglages3d();
+            el.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <b style="font-size:12px;"><i class="fa-solid fa-mountain"></i> Relief LiDAR HD</b>
+                    <button onclick="window.replier3d()" title="Replier" style="background:none; border:none; cursor:pointer; color:#7f8c8d; font-size:13px;"><i class="fa-solid fa-chevron-${window.commandes3dRepliees ? 'down' : 'up'}"></i></button>
+                </div>
+                <div${window.commandes3dRepliees ? ' hidden' : ''}>
+                    <label style="display:block; margin-top:8px;">Exagération du relief <b>×${r.exag.toFixed(1).replace('.', ',')}</b>
+                        <input type="range" min="1" max="2.5" step="0.1" value="${r.exag}" oninput="window.regler3d('exag', +this.value)" style="width:100%;"></label>
+                    <label style="display:flex; align-items:center; gap:6px; margin-top:6px; cursor:pointer;"><input type="checkbox"${r.ombrage ? ' checked' : ''} onchange="window.regler3d('ombrage', this.checked)"> Ombrage LiDAR HD</label>
+                    <label style="display:block; margin-top:6px;">Fond
+                        <select onchange="window.regler3d('fond', this.value)" style="width:100%; margin-top:3px; padding:4px; font-size:12px;">
+                            <option value="appli"${r.fond === 'appli' ? ' selected' : ''}>Fond de l'application</option>
+                            <option value="ortho"${r.fond === 'ortho' ? ' selected' : ''}>Orthophoto IGN</option>
+                            <option value="plan"${r.fond === 'plan' ? ' selected' : ''}>Plan IGN</option>
+                        </select></label>
+                    <div style="display:flex; gap:5px; margin-top:8px;">
+                        <button onclick="window.carte3d && window.carte3d.easeTo({ pitch: 0, bearing: 0 })" style="flex:1; padding:5px; font-size:11px; cursor:pointer;">Vue du dessus</button>
+                        <button onclick="window.carte3d && window.carte3d.easeTo({ pitch: 62 })" style="flex:1; padding:5px; font-size:11px; cursor:pointer;">Incliner</button>
+                    </div>
+                    <div style="font-size:10px; color:#7f8c8d; margin-top:6px; line-height:1.4;">Clic droit + glisser (ou deux doigts) pour tourner et incliner. Toucher un canon ouvre sa fiche.</div>
+                </div>`;
+        };
+        // Sur téléphone, le panneau ouvert masquerait la moitié du relief : il démarre replié.
+        window.commandes3dRepliees = window.innerWidth < 700;
+        window.replier3d = function() { window.commandes3dRepliees = !window.commandes3dRepliees; window.renderCommandes3d(); };
+
+        window.basculerVue3d = async function(forcer) {
+            let actif = forcer === undefined ? !window.vue3dActive : !!forcer;
+            let cadre = document.getElementById('map3d'), btn = document.querySelector('#topbar [data-btnkey="vue3d"]');
+            if (!cadre || !window.map) return;
+            let majBouton = function() {
+                if (!btn) return;
+                btn.setAttribute('data-btnlabel', window.vue3dActive ? 'Vue 2D' : 'Vue 3D');
+                btn.innerHTML = window.vue3dActive ? '<i class="fa-solid fa-map"></i> <span class="btn-text">Vue 2D</span>'
+                                                   : '<i class="fa-solid fa-mountain"></i> <span class="btn-text">Vue 3D</span>';
+                if (window.buildMobileDock) window.buildMobileDock();
+            };
+            if (!actif) {
+                // Retour en 2D sur l'endroit regardé en 3D.
+                if (window.carte3d) { let c = window.carte3d.getCenter(); window.map.setView([c.lat, c.lng], Math.round(window.carte3d.getZoom() + 1), { animate: false }); }
+                cadre.hidden = true; window.vue3dActive = false; majBouton(); return;
+            }
+            if (btn) btn.disabled = true;
+            try {
+                cadre.hidden = false;
+                if (!window.carte3d) await window.creerCarte3d();
+                else {
+                    let c = window.map.getCenter();
+                    window.carte3d.jumpTo({ center: [c.lng, c.lat], zoom: Math.max(0, window.map.getZoom() - 1) });
+                    window.carte3d.resize();
+                }
+                window.vue3dActive = true;
+                window.renderCommandes3d();
+                window.synchroMarqueurs3d(); window.synchroTraces3d();
+            } catch (e) {
+                cadre.hidden = true; window.vue3dActive = false;
+                alert("La vue 3D n'a pas pu s'ouvrir : " + e.message + ".");
+            } finally { if (btn) btn.disabled = false; majBouton(); }
+        };
+        // Centrer sur un canon (liste, diagnostic, alerte de proximité…) doit aussi viser en 3D.
+        (function() {
+            let centrer2d = window.centrerSurPoint;
+            window.centrerSurPoint = function(latlng, zoom, anime) {
+                centrer2d.apply(this, arguments);
+                if (window.vue3dActive && window.carte3d && latlng) {
+                    let ll = L.latLng(latlng);
+                    window.carte3d.easeTo({ center: [ll.lng, ll.lat], zoom: Math.max(window.carte3d.getZoom(), (zoom === undefined ? window.map.getZoom() : zoom) - 1.5) });
+                }
+            };
+        })();
 
         /* ========================================================================= */
         /* CHAPITRE 4 : PANNEAU DE DROITE, ÉDITION, ACTIONS ET TICKETS               */
@@ -13172,6 +13513,77 @@
         window.openMeteoHistoryModal = function(show) { let m = document.getElementById('meteo-history-modal'); if(!m) return; if(!show) { m.style.display = 'none'; return; } m.style.display = 'flex'; let selectMetric = document.getElementById('meteo-metric'); if(selectMetric) { let data = window.meteoHistData; if(data && data.length > 0) { let headers = data[0]; let optionsHTML = ""; headers.forEach((h, i) => { let cleanH = h.toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim(); if (cleanH !== 'date' && !cleanH.includes('heure') && !cleanH.includes('time') && cleanH !== "") { optionsHTML += `<option value="${i}">${h}</option>`; } }); if (optionsHTML === "") { optionsHTML = `<option value="">-- Aucune colonne de données trouvée --</option>`; } selectMetric.innerHTML = optionsHTML; } else { selectMetric.innerHTML = `<option value="">-- Onglet météo vide ou introuvable --</option>`; } } window.renderMeteoHistoryChart(); };
 
         window.renderMeteoHistoryChart = function() { let data = window.meteoHistData; let canvasBox = document.getElementById('meteo-history-canvas'); if(!canvasBox) return; let ctx = canvasBox.getContext('2d'); if(!data || data.length < 2) { ctx.clearRect(0, 0, canvasBox.width, canvasBox.height); ctx.font = "bold 14px sans-serif"; ctx.fillStyle = "#e74c3c"; ctx.fillText("Aucune donnée reçue de l'onglet météo.", 20, 50); return; } let metricIdx = parseInt(document.getElementById('meteo-metric').value); if(isNaN(metricIdx)) { ctx.clearRect(0, 0, canvasBox.width, canvasBox.height); ctx.font = "bold 14px sans-serif"; ctx.fillStyle = "#e74c3c"; ctx.fillText("Veuillez sélectionner une donnée à analyser.", 20, 50); return; } let chartType = document.getElementById('meteo-chart-type').value || 'line'; let metricLabel = data[0][metricIdx]; let headersList = data[0].map(h => h.toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim()); let dateIdx = headersList.findIndex(h => h === 'date' || h.includes('date') || h.includes('heure') || h.includes('time')); if (dateIdx === -1) dateIdx = 0; let labels = []; let values = []; for(let i = 1; i < data.length; i++) { let rawDate = data[i][dateIdx]; let rawVal = data[i][metricIdx]; if(rawDate == null || rawDate === "") continue; let rawStr = String(rawDate).trim(); let displayLabel = rawStr; let matchFr = rawStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2})[:hH](\d{1,2})(?::(\d{1,2}))?)?/); if (matchFr) { let day = parseInt(matchFr[1], 10); let month = parseInt(matchFr[2], 10); let year = parseInt(matchFr[3], 10); let hr = matchFr[4] ? parseInt(matchFr[4], 10) : null; let min = matchFr[5] ? parseInt(matchFr[5], 10) : null; let formattedDate = String(day).padStart(2, '0') + '/' + String(month).padStart(2, '0') + '/' + year; if (hr !== null && min !== null) { let formattedTime = String(hr).padStart(2, '0') + ':' + String(min).padStart(2, '0'); displayLabel = [formattedDate, formattedTime]; } else { displayLabel = formattedDate; } } else { let parsedDate = new Date(rawDate); if (!isNaN(parsedDate.getTime()) && parsedDate.getFullYear() > 1970) { let d = parsedDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year:'numeric' }); let t = parsedDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute:'2-digit' }); if(t === "00:00") displayLabel = d; else displayLabel = [d, t]; } } labels.push(displayLabel); let cleanVal = String(rawVal).replace(',', '.').replace(/[^0-9.-]/g, ''); values.push(parseFloat(cleanVal) || 0); } if(window.chartInstances['meteo-hist-chart']) window.chartInstances['meteo-hist-chart'].destroy(); window.chartInstances['meteo-hist-chart'] = new Chart(ctx, { type: chartType, data: { labels: labels, datasets: [{ label: metricLabel, data: values, backgroundColor: chartType === 'line' ? 'rgba(52, 152, 219, 0.2)' : '#3498db', borderColor: '#2980b9', borderWidth: 2, fill: chartType === 'line', tension: 0.3, pointRadius: labels.length > 80 ? 0 : 3, pointHoverRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 15 }, grid: { display: false } }, y: { type: 'linear', display: true, ticks: { font: { size: 10 } } } }, plugins: { legend: { position: 'top', labels: { font: { size: 12, weight: 'bold' } } }, zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } } } }); };
+
+        /* ========================================================================= */
+        /* CHAPITRE 8.F : ANALYSE DU VENT (AÉROLOGIE DU DOMAINE)                      */
+        /*                                                                           */
+        /* Le modèle d'aérologie (vent redistribué par le relief LiDAR HD, abri,      */
+        /* Venturi, brises, calage sur les balises 153 et 2074) est une page à part   */
+        /* entière, aerologie.html, posée à côté de celle-ci. Elle tourne dans un     */
+        /* cadre : ses deux mille lignes de calcul gardent leurs propres noms de      */
+        /* variables sans risquer d'écraser ceux de l'application, et elle ne pèse    */
+        /* rien tant qu'on ne l'ouvre pas. Le cadre est gardé d'une ouverture à       */
+        /* l'autre : on retrouve la situation qu'on avait réglée.                     */
+        /*                                                                           */
+        /* L'application lui envoie ses enneigeurs et les tracés affichés sur la      */
+        /* carte dès qu'elle signale qu'elle est prête (message « aero-pret »).       */
+        /* ========================================================================= */
+        window.openAnalyseVent = function() {
+            let m = document.getElementById('vent-modal');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'vent-modal';
+                m.style.cssText = 'display:none; position:fixed; top:var(--topbar-h); left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:9000;';
+                m.innerHTML = `<div class="draggable-window" style="top:50%; left:50%; transform:translate(-50%,-50%); width:1400px; max-width:98vw; height:90vh; min-width:320px; min-height:300px; background:#fff; border-radius:8px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+                        <div class="draggable-handle" style="background:#00838f; color:white; padding:12px 15px; display:flex; justify-content:space-between; align-items:center; font-weight:bold; font-size:15px;">
+                            <span><i class="fa-solid fa-wind"></i> Analyse du vent — aérologie du domaine</span>
+                            <span style="display:flex; gap:8px; align-items:center;">
+                                <button onclick="window.envoyerCanonsVent()" title="Renvoyer les enneigeurs et tracés affichés sur la carte" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35); color:white; border-radius:5px; padding:4px 9px; cursor:pointer; font-size:12px;"><i class="fa-solid fa-rotate"></i> Enneigeurs</button>
+                                <button onclick="document.getElementById('vent-modal').style.display='none'" style="background:none; border:none; color:white; cursor:pointer; font-size:24px; line-height:16px;">×</button>
+                            </span>
+                        </div>
+                        <iframe id="vent-frame" title="Analyse du vent" style="flex:1; width:100%; border:0; background:#DBE3E9;"></iframe>
+                        <div class="resize-handle"></div>
+                    </div>`;
+                document.body.appendChild(m);
+                // Un cadre avale les mouvements de souris : pendant qu'on déplace ou qu'on agrandit la
+                // fenêtre, il est rendu transparent aux clics, sinon la fenêtre décroche en route.
+                m.addEventListener('mousedown', function(e) {
+                    if (e.target.closest('.draggable-handle, .resize-handle')) document.getElementById('vent-frame').style.pointerEvents = 'none';
+                });
+                document.addEventListener('mouseup', function() { let f = document.getElementById('vent-frame'); if (f) f.style.pointerEvents = ''; });
+            }
+            m.style.display = 'block';
+            let f = document.getElementById('vent-frame');
+            if (!f.getAttribute('src')) f.setAttribute('src', 'aerologie.html');
+            else window.envoyerCanonsVent();
+        };
+        window.envoyerCanonsVent = function() {
+            let f = document.getElementById('vent-frame');
+            if (!f || !f.contentWindow) return;
+            let canons = ((window.snowCannons && window.snowCannons.features) || []).map(function(ft) {
+                let p = ft.properties || {}, c = (ft.geometry && ft.geometry.coordinates) || [];
+                // getV répond « N/A » quand la colonne manque : ce n'est pas un nom de piste.
+                let piste = window.keyPiste ? window.getV(p, window.keyPiste) : '';
+                if (piste === 'N/A') piste = '';
+                return { id: p.id, nom: 'Canon ' + p.id + (piste ? ' · ' + piste : ''), lon: +c[0], lat: +c[1] };
+            }).filter(function(c) { return isFinite(c.lat) && isFinite(c.lon) && c.lat && c.lon; });
+            // Tracés visibles sur la carte (calques KMZ, plan de circulation…), polygones exceptés.
+            let pistes = [];
+            if (window.map) window.map.eachLayer(function(l) {
+                if (!(l instanceof L.Polyline) || l instanceof L.Polygon) return;
+                let ll = l.getLatLngs(), lots = Array.isArray(ll[0]) ? ll : [ll];
+                lots.forEach(function(lot) { if (lot.length > 1) pistes.push({ nom: (l.feature && l.feature.properties && l.feature.properties.name) || '', pts: lot.map(function(q) { return [q.lng, q.lat]; }) }); });
+            });
+            // Adresse cible « * » : ouverte en local (file://), la page n'a pas d'origine nommable.
+            // Rien de confidentiel ne part : des positions d'enneigeurs, à destination de notre propre page.
+            f.contentWindow.postMessage({ type: 'gmao-canons', canons: canons, pistes: pistes }, '*');
+        };
+        window.addEventListener('message', function(e) {
+            let f = document.getElementById('vent-frame');
+            if (!f || e.source !== f.contentWindow) return;
+            if (e.data && e.data.type === 'aero-pret') window.envoyerCanonsVent();
+        });
 
         /* ========================================================================= */
         /* CHAPITRE 8.D : MODE IMPRESSION (PANNEAU LATÉRAL + APERÇU PAGINÉ)          */
