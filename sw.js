@@ -17,7 +17,7 @@
 /* cache intermédiaire ne ferait que masquer l'état réel de la synchro.         */
 /* =========================================================================== */
 
-const SW_VERSION = '5.21.0';
+const SW_VERSION = '5.22.0';
 const SHELL = 'gmao-shell-' + SW_VERSION;
 const LIBS  = 'gmao-libs-'  + SW_VERSION;
 const TILES = 'gmao-tiles-v1';
@@ -36,7 +36,10 @@ const SHELL_URLS = [
     // Le plan de circulation fait partie de l'application : mis en cache dès l'installation, il est
     // disponible en montagne sans réseau. Absent de l'hébergement, la mise en cache échoue seule et
     // sans conséquence — chaque ressource est tentée séparément.
-    './plan%20de%20circulation.kmz'
+    './plan%20de%20circulation.kmz',
+    // Analyse du vent : page à part (relief LiDAR HD embarqué, 1,4 Mo), ouverte dans un cadre.
+    // Mise en cache dès l'installation pour rester disponible en montagne.
+    './aerologie.html'
 ];
 
 const LIB_URLS = [
