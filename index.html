@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.23.0";
+        window.APP_VERSION = "5.24.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -115,13 +115,19 @@
         });
     </script>
 
+    <!-- Les six librairies sont chargées en « defer » : elles se téléchargent en même temps
+         que la page au lieu de la bloquer, et s'exécutent dans cet ordre juste avant le
+         démarrage. L'écran d'accueil apparaît donc tout de suite, au lieu d'attendre
+         170 Ko de librairies — ce qui se voit sur une connexion de montagne. Le démarrage,
+         lui, attendait déjà leur arrivée (CHAPITRE 8.C). L'ordre est conservé : le greffon
+         de zoom a besoin de Chart.js et de Hammer avant lui. -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- ========================================================================= -->
@@ -1307,7 +1313,24 @@
         // =========================================================================
         // CHAPITRE 2 : VARIABLES GLOBALES
         // =========================================================================
-        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxXWPGusI2o66WGBut-urJXxeB00ltFti2KltPXb-mafmmfleavph8wRGNWPydHw0YY1g/exec";
+        /* -------------------------------------------------------------------------
+           CHAPITRE 2.B.0 — L'ADRESSE DU SERVEUR N'EST PLUS ÉCRITE EN CLAIR
+
+           L'adresse du script du classeur était inscrite telle quelle dans la page.
+           Le site étant public, n'importe qui pouvait la lire en affichant la source,
+           et les robots qui parcourent GitHub la ramassaient par simple recherche de
+           texte. Elle est désormais reconstituée au démarrage à partir de morceaux
+           encodés : plus rien à trouver en lisant la page.
+
+           À DIRE FRANCHEMENT : ceci n'est pas une serrure. Celui qui ouvre les outils
+           de développement du navigateur verra l'adresse dès la première requête.
+           Cela arrête le curieux et les robots, pas quelqu'un de déterminé.
+           La seule vraie protection serait que le script du classeur EXIGE une clé
+           que la page ne contient pas — saisie une fois par appareil et gardée en
+           mémoire locale. Le jour où on la met en place, elle se branche ici.
+           ------------------------------------------------------------------------- */
+        window.adresseApi = function(morceaux) { return atob(morceaux.join('')).split('').reverse().join(''); };
+        const GOOGLE_API_URL = window.adresseApi(["Y2V4ZS9nMVlZMHdIZHlQV05HUnc4aHB2YWVsZm1tZmFtLWJYUHR", "sSzJpdEZ0bDAwQmV4WEpydS10dUJHVzY2bzJJc3VHUFdYeGJjeW", "ZLQS9zL3NvcmNhbS9tb2MuZWxnb29nLnRwaXJjcy8vOnNwdHRo"]);
 
         window.map = null; window.satLayer = null; window.geojsonLayer = null; window.webcamLayerGroup = null;
         window.snowCannons = {"type":"FeatureCollection","features":[]};
