@@ -17,7 +17,7 @@
 /* cache intermédiaire ne ferait que masquer l'état réel de la synchro.         */
 /* =========================================================================== */
 
-const SW_VERSION = '5.24.0';
+const SW_VERSION = '5.25.0';
 const SHELL = 'gmao-shell-' + SW_VERSION;
 const LIBS  = 'gmao-libs-'  + SW_VERSION;
 const TILES = 'gmao-tiles-v1';
@@ -39,7 +39,11 @@ const SHELL_URLS = [
     './plan%20de%20circulation.kmz',
     // Analyse du vent : page à part (relief LiDAR HD embarqué, 1,4 Mo), ouverte dans un cadre.
     // Mise en cache dès l'installation pour rester disponible en montagne.
-    './aerologie.html'
+    './aerologie.html',
+    // Réseau de dialogue : 180 Ko de relevés (enneigeurs, liaisons, câbles, départs) sortis de
+    // la page pour ne pas peser sur le démarrage. Mis en cache ici pour que l'onglet s'ouvre
+    // aussi sans réseau.
+    './reseau-dialogue.json'
 ];
 
 const LIB_URLS = [

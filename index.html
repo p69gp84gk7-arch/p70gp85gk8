@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.24.0";
+        window.APP_VERSION = "5.25.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -709,11 +709,197 @@
             #production-panel { width:100% !important; max-width:100% !important; }
         }
 
+        /* ===================================================================== */
+        /* CHAPITRE 2.C.9 : RÉSEAU DIALOGUE — HABILLAGE DU PLAN DE RÉSEAU         */
+        /* --------------------------------------------------------------------- */
+        /* Le plan vient d'une page autonome qui habillait body, button, input,   */
+        /* svg, header, details, dialog… Reprises telles quelles, ces règles      */
+        /* auraient repeint TOUTE la GMAO. Elles sont donc enfermées sous         */
+        /* #sim-root et chaque classe est préfixée sim-. Les trois couleurs qui   */
+        /* portent le sens sont conservées : vert = communique, rouge = ne        */
+        /* communique plus, jaune = sans courant.                                */
+        /* ===================================================================== */
+        #sim-root{
+            --sim-bg:#f4f6f8; --sim-map:#ffffff; --sim-ink:#2c3e50; --sim-muted:#7f8c8d;
+            --sim-line:#e1e8ed; --sim-panel:#ffffff; --sim-ok:#27ae60; --sim-ko:#e74c3c;
+            --sim-off:#5d6b78; --sim-sel:#e67e22; --sim-cable:#bdc3c7; --sim-zone:#95a5a6;
+            --sim-rep:#8e44ad; --sim-volt:#f39c12; --sim-tic:#c0392b;
+            position:absolute; inset:0; display:flex; flex-direction:column; overflow:hidden;
+            background:var(--sim-bg); color:var(--sim-ink);
+        }
+        #sim-root *{box-sizing:border-box;}
+        #sim-root [hidden]{display:none !important;}
+        #sim-root .sim-head{padding:10px 12px 6px; display:flex; align-items:center; gap:12px;}
+        #sim-root .sim-state{display:flex; align-items:center; gap:10px; min-width:0; flex:1;}
+        #sim-root .sim-lamp{width:20px; height:20px; border-radius:50%; background:var(--sim-ok); flex:none;
+            box-shadow:0 0 0 4px rgba(39,174,96,.25); transition:background .2s, box-shadow .2s;}
+        #sim-root .sim-lamp.sim-ko{background:var(--sim-ko); box-shadow:0 0 0 4px rgba(231,76,60,.25);}
+        #sim-root .sim-count{font-size:22px; font-weight:bold; line-height:1; font-variant-numeric:tabular-nums;}
+        #sim-root .sim-count small{font-size:12px; font-weight:normal; color:var(--sim-muted);}
+        #sim-root .sim-sub{font-size:11px; color:var(--sim-muted); line-height:1.3; margin-top:2px;}
+        #sim-root .sim-search input{font:inherit; font-size:13px; width:100px; padding:7px 9px; border-radius:6px;
+            border:1px solid var(--sim-line); background:var(--sim-panel); color:var(--sim-ink);}
+        /* Les boutons de mode et d'outil reprennent les boutons de la GMAO (.view-toggle-btn,
+           ceux des bascules carte/liste) : même forme, même bleu, même comportement. Rien
+           d'étranger n'est posé par-dessus l'application. */
+        #sim-root .sim-segrow{display:flex; gap:6px; padding:0 12px 6px;}
+        #sim-root .sim-segrow .view-toggle-btn{font:inherit;}
+        #sim-root .sim-chips{display:flex; gap:6px; overflow-x:auto; padding:0 12px 6px; scrollbar-width:none;}
+        #sim-root .sim-chips::-webkit-scrollbar{display:none;}
+        #sim-root .sim-chip{font:inherit; font-size:12px; font-weight:bold; white-space:nowrap; padding:6px 10px;
+            border-radius:999px; border:1.5px solid var(--sim-line); background:var(--sim-panel);
+            color:var(--sim-ink); cursor:pointer; display:inline-flex; align-items:center; gap:6px;}
+        #sim-root .sim-chip .sim-dotc{width:10px; height:10px; border-radius:50%; flex:none;}
+        #sim-root .sim-chip.sim-on{border-color:var(--sim-volt);}
+        #sim-root .sim-chip.sim-cut{border-color:var(--sim-ko); color:var(--sim-ko); text-decoration:line-through;}
+        #sim-root .sim-chip[aria-pressed="true"]{border-color:var(--sim-ink); box-shadow:inset 0 0 0 1px var(--sim-ink);}
+        #sim-root .sim-chip.sim-view{border-style:dashed;}
+        #sim-root .sim-chip.sim-view[aria-pressed="true"]{border-style:solid; background:var(--sim-ink); color:#fff;}
+        #sim-root .sim-deprow{display:flex; gap:6px; align-items:center; padding:0 12px 6px; flex-wrap:wrap; font-size:11px;}
+        #sim-root .sim-deprow input[type=text]{font:inherit; font-size:13px; flex:1 1 60%; min-width:0; padding:6px 9px;
+            border-radius:6px; border:1px solid var(--sim-line); background:var(--sim-panel); color:var(--sim-ink);}
+        #sim-root .sim-deprow label{display:flex; align-items:center; gap:5px;}
+        #sim-root .sim-deprow button{font:inherit; font-weight:bold; font-size:11px; padding:6px 8px; border-radius:6px;
+            border:1px solid var(--sim-line); background:var(--sim-panel); color:var(--sim-ink); cursor:pointer;}
+        #sim-root .sim-hint{margin:0 12px 6px; font-size:11px; color:var(--sim-muted); line-height:1.3;}
+        #sim-root .sim-hint b{color:var(--sim-ink);}
+        #sim-root .sim-alerte{margin:0 12px 6px; font-size:11px; line-height:1.35; background:#fef5e7;
+            border:1px solid #f5cba7; color:#935116; border-radius:6px; padding:7px 9px;}
+        #sim-root .sim-alerte b{color:#7e3f12;}
+        #sim-root .sim-alerte button{float:right; margin-left:8px; font:inherit; font-size:11px; font-weight:bold;
+            border:0; background:none; color:#935116; cursor:pointer;}
+        #sim-wrap{position:relative; flex:1; min-height:0; margin:0 10px; border-radius:10px; overflow:hidden;
+            background:var(--sim-map); border:1px solid var(--sim-line);}
+        #sim-svg{width:100%; height:100%; display:block; touch-action:none; cursor:grab;
+            user-select:none; -webkit-user-select:none;}
+        #sim-root .sim-cable{fill:none; stroke:var(--sim-cable); stroke-width:1.5; stroke-dasharray:2 3;}
+        #sim-root .sim-elink{fill:none; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round;}
+        #sim-root .sim-elink.sim-on{stroke:var(--sim-volt);}
+        #sim-root .sim-elink.sim-dead{stroke:var(--sim-ko);}
+        #sim-root .sim-elink.sim-cut{stroke:var(--sim-ko); stroke-dasharray:5 5;}
+        #sim-root .sim-link{fill:none; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round;}
+        #sim-root .sim-link.sim-ok{stroke:var(--sim-ok);}
+        #sim-root .sim-link.sim-ko{stroke:var(--sim-ko);}
+        #sim-root .sim-link.sim-cut{stroke-dasharray:5 5; stroke:var(--sim-ko); opacity:.9;}
+        #sim-root .sim-link.sim-dim{stroke:var(--sim-cable); opacity:.7;}
+        #sim-root .sim-arrow{pointer-events:none; stroke:var(--sim-map); stroke-width:1;}
+        #sim-root .sim-arrow.sim-ok{fill:var(--sim-ok);}
+        #sim-root .sim-arrow.sim-ko, #sim-root .sim-arrow.sim-cut{fill:var(--sim-ko);}
+        #sim-root .sim-arrow.sim-dim{fill:var(--sim-cable);}
+        #sim-root .sim-arrow.sim-on{fill:var(--sim-volt);}
+        #sim-root .sim-arrow.sim-dead{fill:var(--sim-ko);}
+        #sim-root .sim-hit{stroke:transparent; stroke-width:18; cursor:pointer; fill:none;}
+        #sim-root .sim-esel{fill:none; stroke:var(--sim-sel); stroke-width:11; stroke-linecap:round;
+            stroke-linejoin:round; opacity:.55;}
+        #sim-root .sim-zone{fill:var(--sim-zone); font-size:13px; font-weight:bold; font-style:italic;
+            text-anchor:middle; pointer-events:none;}
+        #sim-root .sim-node{cursor:pointer;}
+        #sim-root .sim-node .sim-dot{stroke:var(--sim-map); stroke-width:2;}
+        #sim-root .sim-node.sim-ok .sim-dot{fill:var(--sim-ok);}
+        #sim-root .sim-node.sim-ko .sim-dot{fill:var(--sim-ko);}
+        #sim-root .sim-node.sim-off .sim-dot{fill:var(--sim-map); stroke:var(--sim-off); stroke-width:2.5;}
+        #sim-root .sim-node.sim-nopow .sim-dot{fill:var(--sim-map); stroke:var(--sim-volt); stroke-width:2.5;}
+        #sim-root .sim-node.sim-none .sim-dot{fill:var(--sim-cable);}
+        #sim-root .sim-node .sim-x{stroke:var(--sim-off); stroke-width:2; fill:none;}
+        #sim-root .sim-node .sim-bolt{fill:var(--sim-volt);}
+        #sim-root .sim-node .sim-ring{fill:none; stroke:var(--sim-ink); stroke-width:2;}
+        #sim-root .sim-node .sim-ring2{fill:none; stroke:var(--sim-sel); stroke-width:3;}
+        #sim-root .sim-node .sim-rep{fill:none; stroke:var(--sim-rep); stroke-width:2.5;}
+        #sim-root .sim-node .sim-rep.sim-ko{stroke:var(--sim-ko);}
+        #sim-root .sim-node .sim-tic{fill:none; stroke:var(--sim-tic); stroke-width:2; stroke-dasharray:3 3;}
+        #sim-root .sim-srcn rect{fill:var(--sim-volt); stroke:var(--sim-ink); stroke-width:1.5;}
+        #sim-root .sim-srcn.sim-cut rect{fill:var(--sim-map); stroke:var(--sim-ko); stroke-width:2.5;}
+        #sim-root .sim-srcn text{font-size:10px; font-weight:bold; text-anchor:middle; fill:var(--sim-ink); pointer-events:none;}
+        #sim-root .sim-srcn.sim-sel rect{stroke:var(--sim-sel); stroke-width:3;}
+        #sim-root .sim-shel{fill:var(--sim-panel); stroke:var(--sim-muted); stroke-width:1.5;}
+        #sim-root .sim-sdm{fill:var(--sim-panel); stroke:var(--sim-ink); stroke-width:2; stroke-linejoin:round;}
+        #sim-root .sim-lbl{font-family:'Arial Narrow','Segoe UI',Arial,sans-serif; font-size:12px; font-weight:bold;
+            fill:var(--sim-ink); paint-order:stroke; stroke:var(--sim-map); stroke-width:3px; pointer-events:none;}
+        #sim-root .sim-lbl.sim-sdml{font-weight:bold;}
+        #sim-root .sim-zoom{position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:6px;}
+        #sim-root .sim-zoom button{width:40px; height:40px; font-size:18px; font:inherit; font-weight:bold;
+            border:1px solid var(--sim-line); background:var(--sim-panel); color:var(--sim-ink);
+            border-radius:8px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+        #sim-root .sim-legend{position:absolute; left:10px; bottom:10px; background:rgba(255,255,255,.93);
+            border:1px solid var(--sim-line); border-radius:8px; padding:6px 9px; font-size:10px;
+            display:grid; grid-template-columns:14px 1fr; gap:1px 6px; align-items:center;}
+        #sim-root .sim-legend svg{width:14px; height:14px; cursor:default;}
+        #sim-root .sim-tools{display:flex; gap:6px; padding:8px 12px;}
+        #sim-root .sim-tools .view-toggle-btn{font:inherit;}
+        #sim-root .sim-det{margin:6px 12px 0; font-size:11px;}
+        #sim-root .sim-det summary{cursor:pointer; color:var(--sim-muted);}
+        #sim-root #sim-lost{color:var(--sim-ko); font-weight:bold; line-height:1.4; max-height:4.5em; overflow:auto; margin-top:4px;}
+        #sim-root .sim-toast{position:absolute; left:50%; top:10px; transform:translateX(-50%);
+            background:var(--sim-ink); color:#fff; padding:7px 12px; border-radius:6px; font-weight:bold;
+            font-size:12px; opacity:0; transition:opacity .2s; pointer-events:none;
+            max-width:calc(100% - 80px); text-align:center; z-index:3;}
+        #sim-root .sim-toast.sim-show{opacity:1;}
+        #sim-root .sim-bar{position:absolute; left:10px; right:10px; bottom:10px; background:var(--sim-panel);
+            border:2px solid var(--sim-sel); border-radius:10px; padding:10px; display:flex; flex-wrap:wrap;
+            gap:8px; align-items:center; z-index:2; box-shadow:0 2px 8px rgba(0,0,0,.12);}
+        #sim-root .sim-bar span{flex:1 1 100%; font-weight:bold; font-size:13px;}
+        #sim-root .sim-bar button{flex:1; font:inherit; font-weight:bold; font-size:12px; padding:9px 8px;
+            border-radius:8px; border:1px solid var(--sim-line); background:var(--sim-bg);
+            color:var(--sim-ink); cursor:pointer;}
+        #sim-root .sim-bar button.sim-danger{background:var(--sim-ko); color:#fff; border-color:var(--sim-ko);}
+        #sim-root .sim-etat{padding:0 12px 6px; font-size:10px; color:var(--sim-muted);}
+        #sim-root .sim-etat.sim-attente{color:#935116;}
+        /* Les deux fenêtres (historique, ticket) sont de simples calques : <dialog> n'est pas
+           utilisé ici pour ne pas dépendre de showModal() sur les anciens iPad. */
+        #sim-root .sim-modal{position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.45);
+            display:flex; align-items:center; justify-content:center; padding:14px;}
+        #sim-root .sim-modal-box{background:var(--sim-panel); border-radius:10px; padding:16px;
+            width:min(94%,520px); max-height:88%; overflow-y:auto; box-shadow:0 8px 28px rgba(0,0,0,.3);}
+        #sim-root .sim-modal-box h3{margin:0 0 6px; font-size:16px; color:var(--sim-ink);}
+        #sim-root .sim-modal-box p{margin:0 0 10px; font-size:12px; color:var(--sim-muted); line-height:1.4;}
+        #sim-root .sim-modal-box input[type=text], #sim-root .sim-modal-box select{width:100%; font:inherit;
+            font-size:13px; padding:8px; border-radius:6px; border:1px solid var(--sim-line); margin-bottom:10px;}
+        #sim-root .sim-modal-row{display:flex; gap:8px; justify-content:flex-end;}
+        #sim-root .sim-modal-row button{font:inherit; font-size:12px; font-weight:bold; padding:9px 12px;
+            border-radius:8px; border:1px solid var(--sim-line); background:var(--sim-bg);
+            color:var(--sim-ink); cursor:pointer;}
+        #sim-root .sim-modal-row button.sim-primary{background:#3498db; color:#fff; border-color:#3498db;}
+        #sim-root .sim-hist-l{border:1px solid var(--sim-line); border-radius:6px; padding:8px; margin-bottom:6px;
+            font-size:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;}
+        #sim-root .sim-hist-l button{font:inherit; font-size:11px; font-weight:bold; padding:6px 9px;
+            border-radius:6px; border:1px solid var(--sim-line); background:var(--sim-bg); cursor:pointer;}
+        /* Sur téléphone, tout ce qui est au-dessus du plan lui vole de la hauteur. On resserre
+           donc les marges, on borne le message d'aide et le rapport d'écarts à deux lignes
+           (ils restent déroulables), et on laisse en bas la place du tiroir d'outils, qui est
+           posé en fixe par-dessus tout le reste. */
+        @media (max-width:768px){
+            #sim-root{padding-bottom:calc(34px + var(--safe-bottom, 0px));}
+            #sim-root .sim-head{padding:6px 10px 2px; gap:8px;}
+            #sim-root .sim-count{font-size:18px;}
+            #sim-root .sim-sub{font-size:10px;}
+            #sim-root .sim-lamp{width:16px; height:16px;}
+            #sim-root .sim-search input{width:76px; padding:6px 7px; font-size:12px;}
+            #sim-root .sim-segrow{padding:0 10px 4px; gap:4px;}
+            #sim-root .sim-segrow .view-toggle-btn{font-size:10.5px; padding:6px 2px; min-width:0;}
+            #sim-root .sim-segrow .view-toggle-btn i{display:none;}
+            #sim-root .sim-chips{padding:0 10px 4px;}
+            #sim-root .sim-chip{font-size:11px; padding:5px 9px;}
+            #sim-root .sim-hint{margin:0 10px 4px; font-size:10px; max-height:2.6em; overflow-y:auto;}
+            #sim-root .sim-alerte{margin:0 10px 4px; font-size:10px; max-height:3.2em; overflow-y:auto;}
+            #sim-wrap{margin:0 6px;}
+            #sim-root .sim-legend{display:none;}
+            #sim-root .sim-det{margin:4px 10px 0; font-size:10px;}
+            #sim-root .sim-tools{padding:6px 10px 2px; gap:4px;}
+            #sim-root .sim-tools .view-toggle-btn{font-size:10.5px; padding:8px 2px; min-width:0;}
+            #sim-root .sim-tools .view-toggle-btn i{display:none;}
+            #sim-root .sim-etat{padding:0 10px 4px; font-size:9.5px;}
+            #sim-root .sim-bar{padding:8px; gap:6px;}
+            #sim-root .sim-bar span{font-size:12px;}
+            #sim-root .sim-bar button{font-size:11px; padding:8px 4px; min-width:0;}
+            #sim-root .sim-bar button i{display:none;}
+        }
+        @media (prefers-reduced-motion:reduce){ #sim-root *{transition:none !important;} }
+
         @media print {
             #topbar, #mobile-dock, #sidebar, #right-sidebar, #print-panel, #loading-overlay, #pdf-modal, #settings-panel, #route-qr-plein, #qr-scan, #production-panel, #bi-meteo-modal, #compare-modal, #meteo-history-modal, #calendar-modal, .resizer, .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
             body, html { overflow: visible !important; height: auto !important; }
             #app-container { padding-top: 0 !important; height: auto !important; }
-            #map-container, #atelier-workspace, #stock-workspace, #theme-list-workspace, #production-workspace { display: none !important; }
+            #map-container, #atelier-workspace, #stock-workspace, #theme-list-workspace, #production-workspace, #reseau-workspace, #vent-workspace { display: none !important; }
             #print-page-preview-modal { display: block !important; position: static !important; background: none !important; overflow: visible !important; }
             #print-page-sheet-wrap { padding: 0 !important; gap: 0 !important; }
             .print-page-sheet { box-shadow: none !important; page-break-after: always; transform: none !important; margin: 0 !important; }
@@ -1239,6 +1425,10 @@
                     <div class="theme-block" data-tb="planneige"><label class="radio-card" id="lbl-planneige"><input type="radio" name="main_theme" value="planneige"> <i class="fa-solid fa-snowflake" style="color:#0072ff;"></i> Plan d'Enneigement</label><div class="theme-details" id="details-planneige" style="display:none;border-color:#0072ff;"><div class="view-toggle-wrap" data-vt="planneige"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Priorité de production</div><div id="legend-planneige"></div><div id="plan-resume-menu" style="font-size:11px; color:#7f8c8d; margin-top:10px;"></div><button class="btn-action-primary" style="margin:10px 0 0; background:#0072ff;" onclick="window.openPlanNeige()"><i class="fa-solid fa-sliders"></i> Ouvrir l'outil complet</button></div></div>
                     <div class="theme-block" data-tb="repeteur"><label class="radio-card" id="lbl-repeteur"><input type="radio" name="main_theme" value="repeteur"> <i class="fa-solid fa-satellite-dish" style="color:#3498db;"></i> Répéteurs</label><div class="theme-details" id="details-repeteur" style="display:none;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="repeteur"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Répéteurs <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('repeteur')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-repeteur" style="display:none;margin-bottom:8px;"></div><div id="legend-repeteur"></div></div></div>
                     <div class="theme-block" data-tb="transfo"><label class="radio-card" id="lbl-transfo"><input type="radio" name="main_theme" value="transfo"> <i class="fa-solid fa-bolt" style="color:#f1c40f;"></i> Transformateurs</label><div class="theme-details" id="details-transfo" style="display:none;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="transfo"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Transfos <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('transfo')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-transfo" style="display:none;margin-bottom:8px;"></div><div id="legend-transfo"></div></div></div>
+                    <!-- CHAPITRE 2.A.7 — Réseau dialogue. Le plan du dialogue et de l'électricité des
+                         enneigeurs occupe tout le plan de travail, comme le Banc d'essais ou la
+                         Production. Les commandes vivent DANS le plan, aux couleurs de la GMAO. -->
+                    <div class="theme-block" data-tb="reseau"><label class="radio-card" id="lbl-reseau"><input type="radio" name="main_theme" value="reseau"> <i class="fa-solid fa-diagram-project" style="color:#16a085;"></i> Réseau dialogue</label><div class="theme-details" id="details-reseau" style="display:none;border-color:#16a085;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Dialogue et courant des enneigeurs</div><div id="sim-menu-etat" style="font-size:11px;color:#7f8c8d;line-height:1.45;">Plan du réseau : couper un canon, un câble ou un départ pour voir qui perd le dialogue.</div><button class="btn-action-primary" style="margin:10px 0 0; background:#16a085;" onclick="if(window.SimDialogue) window.SimDialogue.ouvrirHistorique()"><i class="fa-solid fa-clock-rotate-left"></i> Enregistrements du réseau</button></div></div>
                     <div class="theme-block" data-tb="historique"><label class="radio-card" id="lbl-historique"><input type="radio" name="main_theme" value="historique"> <i class="fa-solid fa-chart-column" style="color:#2ecc71;"></i> Historique Volumes</label><div class="theme-details-hist" id="details-historique" style="display:none;">
                         <div style="font-weight:bold; font-size:12px; color:#27ae60; margin-bottom:10px;">DONNÉE À AFFICHER :</div>
                         <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:12px; font-weight:bold; color:#333;"><label><input type="radio" name="hist_metric" value="eau" checked> <i class="fa-solid fa-droplet"></i> Eau</label><label><input type="radio" name="hist_metric" value="air"> <i class="fa-solid fa-wind"></i> Air</label><label><input type="radio" name="hist_metric" value="temps"> <i class="fa-solid fa-stopwatch"></i> Heures</label></div>
@@ -1287,6 +1477,111 @@
             <div id="stock-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8; overflow-y:auto; padding:20px; box-sizing:border-box;"></div>
             <div id="theme-list-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8; overflow-y:auto; padding:20px; box-sizing:border-box;"></div>
             <div id="production-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8; overflow-y:auto; padding:20px; box-sizing:border-box;"></div>
+
+            <!-- ===================================================================== -->
+            <!-- CHAPITRE 2.A.8 : LE PLAN DU RÉSEAU DE DIALOGUE                        -->
+            <!--                                                                       -->
+            <!-- Contrairement aux autres plans de travail, celui-ci ne défile pas :   -->
+            <!-- le plan doit occuper toute la hauteur pour que le zoom à deux doigts  -->
+            <!-- et le déplacement restent francs sur téléphone. Tous les identifiants -->
+            <!-- commencent par sim- et toutes les règles de style sont enfermées sous -->
+            <!-- #sim-root : rien ne peut écraser le reste de l'application.           -->
+            <!-- ===================================================================== -->
+            <div id="reseau-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#f4f6f8;">
+                <div id="sim-root">
+                    <div class="sim-head">
+                        <div class="sim-state">
+                            <div class="sim-lamp" id="sim-lamp"></div>
+                            <div style="min-width:0;">
+                                <div class="sim-count" id="sim-count">–</div>
+                                <div class="sim-sub" id="sim-sub"></div>
+                            </div>
+                        </div>
+                        <form class="sim-search" id="sim-findForm" autocomplete="off" onsubmit="return false;">
+                            <input id="sim-find" placeholder="N° canon" aria-label="Chercher un canon">
+                        </form>
+                    </div>
+                    <div class="sim-segrow" role="group" aria-label="Mode">
+                        <button class="view-toggle-btn active" id="sim-mTest"><i class="fa-solid fa-triangle-exclamation"></i> Tester les pannes</button>
+                        <button class="view-toggle-btn" id="sim-mEdit"><i class="fa-solid fa-pen"></i> Modifier le réseau</button>
+                    </div>
+                    <div class="sim-segrow" id="sim-toolSeg" role="group" aria-label="Outil" hidden>
+                        <button class="view-toggle-btn active" data-tool="links"><i class="fa-solid fa-share-nodes"></i> Liaisons</button>
+                        <button class="view-toggle-btn" data-tool="reps"><i class="fa-solid fa-satellite-dish"></i> Répéteurs</button>
+                        <button class="view-toggle-btn" data-tool="elec"><i class="fa-solid fa-bolt"></i> Électricité</button>
+                    </div>
+                    <div class="sim-chips" id="sim-depChips"></div>
+                    <div class="sim-deprow" id="sim-depEdit" hidden>
+                        <input type="text" id="sim-depName" aria-label="Nom du départ">
+                        <button id="sim-depMove">Déplacer</button>
+                        <label><input type="checkbox" id="sim-depRep"> Alimente les répéteurs</label>
+                        <button id="sim-depNew">+ Nouveau</button>
+                        <button id="sim-depDel">Supprimer</button>
+                    </div>
+                    <div class="sim-alerte" id="sim-alerte" hidden></div>
+                    <div class="sim-hint" id="sim-hint"></div>
+                    <div id="sim-wrap">
+                        <svg id="sim-svg" aria-label="Plan du réseau de dialogue">
+                            <g id="sim-world"><g id="sim-gCable"></g><g id="sim-gZone"></g><g id="sim-gLink"></g><g id="sim-gElec"></g><g id="sim-gShel"></g><g id="sim-gNode"></g><g id="sim-gLbl"></g></g>
+                        </svg>
+                        <div class="sim-zoom">
+                            <button id="sim-zIn" aria-label="Zoomer">+</button>
+                            <button id="sim-zOut" aria-label="Dézoomer">−</button>
+                            <button id="sim-zFit" aria-label="Recentrer" style="font-size:14px;">⤢</button>
+                        </div>
+                        <div class="sim-legend" id="sim-legend">
+                            <svg viewBox="-8 -8 16 16"><circle r="5.5" fill="#27ae60"/></svg><span>Communique</span>
+                            <svg viewBox="-8 -8 16 16"><circle r="5.5" fill="#e74c3c"/></svg><span>Ne communique plus</span>
+                            <svg viewBox="-8 -8 16 16"><circle r="5" fill="none" stroke="#5d6b78" stroke-width="2"/><path d="M-3,-3L3,3M3,-3L-3,3" stroke="#5d6b78" stroke-width="1.6"/></svg><span>Canon coupé</span>
+                            <svg viewBox="-8 -8 16 16"><circle r="5" fill="none" stroke="#f39c12" stroke-width="2"/><path d="M1,-4L-2.5,0.8H0L-1,4L2.5,-0.8H0Z" fill="#f39c12"/></svg><span>Sans courant</span>
+                            <svg viewBox="-8 -8 16 16"><path d="M0,-7L7,0L0,7L-7,0Z" fill="none" stroke="#8e44ad" stroke-width="2"/></svg><span>Répéteur</span>
+                            <svg viewBox="-8 -8 16 16"><circle r="6.5" fill="none" stroke="#c0392b" stroke-width="2" stroke-dasharray="3 3"/></svg><span>Ticket ouvert</span>
+                            <svg viewBox="-8 -8 16 16"><rect x="-6" y="-6" width="12" height="12" rx="2" fill="#f39c12" stroke="#2c3e50" stroke-width="1.2"/></svg><span>Départ électrique</span>
+                            <svg viewBox="-8 -8 16 16"><path d="M-6,5V-1L0,-6L6,-1V5Z" fill="#fff" stroke="#2c3e50" stroke-width="1.5"/></svg><span>Salle des machines</span>
+                        </div>
+                        <div class="sim-bar" id="sim-edgeBar" hidden>
+                            <span id="sim-edgeTxt"></span>
+                            <button id="sim-eDir"><i class="fa-solid fa-right-left"></i> Changer le sens</button>
+                            <button id="sim-eDel" class="sim-danger"><i class="fa-solid fa-trash"></i> Supprimer</button>
+                            <button id="sim-eClose">Fermer</button>
+                        </div>
+                        <div class="sim-bar" id="sim-canonBar" hidden>
+                            <span id="sim-canonTxt"></span>
+                            <button id="sim-cFiche"><i class="fa-solid fa-circle-info"></i> Fiche du canon</button>
+                            <button id="sim-cTicket"><i class="fa-solid fa-triangle-exclamation"></i> Créer un ticket</button>
+                            <button id="sim-cClose">Fermer</button>
+                        </div>
+                        <div class="sim-toast" id="sim-toast"></div>
+                    </div>
+                    <details class="sim-det" id="sim-lostBox">
+                        <summary id="sim-lostSum">Canons hors communication</summary>
+                        <div id="sim-lost"></div>
+                    </details>
+                    <div class="sim-tools">
+                        <button class="view-toggle-btn" id="sim-bAllOn"><i class="fa-solid fa-rotate-left"></i> Tout remettre</button>
+                        <button class="view-toggle-btn" id="sim-bHist"><i class="fa-solid fa-clock-rotate-left"></i> Enregistrements</button>
+                        <button class="view-toggle-btn" id="sim-bReset"><i class="fa-solid fa-eraser"></i> Réseau d'origine</button>
+                    </div>
+                    <div class="sim-etat" id="sim-etat"></div>
+                    <div class="sim-modal" id="sim-modal" hidden><div class="sim-modal-box" id="sim-modal-box"></div></div>
+                </div>
+            </div>
+
+            <!-- CHAPITRE 2.A.9 — Analyse du vent : le modèle d'aérologie reste une page à part
+                 (aerologie.html, chargée dans un cadre), mais il ne flotte plus dans une fenêtre
+                 posée par-dessus l'application. Il occupe le plan de travail comme les autres
+                 outils, ce qui le rend utilisable sur téléphone, et son cadre est conservé d'une
+                 ouverture à l'autre : on retrouve la situation qu'on venait de régler. -->
+            <div id="vent-workspace" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:10; background:#DBE3E9; flex-direction:column;">
+                <div style="background:#00838f; color:#fff; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; font-weight:bold; font-size:13px; flex:none;">
+                    <span style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><i class="fa-solid fa-wind"></i> Analyse du vent</span>
+                    <span style="display:flex; gap:6px; align-items:center; flex:none;">
+                        <button onclick="window.envoyerCanonsVent()" title="Renvoyer les enneigeurs et les tracés affichés sur la carte" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35); color:#fff; border-radius:5px; padding:6px 9px; cursor:pointer; font-size:11px; font-weight:bold;"><i class="fa-solid fa-rotate"></i> Enneigeurs</button>
+                        <button onclick="window.fermerAnalyseVent()" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35); color:#fff; border-radius:5px; padding:6px 9px; cursor:pointer; font-size:11px; font-weight:bold;"><i class="fa-solid fa-map"></i> Retour à la carte</button>
+                    </span>
+                </div>
+                <iframe id="vent-frame" title="Analyse du vent" style="flex:1; width:100%; border:0; background:#DBE3E9;"></iframe>
+            </div>
         </div>
 
         <div id="right-sidebar">
@@ -4418,7 +4713,7 @@
             let listableThemes = ['defauts', 'suivi_entretien', 'entretien_tete', 'type', 'repeteur', 'transfo', 'planneige'];
             let useList = listableThemes.includes(window.mainTheme) && window.appSettings.viewMode && window.appSettings.viewMode[window.mainTheme] === 'list';
             if (useList) { mapEl.style.display = 'none'; listWs.style.display = 'block'; window.renderThemeListView(); }
-            else { listWs.style.display = 'none'; if (window.mainTheme !== 'atelier' && window.mainTheme !== 'stock' && window.mainTheme !== 'production') mapEl.style.display = 'block'; }
+            else { listWs.style.display = 'none'; if (window.mainTheme !== 'atelier' && window.mainTheme !== 'stock' && window.mainTheme !== 'production' && window.mainTheme !== 'reseau') mapEl.style.display = 'block'; }
         };
 
         window.refreshListViewIfActive = function() {
@@ -4829,7 +5124,7 @@
         window.QUEUEABLE_ACTIONS = ["update_general", "add_ticket", "update_ticket", "update_suivi_multi",
             "save_atelier", "add_stock_item", "update_stock_item", "delete_stock_item", "update_webcam",
             "add_event", "update_event", "delete_event", "add_production", "update_production",
-            "delete_production", "upload_photo", "save_plan_priorites"];
+            "delete_production", "upload_photo", "save_plan_priorites", "save_reseau"];
         window.ACTION_LABELS = {
             update_general: "Fiche canon", add_ticket: "Nouveau ticket", update_ticket: "Ticket modifié",
             update_suivi_multi: "Suivi d'entretien", save_atelier: "Banc d'essais", add_stock_item: "Stock : ajout",
@@ -4837,7 +5132,8 @@
             update_webcam: "Webcam", add_event: "Calendrier : ajout", update_event: "Calendrier : modification",
             delete_event: "Calendrier : suppression", add_production: "Production : ajout",
             update_production: "Production : modification", delete_production: "Production : suppression",
-            upload_photo: "Photo de panne", save_plan_priorites: "Priorités d'enneigement"
+            upload_photo: "Photo de panne", save_plan_priorites: "Priorités d'enneigement",
+            save_reseau: "Réseau de dialogue"
         };
         window.MAX_OUTBOX_TRIES = 3;
         window.outboxCount = 0; window.outboxFailed = 0; window.outboxFlushing = false;
@@ -9280,7 +9576,13 @@
                     let listWsEl = document.getElementById('theme-list-workspace');
                     let prodWsEl = document.getElementById('production-workspace');
                     if(window.mainTheme !== 'production') { if(prodWsEl) prodWsEl.style.display = 'none'; if(window.closeProductionForm) window.closeProductionForm(); }
-                    if(window.mainTheme === 'atelier') { if(listWsEl) listWsEl.style.display = 'none'; document.getElementById('map').style.display = 'none'; document.getElementById('atelier-workspace').style.display = 'block'; document.getElementById('stock-workspace').style.display = 'none'; window.closeRightSidebar(); if(window.renderAtelierWorkspace) window.renderAtelierWorkspace(); }
+                    // L'analyse du vent et le plan du réseau occupent le même emplacement : choisir
+                    // un thème les referme, sinon ils resteraient posés sur une carte invisible.
+                    let ventWsEl = document.getElementById('vent-workspace'); if(ventWsEl) ventWsEl.style.display = 'none';
+                    let reseauWsEl = document.getElementById('reseau-workspace');
+                    if(window.mainTheme !== 'reseau' && reseauWsEl) reseauWsEl.style.display = 'none';
+                    if(window.mainTheme === 'reseau') { if(listWsEl) listWsEl.style.display = 'none'; document.getElementById('map').style.display = 'none'; document.getElementById('atelier-workspace').style.display = 'none'; document.getElementById('stock-workspace').style.display = 'none'; if(reseauWsEl) reseauWsEl.style.display = 'block'; window.closeRightSidebar(); if(window.SimDialogue) window.SimDialogue.ouvrir(); }
+                    else if(window.mainTheme === 'atelier') { if(listWsEl) listWsEl.style.display = 'none'; document.getElementById('map').style.display = 'none'; document.getElementById('atelier-workspace').style.display = 'block'; document.getElementById('stock-workspace').style.display = 'none'; window.closeRightSidebar(); if(window.renderAtelierWorkspace) window.renderAtelierWorkspace(); }
                     else if(window.mainTheme === 'stock') { if(listWsEl) listWsEl.style.display = 'none'; document.getElementById('map').style.display = 'none'; document.getElementById('atelier-workspace').style.display = 'none'; document.getElementById('stock-workspace').style.display = 'block'; window.closeRightSidebar(); if(window.renderStockWorkspace) window.renderStockWorkspace(); }
                     else if(window.mainTheme === 'production') { if(listWsEl) listWsEl.style.display = 'none'; document.getElementById('map').style.display = 'none'; document.getElementById('atelier-workspace').style.display = 'none'; document.getElementById('stock-workspace').style.display = 'none'; if(prodWsEl) prodWsEl.style.display = 'block'; window.closeRightSidebar(); if(window.renderProductionWorkspace) window.renderProductionWorkspace(); }
                     else { document.getElementById('atelier-workspace').style.display = 'none'; document.getElementById('stock-workspace').style.display = 'none'; if(window.mainTheme === 'historique') window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.applyThemeViewMode(); if (window.selectedCannonsMap.size > 0) { window.renderSelectionPanel(); } else { window.triggerGlobalFilterChart(); } }
@@ -12056,6 +12358,963 @@
         };
 
         /* ========================================================================= */
+        /* CHAPITRE 7.I : RÉSEAU DIALOGUE — LE PLAN DU DIALOGUE ET DU COURANT        */
+        /* ------------------------------------------------------------------------- */
+        /* Le plan vient d'une page autonome (le « simulateur dialogue canons ») :    */
+        /* 204 enneigeurs, 209 liaisons de dialogue, 205 câbles électriques et        */
+        /* 6 départs, relevés dans les KMZ. On y coupe un canon, un câble ou un       */
+        /* départ, et l'on voit immédiatement qui perd le dialogue.                   */
+        /*                                                                           */
+        /* Tout est enfermé dans window.SimDialogue. C'est volontaire : dans cette    */
+        /* application, une deuxième définition d'une fonction écrase la première     */
+        /* sans prévenir (c'est arrivé avec renderSelectionPanel). Rien d'ici ne      */
+        /* sort sur window à part SimDialogue, aucun nom n'est partagé, et les        */
+        /* identifiants HTML comme les classes CSS commencent tous par sim-.          */
+        /*                                                                           */
+        /* Les numéros d'enneigeur de la GMAO font autorité : à l'ouverture, les      */
+        /* numéros du plan sont rapprochés de ceux du Tableau Général, et tout        */
+        /* écart est signalé à l'écran plutôt qu'avalé en silence.                    */
+        /*                                                                           */
+        /* Les 180 Ko de relevés vivent dans reseau-dialogue.json, à côté de cette    */
+        /* page : ils ne sont téléchargés qu'à la première ouverture de l'onglet, et  */
+        /* le service worker les garde pour la montagne.                              */
+        /*                                                                           */
+        /* Les modifications ne vont plus dans le navigateur mais dans le classeur,   */
+        /* onglet « reseau_modifs » : une ligne par enregistrement (date, auteur,     */
+        /* modifications). Elles suivent donc l'utilisateur d'un appareil à l'autre.  */
+        /* ========================================================================= */
+        window.SimDialogue = (function () {
+            'use strict';
+
+            /* ----- repères fixes ------------------------------------------------ */
+            const FICHIER = 'reseau-dialogue.json';
+            const PALETTE = ["#2F6FD6", "#9B3DC8", "#E07A12", "#139C9C", "#C2307A", "#7A5A2E", "#4C5BD9", "#6E8B12", "#D45A9E", "#1A8FD0", "#8C6BD6", "#B85C00"];
+            const MODELS = { revo: "Revo", borax: "Borax", borax_01: "Borax", v3: "V3", t40: "T40", t60: "T60", tf10: "TF10", tr8: "TR8", safyr: "Safyr", rubis: "Rubis" };
+            const ZONE_NOMS = { hount: "Hount", record: "Record", renard: "Renard", baby: "Baby", estives: "Estives", cabane: "Cabane", Sarnailles: "Sarnailles", lac: "Lac", "traversée du lac": "Traversée du lac", campistrous: "Campistrous", doudou: "Doudou", Marmottes: "Marmottes" };
+
+            // Projection en mètres locaux : à cette latitude, un degré de longitude vaut
+            // cos(lat) × 111 320 m. Suffisant pour un domaine de 3 km.
+            const lat0 = 42.765, K = Math.cos(lat0 * Math.PI / 180) * 111320;
+            const P = (lon, lat) => [lon * K, -lat * 111320];
+            const unP = (x, y) => [x / K, -y / 111320];
+            const ek = (a, b) => a < b ? a + "|" + b : b + "|" + a;
+            const isSrc = id => id.indexOf("src/") === 0;
+            const NS = "http://www.w3.org/2000/svg";
+            const el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in (a || {})) e.setAttribute(k, a[k]); return e; };
+            const Q = n => document.getElementById('sim-' + n);
+
+            /* ----- relevés et état ---------------------------------------------- */
+            let NET = null, PREV = null, HEADS0 = [], NEWPOS = {};
+            let nodes = [], byId = {}, cables = [], shelters = [], geomXY = {}, egeomXY = {}, canons = [], zones = [];
+            let BASE = null, PBASE = null;
+            let edges, heads, dir, reps, deps, eedges, edir;
+            const off = new Set(), cut = new Set(), depOff = new Set(), ecut = new Set();
+            let mode = "test", tool = "links", sel = null, selEdge = null, found = null, selDep = null;
+            let showElec = false, placing = false;
+            let power = {}, home = {}, wired = new Set(), reach = new Set();
+            let view = { s: 1, tx: 0, ty: 0 }, v0 = { s: 1, tx: 0, ty: 0 };
+            let pret = false, enCours = null, branche = false;
+            let ticketsOuverts = new Set(), gmaoNums = new Set(), canonSel = null;
+            let historique = [], dernierEnvoi = '', sauveT = null;
+
+            /* ----- qui enregistre ----------------------------------------------- */
+            // Pas de comptes dans cette application : chaque appareil se donne une étiquette
+            // courte, gardée sur place, pour qu'on sache de quel poste vient un enregistrement.
+            function auteur() {
+                let a = '';
+                try { a = localStorage.getItem('gmao-poste') || ''; } catch (e) {}
+                if (!a) { a = 'poste-' + Math.random().toString(36).slice(2, 6); try { localStorage.setItem('gmao-poste', a); } catch (e) {} }
+                return a;
+            }
+
+            /* ----- construction depuis les relevés ------------------------------ */
+            const getDep = id => deps.find(d => d.id === id);
+            const lbl = id => isSrc(id) ? ((getDep(id.slice(4)) || {}).name || "départ") : (byId[id] ? byId[id].label : id);
+            function pos(id) {
+                if (isSrc(id)) { const d = getDep(id.slice(4)); if (!d) return { x: 0, y: 0 }; const c = P(d.lon, d.lat); return { x: c[0], y: c[1] }; }
+                return byId[id] || { x: 0, y: 0 };
+            }
+            const depColor = id => { const i = deps.findIndex(d => d.id === id); return i < 0 ? "var(--sim-cable)" : (deps[i].color || PALETTE[i % PALETTE.length]); };
+            const lineOf = k => (NET.ecolor || {})[k];
+
+            function batirDonnees(D) {
+                NET = D.NET; PREV = D.PREV; HEADS0 = D.HEADS0 || []; NEWPOS = D.NEWPOS || {};
+                nodes = NET.nodes.map(n => { const c = P(n.lon, n.lat); return Object.assign({}, n, { x: c[0], y: c[1] }); });
+                byId = {}; nodes.forEach(n => { byId[n.id] = n; });
+                cables = (NET.dia || []).map(l => l.map(p => P(p[0], p[1])));
+                shelters = (NET.shelters || []).map(s => { const c = P(s.lon, s.lat); return Object.assign({}, s, { x: c[0], y: c[1] }); });
+                const toXY = g => { const o = {}; Object.keys(g || {}).forEach(k => { o[k] = g[k].map(p => P(p[0], p[1])); }); return o; };
+                geomXY = toXY(NET.geom); egeomXY = toXY(NET.egeom);
+                canons = nodes.filter(n => n.folder !== "SDM");
+                zones = Object.keys(ZONE_NOMS).map(f => {
+                    const g = nodes.filter(n => n.folder === f);
+                    return { t: ZONE_NOMS[f], x: g.reduce((a, n) => a + n.x, 0) / g.length, y: g.reduce((a, n) => a + n.y, 0) / g.length };
+                }).filter(z => !isNaN(z.x));
+                const baseOf = B => ({ edges: B.edges.map(e => ek(e[0], e[1])), eedges: B.eedges.map(e => ek(e[0], e[1])), deps: B.deps });
+                BASE = baseOf(NET); PBASE = baseOf(PREV);
+                setDefaults();
+            }
+
+            // Sens par défaut : en partant des sources, de proche en proche (plus près → plus loin).
+            function defaultDirs(keys, sources) {
+                const adj = {};
+                keys.forEach(k => { const p = k.split("|"); (adj[p[0]] = adj[p[0]] || []).push(p[1]); (adj[p[1]] = adj[p[1]] || []).push(p[0]); });
+                const d = {}, q = [];
+                sources.forEach(s => { d[s] = 0; q.push(s); });
+                while (q.length) { const x = q.shift(); for (const y of adj[x] || []) if (d[y] === undefined) { d[y] = d[x] + 1; q.push(y); } }
+                const out = {};
+                keys.forEach(k => { const p = k.split("|"), da = d[p[0]], db = d[p[1]]; out[k] = (da === undefined || db === undefined || da === db) ? "both" : (da < db ? "ab" : "ba"); });
+                return out;
+            }
+
+            function setDefaults() {
+                edges = new Set(BASE.edges); heads = new Set(HEADS0); dir = defaultDirs(BASE.edges, HEADS0); reps = new Set();
+                deps = NET.deps.map(d => ({ id: d.id, name: d.name, feedsRep: false, lon: d.lon, lat: d.lat, color: d.color }));
+                eedges = new Set(BASE.eedges); edir = defaultDirs(BASE.eedges, NET.deps.map(d => "src/" + d.id));
+                selDep = deps[0] ? deps[0].id : null;
+            }
+
+            /* ----- ce qu'on enregistre : l'écart avec les fichiers -------------- */
+            // La base, c'est le réseau relevé dans les KMZ. On ne garde que VOS corrections par
+            // rapport à cette base : quand les relevés sont mis à jour, elles sont réappliquées
+            // par-dessus au lieu d'être écrasées par un réseau figé.
+            function diffOf(S, B) {
+                const ent = (k, dm) => { const p = k.split("|"); return [p[0], p[1], dm[k] || "both"]; };
+                const part = (set, dm, bList, bDir) => {
+                    const bS = new Set(bList);
+                    const sens = {};
+                    [...set].filter(k => bS.has(k) && (dm[k] || "both") !== bDir[k]).forEach(k => { sens[k] = dm[k] || "both"; });
+                    return { plus: [...set].filter(k => !bS.has(k)).map(k => ent(k, dm)), moins: bList.filter(k => !set.has(k)), sens: sens };
+                };
+                const bD = {}; B.deps.forEach(d => { bD[d.id] = d; });
+                const modif = {};
+                S.deps.filter(d => bD[d.id]).forEach(d => {
+                    const b = bD[d.id], m = {};
+                    if (d.name !== b.name) m.nom = d.name;
+                    if (d.feedsRep) m.alimenteRepeteurs = true;
+                    if (Math.abs(d.lon - b.lon) > 2e-6 || Math.abs(d.lat - b.lat) > 2e-6) { m.lon = d.lon; m.lat = d.lat; }
+                    if (Object.keys(m).length) modif[d.id] = m;
+                });
+                return {
+                    v: 5, tetes: [...S.heads], repeteurs: [...S.reps],
+                    liaisons: part(S.edges, S.dir, B.edges, defaultDirs(B.edges, [...S.heads])),
+                    cables: part(S.eedges, S.edir, B.eedges, defaultDirs(B.eedges, B.deps.map(d => "src/" + d.id))),
+                    departs: {
+                        modif: modif,
+                        nouveaux: S.deps.filter(d => !bD[d.id]).map(d => ({ id: d.id, nom: d.name, alimenteRepeteurs: d.feedsRep, lon: d.lon, lat: d.lat })),
+                        suppr: B.deps.filter(d => !S.deps.some(x => x.id === d.id)).map(d => d.id)
+                    }
+                };
+            }
+
+            function applyDiff(o) {
+                setDefaults();
+                const okN = i => !!byId[i];
+                if (Array.isArray(o.tetes) && o.tetes.some(okN)) heads = new Set(o.tetes.filter(okN));
+                dir = defaultDirs(BASE.edges, [...heads]);
+                reps = new Set((o.repeteurs || []).filter(okN));
+                const D = o.departs || {};
+                deps = deps.filter(d => (D.suppr || []).indexOf(d.id) === -1);
+                deps.forEach(d => { const m = (D.modif || {})[d.id]; if (!m) return; if (m.nom) d.name = m.nom; if (m.alimenteRepeteurs) d.feedsRep = true; if (m.lon != null) { d.lon = m.lon; d.lat = m.lat; } });
+                (D.nouveaux || []).forEach(d => { if (!deps.some(x => x.id === d.id)) deps.push({ id: d.id, name: d.nom, feedsRep: !!d.alimenteRepeteurs, lon: d.lon, lat: d.lat }); });
+                const okE = i => isSrc(i) ? deps.some(d => "src/" + d.id === i) : okN(i);
+                [...eedges].forEach(k => { if (!k.split("|").every(okE)) { eedges.delete(k); delete edir[k]; } });
+                const put = (set, dm, Pc, ok) => {
+                    Pc = Pc || {};
+                    (Pc.moins || []).forEach(k => { set.delete(k); delete dm[k]; });
+                    (Pc.plus || []).forEach(t => { const a = t[0], b = t[1]; if (!ok(a) || !ok(b) || a === b) return; const k = ek(a, b); set.add(k); dm[k] = t[2] || "both"; });
+                    Object.keys(Pc.sens || {}).forEach(k => { if (set.has(k)) dm[k] = Pc.sens[k]; });
+                };
+                put(edges, dir, o.liaisons, okN); put(eedges, edir, o.cables, okE);
+                selDep = deps[0] ? deps[0].id : null;
+            }
+
+            // Anciennes sauvegardes de la page autonome (réseau complet, v3 et v4) : on calcule
+            // l'écart avec l'ancienne base, puis on le réapplique sur la base d'aujourd'hui.
+            function unpack(list) {
+                const s = new Set(), dm = {};
+                (list || []).forEach(p => { if (p[0] === p[1]) return; const k = ek(p[0], p[1]); s.add(k); dm[k] = p[2] === "<>" ? "both" : (p[0] < p[1] ? "ab" : "ba"); });
+                return [s, dm];
+            }
+            function migrate(o) {
+                const S = {}; const u = unpack(o.liaisons); S.edges = u[0]; S.dir = u[1];
+                if (Array.isArray(o.tetes)) S.heads = new Set(o.tetes);
+                else { S.heads = new Set(HEADS0); if (o.src) S.heads.add(o.src); S.dir = defaultDirs([...S.edges], [...S.heads]); }
+                S.reps = new Set(o.repeteurs || []);
+                if (o.v === 4) {
+                    S.deps = (o.departs || []).map(d => ({ id: d.id, name: d.nom, feedsRep: !!d.alimenteRepeteurs, lon: d.lon, lat: d.lat }));
+                    if (!Array.isArray(o.tetes)) S.deps.forEach(d => { if (NEWPOS[d.id]) { d.lon = NEWPOS[d.id][0]; d.lat = NEWPOS[d.id][1]; } });
+                    const v = unpack(o.cables); S.eedges = v[0]; S.edir = v[1];
+                } else {
+                    S.deps = PBASE.deps.map(d => Object.assign({}, d, { feedsRep: false }));
+                    S.eedges = new Set(PBASE.eedges); S.edir = defaultDirs(PBASE.eedges, PBASE.deps.map(d => "src/" + d.id));
+                }
+                applyDiff(diffOf(S, PBASE));
+            }
+            function dump() { return diffOf({ heads: heads, edges: edges, dir: dir, reps: reps, deps: deps, eedges: eedges, edir: edir }, BASE); }
+            function load(o) { if (o && o.v === 5) applyDiff(o); else if (o && (o.v === 4 || o.v === 3)) migrate(o); else throw new Error("format inconnu"); }
+
+            /* ----- enregistrement dans le classeur ------------------------------ */
+            function majEtat(txt, souci) {
+                const e = Q('etat'); if (!e) return;
+                e.textContent = txt || '';
+                e.className = 'sim-etat' + (souci ? ' sim-attente' : '');
+            }
+            const heure = () => new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+            // Chaque geste d'édition appelle save(). On ne part pas sur le réseau à chaque geste :
+            // on attend une seconde de calme, sinon dessiner dix liaisons ferait dix écritures.
+            function save() {
+                if (!pret) return;
+                clearTimeout(sauveT);
+                majEtat('Modification en attente d’enregistrement…');
+                sauveT = setTimeout(enregistrer, 1200);
+            }
+
+            async function enregistrer() {
+                const txt = JSON.stringify(dump());
+                // Copie locale d'abord : même sans réseau, le travail est à l'abri sur l'appareil.
+                try { await window.idbPut('snapshot', { key: 'reseau', at: Date.now(), json: txt }); } catch (e) {}
+                if (txt === dernierEnvoi) { majEtat('Enregistré dans le classeur.'); return; }
+                try {
+                    const res = await window.apiPost({ action: 'save_reseau', json: txt, auteur: auteur() });
+                    const r = await res.json();
+                    if (r.status !== 'success') throw new Error(r.msg || 'refus du serveur');
+                    dernierEnvoi = txt;
+                    if (r.queued) majEtat('Hors réseau : l’enregistrement partira dès le retour du réseau.', true);
+                    else { majEtat('Enregistré dans le classeur à ' + heure() + '.'); historique.unshift({ date: new Date().toISOString(), auteur: auteur(), json: txt }); }
+                } catch (e) {
+                    majEtat('Pas enregistré dans le classeur (' + (e.message || e) + '). La copie locale de l’appareil est à jour.', true);
+                }
+            }
+
+            // Reprise : le classeur fait autorité, sauf si des envois attendent encore dans la file
+            // de cet appareil — ce serait alors remplacer du travail récent par une version plus ancienne.
+            async function reprendre() {
+                let local = null, distant = null, joignable = false;
+                try { const c = await window.idbGet('snapshot', 'reseau'); if (c && c.json) local = c.json; } catch (e) {}
+                try {
+                    const res = await window.apiPost({ action: 'get_reseau' }, { noQueue: true });
+                    const r = await res.json();
+                    if (r.status !== 'success') throw new Error(r.msg || 'refus du serveur');
+                    joignable = true;
+                    const lignes = (r && r.reseau) || [];
+                    historique = lignes.slice(1).filter(l => l && l[2]).map(l => ({ date: String(l[0] || ''), auteur: String(l[1] || ''), json: String(l[2]) })).reverse();
+                    if (historique.length) { distant = historique[0].json; dernierEnvoi = distant; }
+                } catch (e) { /* hors réseau : on se contente de la copie locale */ }
+                const prefererLocal = (window.outboxCount || 0) > 0 && local;
+                const txt = prefererLocal ? local : (distant || local);
+                if (txt) {
+                    try { load(JSON.parse(txt)); } catch (e) { setDefaults(); }
+                    // La copie locale est en avance sur le classeur : on la lui pousse. Seulement si
+                    // le classeur a répondu — sinon on ignore ce qu'il contient, et rouvrir l'onglet
+                    // hors réseau empilerait un envoi inutile à chaque fois.
+                    if (joignable && txt !== dernierEnvoi) setTimeout(save, 50);
+                }
+                if (joignable) majEtat(distant ? ('Dernier enregistrement : ' + dateCourte(historique[0].date) + ' · ' + historique[0].auteur) : 'Réseau des relevés d’origine.');
+                else majEtat(local ? 'Hors réseau : copie du réseau gardée sur cet appareil.' : 'Hors réseau : réseau des relevés d’origine.', true);
+            }
+
+            function dateCourte(iso) {
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return iso || '?';
+                return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            }
+
+            /* ----- calcul -------------------------------------------------------- */
+            // Électricité : le courant part de chaque départ et suit les câbles dans leur sens.
+            function flow(useState) {
+                const adj = {};
+                eedges.forEach(k => {
+                    if (useState && ecut.has(k)) return;
+                    const p = k.split("|"), d = edir[k] || "both";
+                    if (d !== "ba") (adj[p[0]] = adj[p[0]] || []).push(p[1]);
+                    if (d !== "ab") (adj[p[1]] = adj[p[1]] || []).push(p[0]);
+                });
+                const from = {};
+                deps.forEach(d => {
+                    if (useState && depOff.has(d.id)) return;
+                    const s = "src/" + d.id, st = [s], seen = new Set([s]);
+                    while (st.length) { const x = st.pop(); for (const y of adj[x] || []) if (!seen.has(y)) { seen.add(y); st.push(y); if (!isSrc(y) && !from[y]) from[y] = d.id; } }
+                });
+                return from;
+            }
+            // Un canon « vit » s'il n'est pas coupé et qu'il reçoit du courant. Un canon sans aucun
+            // câble électrique relevé est compté alimenté : on ne va pas l'éteindre faute de relevé.
+            const powered = id => !wired.has(id) || !!power[id];
+            const alive = id => !off.has(id) && powered(id);
+            // Le répéteur garde le dialogue, sauf si son propre départ l'alimente aussi et que ce
+            // départ ne lui donne plus de courant.
+            const repOk = id => { if (!reps.has(id)) return false; const d = getDep(home[id]); return !(d && d.feedsRep && !powered(id)); };
+            // Le répéteur ne sert qu'en cas de perte de courant : un canon coupé (interrupteur
+            // ouvert) bloque toujours le dialogue.
+            const passes = id => alive(id) || (!off.has(id) && repOk(id));
+            const talks = id => alive(id) && reach.has(id);
+
+            function compute() {
+                wired = new Set([...eedges].reduce((a, k) => a.concat(k.split("|")), []).filter(i => !isSrc(i)));
+                power = flow(true); home = flow(false);
+                const adj = {}; nodes.forEach(n => { adj[n.id] = []; });
+                edges.forEach(k => {
+                    if (cut.has(k)) return;
+                    const p = k.split("|"), d = dir[k] || "both";
+                    if (d !== "ba" && adj[p[0]]) adj[p[0]].push(p[1]);
+                    if (d !== "ab" && adj[p[1]]) adj[p[1]].push(p[0]);
+                });
+                reach = new Set();
+                const st = [...heads].filter(passes); st.forEach(h => reach.add(h));
+                while (st.length) { const x = st.pop(); for (const y of (adj[x] || [])) if (!reach.has(y) && passes(y)) { reach.add(y); st.push(y); } }
+            }
+
+            /* ----- rapprochement avec les numéros de la GMAO -------------------- */
+            // Les numéros du Tableau Général font autorité. Un numéro du plan que la GMAO ne
+            // connaît pas est signalé : c'est soit une faute de frappe dans un relevé, soit un
+            // enneigeur absent du tableau. Dans les deux cas, mieux vaut le savoir.
+            function rapprocher() {
+                gmaoNums = new Set();
+                ((window.snowCannons && window.snowCannons.features) || []).forEach(f => {
+                    const i = f.properties && f.properties.id;
+                    if (i !== null && i !== undefined && i !== '') gmaoNums.add(String(i).trim());
+                });
+                const boite = Q('alerte'), menu = document.getElementById('sim-menu-etat');
+                const resume = canons.length + ' enneigeurs au plan, ' + edges.size + ' liaisons, ' + eedges.size + ' câbles.';
+                if (!gmaoNums.size) {
+                    if (boite) boite.hidden = true;
+                    if (menu) menu.textContent = resume + ' Numéros de la GMAO pas encore chargés : rapprochement non fait.';
+                    return;
+                }
+                const inconnus = canons.filter(n => !gmaoNums.has(String(n.label).trim())).map(n => n.label);
+                const auPlan = new Set(canons.map(n => String(n.label).trim()));
+                const absents = [...gmaoNums].filter(i => !auPlan.has(i));
+                if (menu) menu.textContent = resume + ' ' + (inconnus.length ? inconnus.length + ' numéro(s) inconnu(s) de la GMAO. ' : 'Tous les numéros du plan existent dans la GMAO. ') + (absents.length ? absents.length + ' enneigeur(s) de la GMAO absent(s) du plan.' : '');
+                if (!boite) return;
+                if (!inconnus.length && !absents.length) { boite.hidden = true; return; }
+                let h = '<button type="button" id="sim-alerte-x" aria-label="Masquer">✕</button>';
+                if (inconnus.length) h += '<b>' + inconnus.length + ' numéro' + (inconnus.length > 1 ? 's' : '') + ' du plan que la GMAO ne connaît pas :</b> ' + inconnus.join(', ') + '.<br>';
+                if (absents.length) h += '<b>' + absents.length + ' enneigeur' + (absents.length > 1 ? 's' : '') + ' de la GMAO absent' + (absents.length > 1 ? 's' : '') + ' du plan :</b> ' + absents.slice(0, 40).join(', ') + (absents.length > 40 ? '…' : '') + '.';
+                boite.innerHTML = h;
+                boite.hidden = false;
+                const x = document.getElementById('sim-alerte-x');
+                if (x) x.onclick = () => { boite.hidden = true; };
+            }
+
+            function majTickets() {
+                ticketsOuverts = new Set();
+                if (!window.getActiveTickets) return;
+                canons.forEach(n => { try { if (window.getActiveTickets(String(n.label)).length) ticketsOuverts.add(n.label); } catch (e) {} });
+            }
+            const connuGmao = label => !gmaoNums.size || gmaoNums.has(String(label).trim());
+
+            /* ----- dessin -------------------------------------------------------- */
+            const sx = x => x * view.s + view.tx, sy = y => y * view.s + view.ty;
+            const poly = pts => pts.map(p => sx(p[0]) + "," + sy(p[1])).join(" ");
+            const elecView = () => (mode === "test" && showElec) || (mode === "edit" && tool === "elec");
+            const clampS = s => Math.min(60, Math.max(0.05, s));
+
+            function fit() {
+                const w = Q('wrap'); if (!w) return;
+                const r = w.getBoundingClientRect();
+                if (!r.width || !r.height) return;
+                const xs = nodes.map(n => n.x), ys = nodes.map(n => n.y);
+                const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+                const y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+                const pad = 24, s = Math.min((r.width - 2 * pad) / (x1 - x0), (r.height - 2 * pad) / (y1 - y0));
+                view = { s: s, tx: (r.width - (x1 - x0) * s) / 2 - x0 * s, ty: (r.height - (y1 - y0) * s) / 2 - y0 * s };
+                draw();
+            }
+
+            function drawLink(g, k, geo, dm, cls, arrowCls, kind, color) {
+                const p = k.split("|"), A = pos(p[0]), B = pos(p[1]);
+                const raw = (!isSrc(p[0]) && !isSrc(p[1]) && geo[k]) || [[A.x, A.y], [B.x, B.y]];
+                const pts = raw.map(q => [sx(q[0]), sy(q[1])]), ptsStr = pts.map(q => q.join(",")).join(" ");
+                if (selEdge && selEdge.k === k && selEdge.kind === kind) g.append(el("polyline", { points: ptsStr, class: "sim-esel" }));
+                const line = el("polyline", { points: ptsStr, class: cls });
+                if (color) line.setAttribute("stroke", color);
+                g.append(line);
+                let tot = 0; for (let i = 1; i < pts.length; i++) tot += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+                if (tot > 24) {
+                    let acc = 0, mx = pts[0][0], my = pts[0][1], ang = 0;
+                    for (let i = 1; i < pts.length; i++) {
+                        const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+                        if (acc + l >= tot / 2) { const t = l ? (tot / 2 - acc) / l : 0; mx = pts[i - 1][0] + t * (pts[i][0] - pts[i - 1][0]); my = pts[i - 1][1] + t * (pts[i][1] - pts[i - 1][1]); ang = Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0]) * 180 / Math.PI; break; }
+                        acc += l;
+                    }
+                    const d = dm[k] || "both";
+                    const tri = (rot, o) => { const t = el("path", { class: "sim-arrow " + arrowCls, d: "M-5,-5.5L6,0L-5,5.5Z", transform: 'translate(' + mx + ',' + my + ') rotate(' + rot + ') translate(' + o + ',0)' }); if (color) t.setAttribute("fill", color); return t; };
+                    if (d === "ab") g.append(tri(ang, 0));
+                    else if (d === "ba") g.append(tri(ang + 180, 0));
+                    else { g.append(tri(ang, 7)); g.append(tri(ang + 180, 7)); }
+                }
+                if (kind) { const h = el("polyline", { points: ptsStr, class: "sim-hit" }); h.dataset.edge = k; h.dataset.kind = kind; g.append(h); }
+            }
+
+            function draw() {
+                v0 = { s: view.s, tx: view.tx, ty: view.ty };
+                const world = Q('world'); if (!world) return;
+                world.removeAttribute("transform");
+                const gC = Q('gCable'), gE = Q('gElec'), gZ = Q('gZone'), gL = Q('gLink'), gS = Q('gShel'), gN = Q('gNode'), gT = Q('gLbl');
+                [gC, gE, gZ, gL, gS, gN, gT].forEach(g => g.replaceChildren());
+                const ev = elecView(), editElec = mode === "edit" && tool === "elec";
+                Q('legend').hidden = editElec || (mode === "edit" && tool === "links");
+                cables.forEach(c => gC.append(el("polyline", { class: "sim-cable", points: poly(c) })));
+                if (view.s < 0.6) zones.forEach(z => { const t = el("text", { class: "sim-zone", x: sx(z.x), y: sy(z.y) - 14 }); t.textContent = z.t; gZ.append(t); });
+                // Dialogue. Un fil reste vert tant que le canon qui envoie (selon la flèche)
+                // communique : l'information arrive bien jusqu'au bout du fil.
+                edges.forEach(k => {
+                    const p = k.split("|"), dd = dir[k] || "both";
+                    const ok = !cut.has(k) && ((dd !== "ba" && reach.has(p[0])) || (dd !== "ab" && reach.has(p[1])));
+                    const st = ev ? "dim" : cut.has(k) ? "cut" : ok ? "ok" : "ko";
+                    if (mode === "edit" && tool === "links") { const c = (lineOf(k) || ["#2c3e50"])[0]; drawLink(gL, k, geomXY, dir, "sim-link", "", 'd', c); }
+                    else drawLink(gL, k, geomXY, dir, "sim-link sim-" + st, "sim-" + st, ev ? null : "d");
+                });
+                // Électricité
+                if (ev) eedges.forEach(k => {
+                    const p = k.split("|");
+                    const on = x => isSrc(x) ? !depOff.has(x.slice(4)) : !!power[x];
+                    if (editElec) { const c = depColor(home[isSrc(p[0]) ? p[1] : p[0]] || (isSrc(p[0]) ? p[0].slice(4) : isSrc(p[1]) ? p[1].slice(4) : null)); drawLink(gE, k, egeomXY, edir, "sim-elink", "", 'e', c); }
+                    else { const ed = edir[k] || "both", st = ecut.has(k) ? "cut" : ((ed !== "ba" && on(p[0])) || (ed !== "ab" && on(p[1]))) ? "on" : "dead"; drawLink(gE, k, egeomXY, edir, "sim-elink sim-" + st, "sim-" + (st === "cut" ? "dead" : st), "e"); }
+                });
+                shelters.forEach(s => { const r = el("rect", { class: "sim-shel", x: sx(s.x) - 5, y: sy(s.y) - 5, width: 10, height: 10, rx: 1 }); const t = el("title"); t.textContent = s.name; r.append(t); gS.append(r); });
+                const r = Math.max(3.5, Math.min(8, view.s * 16)), showLbl = view.s > 0.28;
+                nodes.forEach(n => {
+                    let st;
+                    if (editElec) st = home[n.id] ? "dep" : "none";
+                    else if (off.has(n.id)) st = "off";
+                    else if (!powered(n.id)) st = "nopow";
+                    else st = reach.has(n.id) ? "ok" : "ko";
+                    const g = el("g", { class: 'sim-node sim-' + st, transform: 'translate(' + sx(n.x) + ',' + sy(n.y) + ')' });
+                    g.dataset.id = n.id;
+                    g.append(el("circle", { r: 16, fill: "transparent" }));
+                    if (reps.has(n.id) && !editElec) { const q = r + 6; g.append(el("path", { class: "sim-rep" + (!reach.has(n.id) ? " sim-ko" : ""), d: 'M0,' + (-q) + 'L' + q + ',0L0,' + q + 'L' + (-q) + ',0Z' })); }
+                    // Ticket ouvert dans la GMAO : cercle pointillé autour du canon. Il ne remplace
+                    // pas la couleur (vert/rouge = dialogue), il s'ajoute.
+                    if (!editElec && ticketsOuverts.has(n.label)) g.append(el("circle", { class: "sim-tic", r: r + 7 }));
+                    const dot = n.folder === "SDM"
+                        ? el("path", { class: "sim-dot", d: 'M' + (-r * 1.5) + ',' + (r * 1.2) + 'V' + (-r * 0.3) + 'L0,' + (-r * 1.5) + 'L' + (r * 1.5) + ',' + (-r * 0.3) + 'V' + (r * 1.2) + 'Z' })
+                        : el("circle", { class: "sim-dot", r: r });
+                    if (st === "dep") dot.setAttribute("fill", depColor(home[n.id]));
+                    g.append(dot);
+                    if (st === "off") { const d = r * 0.55; g.append(el("path", { class: "sim-x", d: 'M' + (-d) + ',' + (-d) + 'L' + d + ',' + d + 'M' + d + ',' + (-d) + 'L' + (-d) + ',' + d })); }
+                    if (st === "nopow") g.append(el("path", { class: "sim-bolt", d: "M1,-4L-2.5,0.8H0L-1,4L2.5,-0.8H0Z", transform: 'scale(' + (r / 8 * 1.4) + ')' }));
+                    if (heads.has(n.id) && !editElec) g.append(el("circle", { class: "sim-ring", r: r + 3.5 }));
+                    if (n.id === sel || n.id === found || n.id === canonSel) g.append(el("circle", { class: "sim-ring2", r: r + 10 }));
+                    gN.append(g);
+                    if (showLbl || heads.has(n.id) || n.id === sel || n.id === found || n.folder === "SDM") {
+                        const sdm = n.folder === "SDM";
+                        const t = el("text", { class: "sim-lbl" + (sdm ? " sim-sdml" : ""), x: sdm ? sx(n.x) - r * 1.5 - 4 : sx(n.x) + r + 4, y: sy(n.y) + 4, "text-anchor": sdm ? "end" : "start" });
+                        t.textContent = n.label; gT.append(t);
+                    }
+                });
+                // Départs électriques (les postes)
+                deps.forEach(d => {
+                    const id = "src/" + d.id, p = pos(id), q = Math.max(7, Math.min(11, view.s * 20));
+                    const g = el("g", { class: 'sim-node sim-srcn' + (depOff.has(d.id) ? " sim-cut" : "") + (((editElec && d.id === selDep) || sel === id) ? " sim-sel" : ""), transform: 'translate(' + sx(p.x) + ',' + sy(p.y) + ')' });
+                    g.dataset.id = id;
+                    g.append(el("circle", { r: 18, fill: "transparent" }));
+                    const rc = el("rect", { x: -q, y: -q, width: 2 * q, height: 2 * q, rx: 3 });
+                    if (editElec) rc.setAttribute("fill", depColor(d.id));
+                    g.append(rc);
+                    const t = el("text", { y: q * 0.4 }); t.textContent = "⚡"; t.setAttribute("font-size", q * 1.1); g.append(t);
+                    gN.append(g);
+                    if (view.s > 0.12 || ev) { const l = el("text", { class: "sim-lbl", x: sx(p.x) + q + 4, y: sy(p.y) + 4 }); l.textContent = d.name; gT.append(l); }
+                });
+            }
+
+            /* ----- tableau de bord ---------------------------------------------- */
+            function status() {
+                const okN = canons.filter(n => talks(n.id)).length, lost = canons.filter(n => !talks(n.id));
+                Q('count').innerHTML = okN + '<small> / ' + canons.length + ' canons communiquent</small>';
+                Q('lamp').classList.toggle("sim-ko", lost.length > 0);
+                const linked = new Set([...edges].reduce((a, k) => a.concat(k.split("|")), []));
+                let sub = lost.length === 0 ? "Tout le réseau communique." : lost.length + " canon" + (lost.length > 1 ? "s" : "") + " hors communication.";
+                const np = canons.filter(n => !powered(n.id)).length;
+                if (np) sub += ' ' + np + ' sans courant.';
+                sub += ' Départ' + (heads.size > 1 ? 's' : '') + ' du dialogue : canon' + (heads.size > 1 ? 's' : '') + ' ' + [...heads].map(lbl).join(" et ") + '.';
+                Q('sub').textContent = sub;
+                Q('lostSum').textContent = lost.length ? 'Voir les ' + lost.length + ' canons hors communication' : "Aucun canon hors communication";
+                Q('lost').textContent = lost.map(n => n.label + (off.has(n.id) ? " (coupé)" : !powered(n.id) ? " (sans courant)" : !linked.has(n.id) ? " (sans liaison)" : "")).join(", ");
+            }
+            function refresh() { compute(); draw(); status(); edgeBarUpd(); chips(); }
+
+            /* ----- bandeau des départs ------------------------------------------ */
+            function chips() {
+                const box = Q('depChips'); box.replaceChildren();
+                const editElec = mode === "edit" && tool === "elec";
+                box.hidden = !(mode === "test" || editElec);
+                if (mode === "test") {
+                    const v = document.createElement("button");
+                    v.type = 'button'; v.className = "sim-chip sim-view"; v.setAttribute("aria-pressed", showElec);
+                    v.textContent = showElec ? "Voir le dialogue" : "Voir l’électricité";
+                    v.onclick = () => { showElec = !showElec; refresh(); setHint(); };
+                    box.append(v);
+                }
+                deps.forEach(d => {
+                    const b = document.createElement("button");
+                    b.type = 'button'; b.className = "sim-chip";
+                    const n = Object.keys(home).filter(k => home[k] === d.id).length;
+                    if (mode === "test") {
+                        b.classList.add(depOff.has(d.id) ? "sim-cut" : "sim-on");
+                        b.innerHTML = '<span aria-hidden="true">⚡</span>';
+                        b.append(d.name + ' (' + n + ')');
+                        b.onclick = () => toggleDep(d.id);
+                    } else {
+                        b.setAttribute("aria-pressed", d.id === selDep);
+                        const c = document.createElement("span"); c.className = "sim-dotc"; c.style.background = depColor(d.id);
+                        b.append(c, d.name + ' (' + n + ')');
+                        b.onclick = () => { selDep = d.id; placing = false; setHint(); refresh(); };
+                    }
+                    box.append(b);
+                });
+                depEditUpd();
+            }
+            function depEditUpd() {
+                const show = mode === "edit" && tool === "elec";
+                Q('depEdit').hidden = !show;
+                const d = getDep(selDep), nm = Q('depName');
+                if (document.activeElement !== nm) nm.value = d ? d.name : "";
+                nm.disabled = !d;
+                Q('depRep').checked = !!(d && d.feedsRep); Q('depRep').disabled = !d;
+                Q('depDel').disabled = !d; Q('depMove').disabled = !d;
+                Q('depMove').textContent = placing ? "Annuler" : "Déplacer";
+            }
+            function toggleDep(id) {
+                const d = getDep(id), before = canons.filter(n => talks(n.id)).length;
+                if (depOff.has(id)) { depOff.delete(id); refresh(); toast(d.name + ' remis sous tension'); }
+                else {
+                    depOff.add(id); refresh();
+                    const np = canons.filter(n => !powered(n.id)).length;
+                    toast(d.name + ' coupé : ' + np + ' canons sans courant, ' + (canons.length - canons.filter(x => talks(x.id)).length) + ' hors communication');
+                }
+            }
+
+            /* ----- messages ------------------------------------------------------ */
+            function setHint() {
+                let h;
+                if (mode === "test") h = showElec
+                    ? "Touchez un <b>câble électrique</b> pour le couper, ou un <b>départ ⚡</b> pour couper le courant."
+                    : "Touchez un <b>canon</b> pour le couper, une <b>liaison</b> pour couper le câble, ou un <b>départ ⚡</b> pour couper le courant. Appui long sur un canon : sa fiche GMAO.";
+                else if (tool === "links") h = sel
+                    ? 'Canon <b>' + lbl(sel) + '</b> choisi : il envoie. Touchez le canon qui <b>reçoit</b> pour créer la liaison (ou la supprimer si elle existe). Retouchez ' + lbl(sel) + ' pour en faire (ou non) un départ du dialogue.'
+                    : "Les liaisons ont la couleur de leur ligne sur le plan. Touchez une <b>liaison</b> pour changer son sens ou la supprimer. Pour en créer une : touchez le canon qui envoie, puis celui qui reçoit.";
+                else if (tool === "reps") h = "Touchez un <b>canon</b> pour y placer ou retirer un répéteur. Avec un répéteur, le dialogue continue de passer quand le canon est <b>sans courant</b>. Si le canon est <b>coupé</b>, le dialogue est bloqué quand même.";
+                else if (placing) h = 'Touchez le plan à l’endroit du départ <b>' + lbl("src/" + selDep) + '</b>.';
+                else h = sel
+                    ? '<b>' + lbl(sel) + '</b> choisi : le courant part d’ici. Touchez le canon qui <b>reçoit</b> le courant pour créer le câble (ou le supprimer s’il existe).'
+                    : "Touchez un <b>câble</b> pour changer le sens du courant ou le supprimer. Pour en créer un : touchez le départ ⚡ ou le canon d’où vient le courant, puis celui qui le reçoit.";
+                Q('hint').innerHTML = h;
+            }
+            let tt = null;
+            function toast(m) { const t = Q('toast'); t.textContent = m; t.classList.add("sim-show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("sim-show"), 2600); }
+
+            /* ----- gestes sur le plan -------------------------------------------- */
+            function info(id) {
+                const n = byId[id]; if (!n) return id;
+                const m = MODELS[n.model], d = getDep(home[id]);
+                return (n.folder === "SDM" ? "" : "Canon ") + n.label + (m ? " (" + m + ")" : "") + (d ? " · " + d.name : "");
+            }
+            const dirTxt = (k, dm) => { const p = k.split("|"), d = dm[k] || "both"; return d === "both" ? lbl(p[0]) + ' ⇄ ' + lbl(p[1]) + ' (double sens)' : d === "ab" ? lbl(p[0]) + ' → ' + lbl(p[1]) : lbl(p[1]) + ' → ' + lbl(p[0]); };
+
+            function linkTap(set, dm, id, word) {
+                selEdge = null;
+                if (!sel) { sel = id; }
+                else if (sel === id) {
+                    if (set === edges && !isSrc(id)) {
+                        if (heads.has(id)) { if (heads.size > 1) { heads.delete(id); toast('Canon ' + lbl(id) + ' n’est plus un départ du dialogue'); } else toast("Il faut garder au moins un départ du dialogue"); }
+                        else { heads.add(id); toast('Canon ' + lbl(id) + ' = départ du dialogue'); }
+                        save();
+                    }
+                    sel = null;
+                } else if (isSrc(id)) { toast("Un départ ne peut pas recevoir le courant"); sel = null; }
+                else {
+                    const k = ek(sel, id);
+                    if (set.has(k)) { set.delete(k); delete dm[k]; cut.delete(k); ecut.delete(k); toast(word + ' ' + lbl(sel) + ' – ' + lbl(id) + ' supprimé' + (word === "Liaison" ? "e" : "")); }
+                    else { set.add(k); dm[k] = sel < id ? "ab" : "ba"; toast(word + ' ' + lbl(sel) + ' → ' + lbl(id) + ' ajouté' + (word === "Liaison" ? "e" : "")); }
+                    save(); sel = null;
+                }
+                setHint(); refresh();
+            }
+
+            function tapNode(id) {
+                if (mode === "test") {
+                    if (isSrc(id)) { toggleDep(id.slice(4)); return; }
+                    const before = canons.filter(n => talks(n.id)).length;
+                    if (off.has(id)) { off.delete(id); refresh(); toast(info(id) + ' remis en marche'); }
+                    else {
+                        off.add(id); refresh();
+                        const isS = byId[id].folder === "SDM", lostN = before - canons.filter(n => talks(n.id)).length - (isS ? 0 : 1);
+                        toast((isS ? "" : "Canon ") + lbl(id) + ' coupé' + (lostN > 0 ? ' : ' + lostN + ' autre' + (lostN > 1 ? 's' : '') + ' perdu' + (lostN > 1 ? 's' : '') : ''));
+                    }
+                    return;
+                }
+                if (tool === "elec") { if (isSrc(id) && !sel) selDep = id.slice(4); linkTap(eedges, edir, id, "Câble"); return; }
+                if (isSrc(id)) { toast("Les départs se modifient dans l’outil Électricité"); return; }
+                if (tool === "reps") {
+                    if (reps.has(id)) { reps.delete(id); toast('Répéteur retiré du canon ' + lbl(id)); }
+                    else { reps.add(id); toast('Répéteur placé au canon ' + lbl(id)); }
+                    save(); refresh(); return;
+                }
+                linkTap(edges, dir, id, "Liaison");
+            }
+
+            function tapEdge(k, kind) {
+                const p = k.split("|");
+                if (mode === "test") {
+                    const S = kind === "e" ? ecut : cut, w = kind === "e" ? "Câble électrique" : "Câble de dialogue";
+                    if (S.has(k)) { S.delete(k); toast(w + ' ' + lbl(p[0]) + ' – ' + lbl(p[1]) + ' réparé'); }
+                    else { S.add(k); toast(w + ' ' + lbl(p[0]) + ' – ' + lbl(p[1]) + ' coupé'); }
+                } else if ((tool === "links" && kind === "d") || (tool === "elec" && kind === "e")) {
+                    sel = null; canonSel = null; Q('canonBar').hidden = true; setHint();
+                    selEdge = (selEdge && selEdge.k === k) ? null : { k: k, kind: kind };
+                } else return;
+                refresh();
+            }
+
+            function setMode(m) {
+                mode = m; sel = null; selEdge = null; placing = false; canonSel = null;
+                Q('canonBar').hidden = true;
+                Q('mTest').classList.toggle('active', m === "test");
+                Q('mEdit').classList.toggle('active', m === "edit");
+                Q('toolSeg').hidden = m !== "edit";
+                setHint(); refresh();
+            }
+            function setTool(t) {
+                tool = t; sel = null; selEdge = null; placing = false; canonSel = null;
+                Q('canonBar').hidden = true;
+                Array.from(Q('toolSeg').querySelectorAll('button')).forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+                setHint(); refresh();
+            }
+
+            function edgeBarUpd() {
+                const b = Q('edgeBar');
+                const ok = selEdge && mode === "edit" && ((selEdge.kind === "d" && tool === "links" && edges.has(selEdge.k)) || (selEdge.kind === "e" && tool === "elec" && eedges.has(selEdge.k)));
+                if (ok) {
+                    b.hidden = false;
+                    Q('edgeTxt').textContent = (selEdge.kind === "e" ? "Câble électrique " : "Liaison ") + dirTxt(selEdge.k, selEdge.kind === "e" ? edir : dir) + (selEdge.kind === "d" && lineOf(selEdge.k) ? " · " + lineOf(selEdge.k)[1] : "");
+                } else b.hidden = true;
+            }
+
+            /* ----- le pont avec la GMAO ------------------------------------------ */
+            // Appui long sur un canon (ou clic droit) : au lieu de le couper, on ouvre la barre qui
+            // mène à sa fiche et au ticket. Le geste de simulation reste l'appui simple.
+            function ouvrirBarreCanon(id) {
+                if (isSrc(id)) return;
+                const n = byId[id]; if (!n || n.folder === "SDM") return;
+                canonSel = id; selEdge = null; Q('edgeBar').hidden = true;
+                const connu = connuGmao(n.label);
+                Q('canonTxt').textContent = info(id) + (ticketsOuverts.has(n.label) ? ' · ticket ouvert' : '') + (connu ? '' : ' · numéro inconnu de la GMAO');
+                Q('cFiche').disabled = !connu; Q('cTicket').disabled = !connu;
+                Q('canonBar').hidden = false;
+                draw();
+            }
+
+            function ficheGmao() {
+                if (!canonSel) return;
+                const label = byId[canonSel].label;
+                if (!window.focusCannon) { toast("La fiche du canon n’est pas disponible."); return; }
+                // On repasse sur la carte : la fiche s'ouvre dans le panneau de droite, qui a besoin
+                // de la carte en dessous.
+                const r = document.querySelector('input[name="main_theme"][value="defauts"]');
+                if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
+                setTimeout(() => { try { window.focusCannon(String(label)); } catch (e) {} }, 80);
+            }
+
+            function modalFermer() { Q('modal').hidden = true; Q('modal-box').replaceChildren(); }
+            function modalOuvrir(html) {
+                const b = Q('modal-box'); b.innerHTML = html; Q('modal').hidden = false;
+            }
+
+            function proposerTicket() {
+                if (!canonSel) return;
+                const n = byId[canonSel], label = n.label;
+                const deja = (window.getActiveTickets ? window.getActiveTickets(String(label)) : []);
+                // Le libellé proposé dit ce que le plan constate à cet instant. Quand le canon va
+                // bien, rien n'est pré-écrit : mieux vaut un champ vide qu'un ticket qui affirme
+                // une panne inexistante.
+                const motif = off.has(canonSel) ? 'Canon ' + label + ' coupé'
+                    : !powered(canonSel) ? 'Canon ' + label + ' sans courant'
+                    : !talks(canonSel) ? 'Canon ' + label + ' hors communication'
+                    : '';
+                modalOuvrir(
+                    '<h3>Créer un ticket</h3>' +
+                    '<p>Le ticket part dans l’onglet des pannes du classeur, exactement comme depuis la carte. Rien n’est envoyé avant votre validation.' +
+                    (deja.length ? ' <b>Attention : ce canon a déjà ' + deja.length + ' ticket' + (deja.length > 1 ? 's' : '') + ' en cours.</b>' : '') + '</p>' +
+                    '<input type="text" id="sim-tk-defaut" placeholder="Décrivez le défaut" value="' + motif.replace(/"/g, '&quot;') + '" aria-label="Défaut">' +
+                    '<div class="sim-modal-row"><button type="button" id="sim-tk-non">Annuler</button>' +
+                    '<button type="button" class="sim-primary" id="sim-tk-oui">Créer le ticket</button></div>');
+                const champTk = document.getElementById('sim-tk-defaut');
+                champTk.focus();
+                document.getElementById('sim-tk-non').onclick = modalFermer;
+                document.getElementById('sim-tk-oui').onclick = async function () {
+                    const champ = document.getElementById('sim-tk-defaut');
+                    const defaut = (champ.value || '').trim();
+                    if (!defaut) { champ.focus(); toast("Décrivez d’abord le défaut."); return; }
+                    this.disabled = true; this.textContent = 'Envoi…';
+                    try { await creerTicket(label, defaut); modalFermer(); toast('Ticket créé pour le canon ' + label); }
+                    catch (e) { this.disabled = false; this.textContent = 'Créer le ticket'; alert("Le ticket n’a pas été enregistré : " + (e.message || e)); }
+                };
+            }
+
+            async function creerTicket(label, defaut) {
+                const f = ((window.snowCannons && window.snowCannons.features) || []).find(x => String(x.properties.id) === String(label));
+                const p = f ? f.properties : null;
+                let piste = (p && window.keyPiste && window.getV) ? window.getV(p, window.keyPiste) : '';
+                if (piste === 'N/A') piste = '';
+                const c = (f && f.geometry && f.geometry.coordinates) || null;
+                const d = new Date();
+                const dateStr = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+                const fields = {
+                    "état": "à faire", "Priorité": "", "date": dateStr, "n°regard": String(label),
+                    "piste": piste || "Inconnue", "defaut": defaut, "Défaut sonde": "", "cause": "",
+                    "date d'inter": "", "intervention": "", "Remarque": "Créé depuis le plan du réseau de dialogue.",
+                    "periode": "", "photos": "", "latlong": c ? (Number(c[1]).toFixed(7) + "," + Number(c[0]).toFixed(7)) : "",
+                    "pièces utilisés": ""
+                };
+                const res = await window.apiPost({ action: "add_ticket", fields: fields });
+                const r = await res.json();
+                if (r.status !== "success") throw new Error(r.msg || "refus du serveur");
+                if (window.rawTickets) window.rawTickets.push({ statut: "à faire", date: dateStr, dateInter: "", idCanon: String(label), defaut: defaut, id: r.id || "", fullData: Object.keys(fields).map(k => ({ k: k, v: fields[k] })) });
+                majTickets();
+                if (window.updateMap) try { window.updateMap(); } catch (e) {}
+                refresh();
+            }
+
+            /* ----- les enregistrements ------------------------------------------- */
+            function ouvrirHistorique() {
+                if (!pret) { ouvrir(); return; }
+                let l = historique.length
+                    ? historique.slice(0, 20).map((h, i) => '<div class="sim-hist-l"><span>' + dateCourte(h.date) + ' · ' + (h.auteur || '?') + (i === 0 ? ' <b>(en cours)</b>' : '') + '</span>' + (i === 0 ? '' : '<button type="button" data-rev="' + i + '">Revenir à cet état</button>') + '</div>').join('')
+                    : '<p>Aucun enregistrement dans le classeur pour l’instant.</p>';
+                modalOuvrir(
+                    '<h3>Enregistrements du réseau</h3>' +
+                    '<p>Chaque modification du réseau est écrite dans l’onglet « reseau_modifs » du classeur : une ligne par enregistrement. Les 60 derniers sont conservés.</p>' +
+                    l +
+                    '<p style="margin-top:12px;">Vous pouvez aussi coller ici un réseau sauvegardé depuis l’ancien simulateur (bouton « Sauvegarder » de la page séparée).</p>' +
+                    '<input type="text" id="sim-h-coller" placeholder="Coller le texte de sauvegarde" aria-label="Texte de sauvegarde">' +
+                    '<div class="sim-modal-row"><button type="button" id="sim-h-charger">Charger ce texte</button>' +
+                    '<button type="button" class="sim-primary" id="sim-h-fermer">Fermer</button></div>');
+                document.getElementById('sim-h-fermer').onclick = modalFermer;
+                document.getElementById('sim-h-charger').onclick = function () {
+                    const t = document.getElementById('sim-h-coller').value.trim();
+                    if (!t) return;
+                    try { load(JSON.parse(t)); } catch (e) { alert("Texte non reconnu : collez un texte sauvegardé par le simulateur."); return; }
+                    off.clear(); cut.clear(); depOff.clear(); ecut.clear();
+                    save(); setHint(); refresh(); modalFermer(); toast("Réseau chargé");
+                };
+                Array.from(Q('modal-box').querySelectorAll('button[data-rev]')).forEach(b => {
+                    b.onclick = function () {
+                        const h = historique[parseInt(b.dataset.rev, 10)];
+                        if (!h || !confirm('Revenir à l’état du ' + dateCourte(h.date) + ' ? Vos modifications plus récentes seront remplacées.')) return;
+                        try { load(JSON.parse(h.json)); } catch (e) { alert("Cet enregistrement est illisible."); return; }
+                        off.clear(); cut.clear(); depOff.clear(); ecut.clear();
+                        save(); setHint(); refresh(); modalFermer(); toast('Réseau du ' + dateCourte(h.date) + ' rétabli');
+                    };
+                });
+            }
+
+            /* ----- branchement des commandes ------------------------------------- */
+            function preview() { const k = view.s / v0.s; Q('world').setAttribute("transform", 'translate(' + (view.tx - v0.tx * k) + ',' + (view.ty - v0.ty * k) + ') scale(' + k + ')'); }
+            function zoomAt(f, cx, cy) { const s = clampS(view.s * f); f = s / view.s; view.tx = cx - (cx - view.tx) * f; view.ty = cy - (cy - view.ty) * f; view.s = s; draw(); }
+
+            function tapAt(x, y, target) {
+                if (placing && mode === "edit" && tool === "elec") {
+                    const svg = Q('svg'), r = svg.getBoundingClientRect(), d = getDep(selDep);
+                    if (d) { const c = unP((x - r.left - view.tx) / view.s, (y - r.top - view.ty) / view.s); d.lon = c[0]; d.lat = c[1]; save(); toast(d.name + ' placé'); }
+                    placing = false; setHint(); refresh(); return true;
+                }
+                const t = document.elementFromPoint(x, y) || target;
+                const g = t && t.closest && t.closest(".sim-node");
+                if (g) { tapNode(g.dataset.id); return true; }
+                if (t && t.dataset && t.dataset.edge) { tapEdge(t.dataset.edge, t.dataset.kind); return true; }
+                if (sel) { sel = null; setHint(); draw(); }
+                if (selEdge) { selEdge = null; edgeBarUpd(); draw(); }
+                if (canonSel) { canonSel = null; Q('canonBar').hidden = true; draw(); }
+                if (found) { found = null; draw(); }
+                return false;
+            }
+            let lastTap = 0;
+            function emptyTap(x, y) {
+                const now = Date.now();
+                if (now - lastTap < 350) { const r = Q('svg').getBoundingClientRect(); zoomAt(2, x - r.left, y - r.top); lastTap = 0; }
+                else lastTap = now;
+            }
+
+            function brancher() {
+                if (branche) return; branche = true;
+                const svg = Q('svg'), wrap = Q('wrap');
+
+                Q('mTest').onclick = () => setMode("test");
+                Q('mEdit').onclick = () => setMode("edit");
+                Array.from(Q('toolSeg').querySelectorAll('button')).forEach(b => { b.onclick = () => setTool(b.dataset.tool); });
+
+                Q('depName').addEventListener("input", e => { const d = getDep(selDep); if (!d) return; d.name = e.target.value || "Sans nom"; save(); chips(); draw(); });
+                Q('depRep').onchange = e => { const d = getDep(selDep); if (!d) return; d.feedsRep = e.target.checked; save(); refresh(); };
+                Q('depMove').onclick = () => { placing = !placing; setHint(); depEditUpd(); };
+                Q('depNew').onclick = () => {
+                    const id = "d" + Date.now().toString(36), r = wrap.getBoundingClientRect();
+                    const c = unP((r.width / 2 - view.tx) / view.s, (r.height / 2 - view.ty) / view.s);
+                    deps.push({ id: id, name: 'Départ ' + (deps.length + 1), feedsRep: false, lon: c[0], lat: c[1] });
+                    selDep = id; placing = true; save(); setHint(); refresh(); toast("Touchez le plan pour placer le nouveau départ");
+                };
+                Q('depDel').onclick = () => {
+                    const d = getDep(selDep); if (!d) return;
+                    if (!confirm('Supprimer ' + d.name + ' et ses câbles de départ ?')) return;
+                    const s = "src/" + d.id;
+                    [...eedges].forEach(k => { if (k.split("|").indexOf(s) !== -1) { eedges.delete(k); delete edir[k]; ecut.delete(k); } });
+                    deps = deps.filter(x => x.id !== d.id); depOff.delete(d.id);
+                    selDep = deps[0] ? deps[0].id : null; placing = false; save(); setHint(); refresh();
+                };
+
+                Q('bAllOn').onclick = () => { off.clear(); cut.clear(); depOff.clear(); ecut.clear(); refresh(); toast("Tout est remis en marche"); };
+                Q('bHist').onclick = ouvrirHistorique;
+                Q('bReset').onclick = () => {
+                    if (!confirm("Effacer toutes vos modifications (dialogue, répéteurs, électricité) et revenir au réseau des relevés ?")) return;
+                    setDefaults(); off.clear(); cut.clear(); depOff.clear(); ecut.clear();
+                    save(); setHint(); refresh(); toast("Réseau des relevés rétabli");
+                };
+
+                Q('eDir').onclick = () => { if (!selEdge) return; const dm = selEdge.kind === "e" ? edir : dir, k = selEdge.k, d = dm[k] || "both"; dm[k] = d === "ab" ? "ba" : d === "ba" ? "both" : "ab"; save(); refresh(); };
+                Q('eDel').onclick = () => {
+                    if (!selEdge) return;
+                    const k = selEdge.k, kind = selEdge.kind, p = k.split("|");
+                    if (kind === "e") { eedges.delete(k); delete edir[k]; ecut.delete(k); } else { edges.delete(k); delete dir[k]; cut.delete(k); }
+                    save(); selEdge = null; refresh(); toast((kind === "e" ? "Câble" : "Liaison") + ' ' + lbl(p[0]) + ' – ' + lbl(p[1]) + ' supprimé' + (kind === "e" ? "" : "e"));
+                };
+                Q('eClose').onclick = () => { selEdge = null; refresh(); };
+
+                Q('cFiche').onclick = ficheGmao;
+                Q('cTicket').onclick = proposerTicket;
+                Q('cClose').onclick = () => { canonSel = null; Q('canonBar').hidden = true; draw(); };
+                Q('modal').addEventListener('click', e => { if (e.target === Q('modal')) modalFermer(); });
+
+                Q('findForm').addEventListener('submit', e => {
+                    e.preventDefault();
+                    const q = Q('find').value.trim().toLowerCase(); if (!q) return;
+                    const n = nodes.find(x => x.label.toLowerCase() === q) || nodes.find(x => x.label.toLowerCase().indexOf(q) !== -1);
+                    if (!n) { toast('Canon ' + q + ' introuvable'); return; }
+                    found = n.id;
+                    const r = wrap.getBoundingClientRect();
+                    view.s = Math.max(view.s, 1.2); view.tx = r.width / 2 - n.x * view.s; view.ty = r.height / 2 - n.y * view.s;
+                    draw(); ouvrirBarreCanon(n.id); Q('find').blur();
+                });
+
+                /* Gestes. Un doigt = déplacer, deux doigts = zoomer, appui simple = agir,
+                   double appui = zoomer, appui long = fiche GMAO. Ces quatre-là doivent rester
+                   francs sur téléphone : c'est là que l'application est utilisée. */
+                let T = null, longT = null;
+                const mid = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+                const gap = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+                const annulerLong = () => { clearTimeout(longT); longT = null; };
+
+                svg.addEventListener("touchstart", e => {
+                    e.preventDefault();
+                    const t = e.touches;
+                    if (t.length === 1) {
+                        T = { mode: "pan", x: t[0].clientX, y: t[0].clientY, tx: view.tx, ty: view.ty, moved: false, target: e.target, long: false };
+                        const cx = t[0].clientX, cy = t[0].clientY;
+                        annulerLong();
+                        longT = setTimeout(() => {
+                            if (!T || T.moved) return;
+                            const el2 = document.elementFromPoint(cx, cy);
+                            const g = el2 && el2.closest && el2.closest(".sim-node");
+                            if (g && !isSrc(g.dataset.id)) { T.long = true; ouvrirBarreCanon(g.dataset.id); }
+                        }, 550);
+                    } else if (t.length >= 2) {
+                        annulerLong();
+                        const m = mid(t[0], t[1]);
+                        T = { mode: "pinch", d: gap(t[0], t[1]) || 1, s: view.s, mx: m.x, my: m.y, tx: view.tx, ty: view.ty };
+                    }
+                }, { passive: false });
+
+                svg.addEventListener("touchmove", e => {
+                    e.preventDefault(); if (!T) return;
+                    const t = e.touches, r = svg.getBoundingClientRect();
+                    if (T.mode === "pinch" && t.length >= 2) {
+                        const m = mid(t[0], t[1]), s = clampS(T.s * gap(t[0], t[1]) / T.d);
+                        const wx = (T.mx - r.left - T.tx) / T.s, wy = (T.my - r.top - T.ty) / T.s;
+                        view.s = s; view.tx = m.x - r.left - wx * s; view.ty = m.y - r.top - wy * s; preview();
+                    } else if (T.mode === "pan" && t.length === 1) {
+                        const dx = t[0].clientX - T.x, dy = t[0].clientY - T.y;
+                        if (Math.hypot(dx, dy) > 8) { T.moved = true; annulerLong(); }
+                        if (T.moved) { view.tx = T.tx + dx; view.ty = T.ty + dy; preview(); }
+                    }
+                }, { passive: false });
+
+                svg.addEventListener("touchend", e => {
+                    e.preventDefault(); if (!T) return;
+                    annulerLong();
+                    if (e.touches.length === 0) {
+                        const wasTap = T.mode === "pan" && !T.moved && !T.long, c = e.changedTouches[0], tg = T.target;
+                        T = null; draw();
+                        if (wasTap && !tapAt(c.clientX, c.clientY, tg)) emptyTap(c.clientX, c.clientY);
+                    } else if (e.touches.length === 1) {
+                        const t = e.touches[0];
+                        T = { mode: "pan", x: t.clientX, y: t.clientY, tx: view.tx, ty: view.ty, moved: true };
+                    }
+                }, { passive: false });
+                svg.addEventListener("touchcancel", () => { annulerLong(); T = null; draw(); });
+                ["gesturestart", "gesturechange", "gestureend"].forEach(n => svg.addEventListener(n, e => e.preventDefault()));
+
+                let M = null;
+                svg.addEventListener("mousedown", e => { M = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty, moved: false, target: e.target }; });
+                window.addEventListener("mousemove", e => {
+                    if (!M) return;
+                    const dx = e.clientX - M.x, dy = e.clientY - M.y;
+                    if (Math.hypot(dx, dy) > 5) M.moved = true;
+                    if (M.moved) { view.tx = M.tx + dx; view.ty = M.ty + dy; preview(); }
+                });
+                window.addEventListener("mouseup", e => {
+                    if (!M) return; const m = M; M = null;
+                    if (!estVisible()) return;
+                    draw(); if (!m.moved && !tapAt(e.clientX, e.clientY, m.target)) emptyTap(e.clientX, e.clientY);
+                });
+                svg.addEventListener("contextmenu", e => {
+                    const g = e.target.closest && e.target.closest(".sim-node");
+                    if (!g || isSrc(g.dataset.id)) return;
+                    e.preventDefault(); ouvrirBarreCanon(g.dataset.id);
+                });
+                svg.addEventListener("wheel", e => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+
+                const zc = f => { const r = wrap.getBoundingClientRect(); zoomAt(f, r.width / 2, r.height / 2); };
+                Q('zIn').onclick = () => zc(1.5);
+                Q('zOut').onclick = () => zc(1 / 1.5);
+                Q('zFit').onclick = fit;
+
+                let rt = null;
+                window.addEventListener("resize", () => { if (!estVisible()) return; clearTimeout(rt); rt = setTimeout(fit, 150); });
+            }
+
+            const estVisible = () => { const w = document.getElementById('reseau-workspace'); return !!w && w.style.display !== 'none'; };
+
+            /* ----- ouverture ----------------------------------------------------- */
+            async function ouvrir() {
+                if (pret) { majTickets(); rapprocher(); refresh(); return; }
+                if (enCours) return enCours;
+                enCours = (async function () {
+                    const c = Q('count'); if (c) c.innerHTML = '<small>Chargement du plan…</small>';
+                    let D = null;
+                    try {
+                        const res = await fetch(FICHIER, { cache: 'force-cache' });
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        D = await res.json();
+                    } catch (e) {
+                        if (c) c.innerHTML = '<small>Plan du réseau indisponible</small>';
+                        const s = Q('sub'); if (s) s.textContent = 'Le fichier des relevés (' + FICHIER + ') n’a pas pu être lu : ' + (e.message || e);
+                        enCours = null; return;
+                    }
+                    batirDonnees(D);
+                    brancher();
+                    await reprendre();
+                    pret = true;
+                    majTickets(); rapprocher();
+                    setHint(); compute(); status(); chips(); fit();
+                })();
+                return enCours;
+            }
+
+            return { ouvrir: ouvrir, ouvrirHistorique: ouvrirHistorique, estPret: () => pret };
+        })();
+
+        /* ========================================================================= */
         /* CHAPITRE 8 : CENTRE D'ANALYSE (SOURCES, CROISEMENTS, GRAPHIQUES)           */
         /* ========================================================================= */
         window.biCurrentData = [];
@@ -14032,38 +15291,42 @@
         /* rien tant qu'on ne l'ouvre pas. Le cadre est gardé d'une ouverture à       */
         /* l'autre : on retrouve la situation qu'on avait réglée.                     */
         /*                                                                           */
+        /* CHAPITRE 8.F.0 — L'outil occupait une fenêtre flottante de 1400 px posée   */
+        /* par-dessus l'application : sur téléphone elle débordait, et il fallait la  */
+        /* déplacer à la main pour voir la carte. Il prend désormais le plan de       */
+        /* travail, à la place de la carte, comme le Banc d'essais ou la Production — */
+        /* un seul endroit où les outils s'affichent, et un bouton « Retour à la      */
+        /* carte » au lieu d'une croix dans un coin.                                  */
+        /*                                                                           */
         /* L'application lui envoie ses enneigeurs et les tracés affichés sur la      */
         /* carte dès qu'elle signale qu'elle est prête (message « aero-pret »).       */
         /* ========================================================================= */
         window.openAnalyseVent = function() {
-            let m = document.getElementById('vent-modal');
-            if (!m) {
-                m = document.createElement('div');
-                m.id = 'vent-modal';
-                m.style.cssText = 'display:none; position:fixed; top:var(--topbar-h); left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:9000;';
-                m.innerHTML = `<div class="draggable-window" style="top:50%; left:50%; transform:translate(-50%,-50%); width:1400px; max-width:98vw; height:90vh; min-width:320px; min-height:300px; background:#fff; border-radius:8px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-                        <div class="draggable-handle" style="background:#00838f; color:white; padding:12px 15px; display:flex; justify-content:space-between; align-items:center; font-weight:bold; font-size:15px;">
-                            <span><i class="fa-solid fa-wind"></i> Analyse du vent — aérologie du domaine</span>
-                            <span style="display:flex; gap:8px; align-items:center;">
-                                <button onclick="window.envoyerCanonsVent()" title="Renvoyer les enneigeurs et tracés affichés sur la carte" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35); color:white; border-radius:5px; padding:4px 9px; cursor:pointer; font-size:12px;"><i class="fa-solid fa-rotate"></i> Enneigeurs</button>
-                                <button onclick="document.getElementById('vent-modal').style.display='none'" style="background:none; border:none; color:white; cursor:pointer; font-size:24px; line-height:16px;">×</button>
-                            </span>
-                        </div>
-                        <iframe id="vent-frame" title="Analyse du vent" style="flex:1; width:100%; border:0; background:#DBE3E9;"></iframe>
-                        <div class="resize-handle"></div>
-                    </div>`;
-                document.body.appendChild(m);
-                // Un cadre avale les mouvements de souris : pendant qu'on déplace ou qu'on agrandit la
-                // fenêtre, il est rendu transparent aux clics, sinon la fenêtre décroche en route.
-                m.addEventListener('mousedown', function(e) {
-                    if (e.target.closest('.draggable-handle, .resize-handle')) document.getElementById('vent-frame').style.pointerEvents = 'none';
-                });
-                document.addEventListener('mouseup', function() { let f = document.getElementById('vent-frame'); if (f) f.style.pointerEvents = ''; });
-            }
-            m.style.display = 'block';
+            let ws = document.getElementById('vent-workspace'); if (!ws) return;
+            // Les autres plans de travail cèdent la place, exactement comme au changement de thème.
+            ['atelier-workspace', 'stock-workspace', 'theme-list-workspace', 'production-workspace', 'reseau-workspace'].forEach(function(k) {
+                let el = document.getElementById(k); if (el) el.style.display = 'none';
+            });
+            let mp = document.getElementById('map'); if (mp) mp.style.display = 'none';
+            if (window.closeRightSidebar) window.closeRightSidebar();
+            let sb = document.getElementById('sidebar'); if (sb) sb.classList.add('collapsed');
+            ws.style.display = 'flex';
             let f = document.getElementById('vent-frame');
             if (!f.getAttribute('src')) f.setAttribute('src', 'aerologie.html');
             else window.envoyerCanonsVent();
+        };
+        // Retour à la carte : le cadre reste chargé (la situation réglée est conservée), on le masque.
+        window.fermerAnalyseVent = function() {
+            let ws = document.getElementById('vent-workspace'); if (ws) ws.style.display = 'none';
+            let mp = document.getElementById('map');
+            if (mp && window.mainTheme !== 'atelier' && window.mainTheme !== 'stock' && window.mainTheme !== 'production' && window.mainTheme !== 'reseau') {
+                mp.style.display = '';
+                if (window.map) setTimeout(function() { window.map.invalidateSize(); }, 60);
+            } else {
+                // On revient là où l'utilisateur était avant d'ouvrir le vent.
+                let r = document.querySelector('input[name="main_theme"][value="' + window.mainTheme + '"]');
+                if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
+            }
         };
         window.envoyerCanonsVent = function() {
             let f = document.getElementById('vent-frame');
@@ -14099,7 +15362,7 @@
         window.printBlocks = [];
 
         window.isPrintMapAvailable = function() {
-            if (window.mainTheme === 'atelier' || window.mainTheme === 'stock') return false;
+            if (window.mainTheme === 'atelier' || window.mainTheme === 'stock' || window.mainTheme === 'reseau') return false;
             if (window.appSettings.viewMode && window.appSettings.viewMode[window.mainTheme] === 'list') return false;
             return true;
         };
