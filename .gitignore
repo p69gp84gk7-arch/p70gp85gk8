@@ -1,0 +1,10 @@
+# Le dépôt est PUBLIC (il sert le site GitHub Pages).
+# Tout ce qui est listé ici reste sur l'ordinateur et n'est jamais publié.
+
+# Script du classeur : contient les identifiants des dossiers Drive
+# et la logique du serveur. Il n'a rien à faire dans un dépôt public.
+Code.gs
+
+# Réglages locaux de Claude Code et poussière macOS
+.claude/
+.DS_Store

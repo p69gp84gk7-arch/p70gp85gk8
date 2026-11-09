@@ -1,0 +1,8 @@
+# Fins de ligne uniformes (LF). Sans cela, un fichier déposé depuis le site
+# de GitHub revient avec des fins de ligne Windows et le fichier entier
+# apparaît comme modifié : impossible de lire ce qui a vraiment changé.
+* text=auto eol=lf
+
+# Fichiers binaires : jamais convertis, jamais affichés en différences.
+*.kmz binary
+*.png binary
