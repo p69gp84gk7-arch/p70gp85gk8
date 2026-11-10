@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.34.0";
+        window.APP_VERSION = "5.35.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -5228,10 +5228,10 @@
 
         // La révision de vanne de la même année, relevée au banc d'essais.
         window.revisionVanneDeLAnnee = function(canonId, dateTicket) {
-            if (window.scriptSansHistoVannes || !window.histoVanneLignes) return null;
+            if (!window.histoVanneFiches) return null;
             let an = (String(dateTicket || '').match(/(\d{4})/) || [])[1];
             if (!an) return null;
-            return window.histoVanneLignes(canonId).find(function(l) { return String(l.annee).trim() === an; }) || null;
+            return window.histoVanneFiches(canonId).find(function(l) { return String(l.annee).trim() === an; }) || null;
         };
 
         /* ========================================================================= */
@@ -10434,6 +10434,32 @@
                     <input type="text" id="search-atelier" placeholder="N° Canon..." onkeyup="window.filterAtelierCanons(this.value)" style="padding:8px; border-radius:6px; border:1px solid #ccc; outline:none; width:120px; font-weight:bold;">
                 </div>`;
 
+            /* L'historique des révisions se pose AVANT le test ci-dessous. Il ne dépend pas
+               de ce qui est sur l'établi aujourd'hui : quand aucun canon n'est marqué
+               « préventif à l'usine » — c'est le cas la moitié de l'année — la fonction
+               sortait sur son message et les cent vingt fiches archivées restaient
+               invisibles. C'était exactement le défaut qu'il s'agissait de corriger. */
+            let listeVannes = window.histoVanneParVanne ? window.histoVanneParVanne() : [];
+            let nbVannes = listeVannes.length;
+            let nbFiches = listeVannes.reduce(function(n, v) { return n + window.histoVanneFiches(v).length; }, 0);
+
+            ws.innerHTML += `
+                <details class="atelier-sub-details histo-toutes-bloc" id="histo-toutes-bloc" style="margin-bottom:15px;"
+                         ontoggle="if (this.open) window.histoVanneToutesRemplir(document.getElementById('histo-toutes-liste'));">
+                    <summary><i class="fa-solid fa-clock-rotate-left"></i> Historique des révisions — toutes les vannes${nbFiches ? ` <span class="histo-pastille">${nbFiches} fiche${nbFiches > 1 ? 's' : ''} · ${nbVannes} vanne${nbVannes > 1 ? 's' : ''}</span>` : ''}</summary>
+                    <div style="padding:8px 10px 2px;">
+                        <input type="text" id="histo-toutes-rech" class="edit-input" placeholder="N° de vanne…"
+                               oninput="window.histoVanneToutesFiltrer(this.value)"
+                               style="margin:0 0 8px 0; padding:7px; font-size:12px; height:30px; max-width:220px;">
+                    </div>
+                    <div id="histo-toutes-liste" style="padding:0 10px 10px;"></div>
+                </details>`;
+
+            /* Le « on ne dessine qu'à l'ouverture » passe par un attribut ontoggle et non par
+               addEventListener : les lignes suivantes font encore des « ws.innerHTML += »,
+               qui re-sérialisent tout le panneau et jettent au passage les écouteurs posés
+               en JavaScript. L'attribut, lui, est relu à chaque analyse du HTML. */
+
             let canonsEnAtelier = window.suiviEntretienData.filter(row => row[3] && row[3].toString().toLowerCase().trim() === "oui").map(r => r[0].toString());
 
             if(canonsEnAtelier.length === 0) {
@@ -10459,30 +10485,11 @@
             listeValidee.sort((a, b) => parseInt(a) - parseInt(b));
             let orderedCanons = [...listeAFaire, ...listeValidee];
 
-            let nbFiches = (window.rawEntretienVannes && window.rawEntretienVannes.length > 1)
-                           ? window.rawEntretienVannes.length - 1 : 0;
-            let nbVannes = window.histoVanneParVanne ? window.histoVanneParVanne().length : 0;
-
             ws.innerHTML += `
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px; color:#555; background:#eaf2f8; padding:10px; border-radius:4px; border-left:4px solid #3498db;">
                     <b>${canonsEnAtelier.length} canon(s) au banc d'essai.</b>
                     <span style="color:#27ae60; font-weight:bold;">${listeValidee.length} archivé(s) (en bas de liste)</span>
-                </div>
-                <details class="atelier-sub-details histo-toutes-bloc" id="histo-toutes-bloc" style="margin-bottom:15px;">
-                    <summary><i class="fa-solid fa-clock-rotate-left"></i> Historique des révisions — toutes les vannes${nbFiches ? ` <span class="histo-pastille">${nbFiches} fiche${nbFiches > 1 ? 's' : ''} · ${nbVannes} vanne${nbVannes > 1 ? 's' : ''}</span>` : ''}</summary>
-                    <div style="padding:8px 10px 2px;">
-                        <input type="text" id="histo-toutes-rech" class="edit-input" placeholder="N° de vanne…"
-                               oninput="window.histoVanneToutesFiltrer(this.value)"
-                               style="margin:0 0 8px 0; padding:7px; font-size:12px; height:30px; max-width:220px;">
-                    </div>
-                    <div id="histo-toutes-liste" style="padding:0 10px 10px;"></div>
-                </details>`;
-
-            // Cent vingt fiches de trente-neuf colonnes : on ne les dessine qu'à l'ouverture.
-            let blocHisto = document.getElementById('histo-toutes-bloc');
-            if (blocHisto) blocHisto.addEventListener('toggle', function() {
-                if (blocHisto.open) window.histoVanneToutesRemplir(document.getElementById('histo-toutes-liste'));
-            });
+                </div>`;
 
             orderedCanons.forEach(idCanon => {
                 let feature = window.snowCannons.features.find(f => f.properties.id == idCanon); if(!feature) return;
@@ -10700,7 +10707,7 @@
                     </div>
                 `;
 
-                let nbHisto = window.histoVanneLignes(idCanon).length;
+                let nbHisto = window.histoVanneFiches(idCanon).length;
 
                 let card = document.createElement('details');
                 card.className = "atelier-card";
@@ -10789,18 +10796,24 @@
         /* et personne ne les regarde en arrivant.                                    */
         /* ========================================================================= */
         window.histoVanneParVanne = function() {
-            let t = window.rawEntretienVannes;
-            if (!t || t.length < 2) return [];
-            let bas = t[0].map(function(h) { return window.cleSansAccent(h); });
-            let iV = bas.findIndex(function(h) { return h.indexOf('n° de vanne') !== -1 || h === 'vanne'; });
-            if (iV === -1) iV = bas.indexOf('id');
-            if (iV === -1) return [];
             let vus = {};
-            for (let i = 1; i < t.length; i++) {
-                let r = t[i]; if (!r) continue;
-                let v = r[iV]; if (v == null || String(v).trim() === '') continue;
-                vus[String(v).trim()] = true;
-            }
+            // Les deux onglets : l'archive « entretien vannes » et les fiches du banc d'essais.
+            [[window.rawEntretienVannes, ['n° de vanne', 'vanne']],
+             [window.rawAtelier, ['id', 'n° de vanne']]].forEach(function(p) {
+                let t = p[0];
+                if (!t || t.length < 2) return;
+                let bas = t[0].map(function(h) { return window.cleSansAccent(h); });
+                let iV = -1;
+                p[1].forEach(function(nom) {
+                    if (iV === -1) iV = bas.findIndex(function(h) { return h === nom || h.indexOf(nom) !== -1; });
+                });
+                if (iV === -1) return;
+                for (let i = 1; i < t.length; i++) {
+                    let r = t[i]; if (!r) continue;
+                    let v = r[iV]; if (v == null || String(v).trim() === '') continue;
+                    vus[String(v).trim()] = true;
+                }
+            });
             return Object.keys(vus).sort(function(a, b) {
                 let na = parseInt(a, 10), nb = parseInt(b, 10);
                 if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
@@ -10814,8 +10827,10 @@
             const ech = function(x) { return window.prodEsc ? window.prodEsc(x) : String(x == null ? '' : x); };
             let vannes = window.histoVanneParVanne();
             if (!vannes.length) {
-                boite.innerHTML = '<div style="padding:12px; font-size:12px; color:#7f8c8d;">'
-                                + 'Aucune fiche de vanne archivée pour l’instant.</div>';
+                boite.innerHTML = window.scriptSansHistoVannes
+                    ? window.histoVanneHtml('')
+                    : '<div style="padding:12px; font-size:12px; color:#7f8c8d;">'
+                      + 'Aucune fiche de vanne archivée pour l’instant.</div>';
                 return;
             }
             boite.innerHTML = vannes.map(function(id) {
@@ -10847,31 +10862,117 @@
             });
         };
 
+        /* ========================================================================= */
+        /* CHAPITRE 7.B.4 : L'HISTORIQUE LIT LES DEUX ONGLETS                        */
+        /*                                                                           */
+        /* Le formulaire du banc d'essais enregistre dans l'onglet « atelier » : une  */
+        /* ligne par canon, avec la date du jour. « Ranger dans l'historique » la     */
+        /* recopie dans « entretien vannes ». Mais les lignes 2026 de l'archive ne    */
+        /* portent que l'identifiant, le numéro de vanne, l'année et la piste : tout  */
+        /* le travail — essais, pièces, commentaires — est resté dans « atelier ».    */
+        /* Un historique qui ne lit que l'archive ne montre donc rien de ce qui a     */
+        /* été fait cette année-là.                                                   */
+        /*                                                                           */
+        /* Les deux onglets sont maintenant réunis, année par année : une case vide   */
+        /* d'un côté se remplit avec celle de l'autre, et la fiche du banc l'emporte  */
+        /* quand les deux sont renseignées, puisque c'est elle qu'on vient de saisir. */
+        /* ========================================================================= */
+        window.ficheBancLignes = function(idCanon) {
+            let t = window.rawAtelier;
+            if (!t || t.length < 2) return [];
+            let head = t[0].map(function(h) { return (h == null ? '' : h).toString().trim(); });
+            let bas = head.map(function(h) { return window.cleSansAccent(h); });
+            let iV = bas.findIndex(function(h) { return h === 'id' || h.indexOf('n° de vanne') !== -1; });
+            if (iV === -1) iV = 0;
+            let iA = bas.findIndex(function(h) { return h.indexOf('annee') !== -1; });
+            let cible = String(idCanon).trim();
+            let out = [];
+            for (let i = 1; i < t.length; i++) {
+                let r = t[i]; if (!r) continue;
+                if (r[iV] == null || String(r[iV]).trim() !== cible) continue;
+                let champs = [];
+                head.forEach(function(h, j) {
+                    if (!h) return;
+                    let val = window.valeurClasseur(r[j] == null ? '' : r[j]);
+                    if (String(val).trim() === '') return;
+                    champs.push({ k: h, v: String(val).trim() });
+                });
+                // La colonne « année » du banc porte une date complète : on en tire l'année
+                // pour pouvoir la rapprocher d'une archive, sans perdre le jour.
+                let brut = iA > -1 ? String(window.valeurClasseur(r[iA] == null ? '' : r[iA])).trim() : '';
+                let an = (brut.match(/(\d{4})/) || [])[1] || '';
+                out.push({ annee: an, dateBanc: brut, champs: champs, source: 'banc' });
+            }
+            return out;
+        };
+
+        window.histoVanneFiches = function(idCanon) {
+            let arch = (window.scriptSansHistoVannes ? [] : window.histoVanneLignes(idCanon));
+            let banc = window.ficheBancLignes(idCanon);
+            let par = {}, ordre = [];
+            const prendre = function(l, source) {
+                let cle = String(l.annee || '?').trim() || '?';
+                if (!par[cle]) {
+                    par[cle] = { annee: cle, champs: [], index: {}, sources: [], dateBanc: '' };
+                    ordre.push(cle);
+                }
+                let f = par[cle];
+                if (f.sources.indexOf(source) === -1) f.sources.push(source);
+                if (l.dateBanc) f.dateBanc = l.dateBanc;
+                l.champs.forEach(function(c) {
+                    let k = window.cleSansAccent(c.k);
+                    if (k === 'id' || k.indexOf('archiv') !== -1) return;
+                    let deja = f.index[k];
+                    // La fiche du banc écrase une case vide de l'archive, jamais l'inverse.
+                    if (deja === undefined) {
+                        f.index[k] = f.champs.length;
+                        f.champs.push({ k: c.k, v: c.v });
+                    } else if (source === 'banc') {
+                        f.champs[deja] = { k: c.k, v: c.v };
+                    }
+                });
+            };
+            arch.forEach(function(l) { prendre(l, 'archive'); });
+            banc.forEach(function(l) { prendre(l, 'banc'); });
+            return ordre.map(function(c) { return par[c]; }).sort(function(a, b) {
+                return String(b.annee).localeCompare(String(a.annee), 'fr', { numeric: true });
+            });
+        };
+
         window.histoVanneHtml = function(idCanon) {
-            let lignes = window.histoVanneLignes(idCanon);
-            if (window.scriptSansHistoVannes) {
-                return '<div style="padding:12px; font-size:12px; color:#935116; background:#fef5e7;'
-                     + ' border:1px solid #f5cba7; border-radius:6px; margin:8px 10px; line-height:1.45;">'
-                     + '<b>Le script du classeur n’est pas encore à jour.</b><br>'
-                     + 'L’onglet « entretien vannes » existe, mais le script ne l’envoie pas encore à '
-                     + 'l’application : l’historique restera vide et l’archivage sera refusé tant que '
-                     + 'les chapitres 1.F et 2.M n’auront pas été recopiés dans Apps Script.</div>';
-            }
-            if (!lignes.length) {
-                return '<div style="padding:12px; font-size:12px; color:#7f8c8d;">Aucune révision archivée pour cette vanne.'
-                     + ' Le bouton ci-dessous rangera la fiche en cours dans l’historique.</div>';
-            }
+            let fiches = window.histoVanneFiches(idCanon);
             const ech = function(t) { return window.prodEsc ? window.prodEsc(t) : String(t == null ? '' : t); };
-            let h = '<div style="padding:8px 10px 2px;">';
-            lignes.forEach(function(l, n) {
+            let avert = '';
+            if (window.scriptSansHistoVannes) {
+                avert = '<div style="padding:10px 12px; font-size:11.5px; color:#935116; background:#fef5e7;'
+                      + ' border:1px solid #f5cba7; border-radius:6px; margin:8px 10px; line-height:1.45;">'
+                      + '<b>Le script du classeur n’est pas encore à jour.</b><br>'
+                      + 'Les révisions déjà rangées dans « entretien vannes » ne remontent pas : '
+                      + 'seules les fiches du banc d’essais sont montrées ci-dessous, et l’archivage '
+                      + 'sera refusé tant que les chapitres 1.F et 2.M n’auront pas été recopiés '
+                      + 'dans Apps Script.</div>';
+            }
+            if (!fiches.length) {
+                return avert + '<div style="padding:12px; font-size:12px; color:#7f8c8d;">'
+                     + 'Aucune fiche pour cette vanne, ni au banc d’essais ni dans l’historique.</div>';
+            }
+            let h = avert + '<div style="padding:8px 10px 2px;">';
+            fiches.forEach(function(l, n) {
+                let dOu = l.sources.indexOf('banc') !== -1
+                        ? (l.dateBanc ? 'fiche du banc, ' + ech(l.dateBanc) : 'fiche du banc')
+                        : 'rangée dans l’historique';
                 h += '<details class="histo-vanne"' + (n === 0 ? ' open' : '') + '>'
-                   + '<summary><b>' + ech(l.annee || 'année inconnue') + '</b>'
-                   + '<span>' + l.champs.length + ' renseignement' + (l.champs.length > 1 ? 's' : '') + '</span></summary>'
+                   + '<summary><b>' + ech(l.annee === '?' ? 'année inconnue' : l.annee) + '</b>'
+                   + '<span>' + dOu + ' · ' + l.champs.length + ' renseignement'
+                   + (l.champs.length > 1 ? 's' : '') + '</span></summary>'
                    + '<div class="histo-vanne-corps">';
                 l.champs.forEach(function(c) {
-                    let cl = c.k.toLowerCase();
-                    if (cl === 'id' || cl.indexOf('archiv') !== -1) return;
-                    let coul = /fuite|hs|nok|non ok/i.test(c.v) ? '#c0392b' : /^ok$/i.test(c.v) ? '#1e8449' : '#2c3e50';
+                    // Le numéro de vanne et l'année sont déjà dans le titre ; la colonne
+                    // « N° de vanne » du banc vaut « N/A » et ne ferait que du bruit.
+                    let k = window.cleSansAccent(c.k);
+                    if (k.indexOf('n° de vanne') !== -1 || k.indexOf('annee') !== -1) return;
+                    let etat = window.etatEssai(c.v);
+                    let coul = etat === 'fuite' ? '#c0392b' : etat === 'ok' ? '#1e8449' : '#2c3e50';
                     h += '<div><span>' + ech(c.k) + '</span><b style="color:' + coul + ';">' + ech(c.v) + '</b></div>';
                 });
                 h += '</div></details>';
