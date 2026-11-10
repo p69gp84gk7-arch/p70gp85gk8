@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.30.2";
+        window.APP_VERSION = "5.31.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -4239,22 +4239,9 @@
 
                 if (history.length > 0) {
                     histHtml = `<details class="ticket-history" style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;"><i class="fa-solid fa-folder-open"></i> Historique d'interventions (${history.length})</summary><ul style="padding-left:15px; margin-top:10px;">`;
-                    history.forEach(t => {
-                        let dateStr = window.frDateLabel(t.date);
-                        let ticketDetails = t.fullData.filter(d => d.v && d.v.toString().trim() !== "").map(d => window.renderTicketField(d)).join('');
-                        histHtml += `
-                        <li style="margin-bottom:8px; list-style:none;">
-                            <details style="background:#fff; border:1px solid #e1e8ed; border-radius:4px; padding:8px; cursor:pointer;">
-                                <summary style="font-size:11.5px; font-weight:bold; outline:none; display:flex; justify-content:space-between; align-items:center;">
-                                    <span>${dateStr} - <span style="color:#e74c3c;">${t.defaut}</span></span>
-                                    <span style="color:#bdc3c7; font-size:10px;">▼ Détails</span>
-                                </summary>
-                                <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:11px; cursor:default;">
-                                    ${ticketDetails}
-                                </div>
-                            </details>
-                        </li>`;
-                    });
+                    // CHAPITRE 4.E.3 — une seule fonction dessine la ligne, ici et dans la
+                    // fiche de la vue Liste : les deux étaient écrites à l'identique.
+                    history.forEach(t => { histHtml += window.ligneHistoriqueHtml(t, p.id); });
                     histHtml += `</ul></details>`;
                 }
 
@@ -5133,14 +5120,103 @@
         // panneau de droite (badges, caractéristiques, historique d'interventions, mini-graphiques de
         // production, bouton d'édition) en le recalculant depuis p plutôt qu'en dépendant de l'état
         // interne de renderSelectionPanel — utilisée par les dépliants de la vue Liste.
+        /* ========================================================================= */
+        /* CHAPITRE 4.E.3 : UNE LIGNE D'HISTORIQUE QUI DIT QUELQUE CHOSE             */
+        /* ------------------------------------------------------------------------- */
+        /* L'historique d'un canon n'affichait que la date et le libellé du défaut,   */
+        /* tout replié. Or 156 des 934 tickets du classeur s'appellent « Revision     */
+        /* Cyclique » : un canon en porte deux ou trois, rigoureusement identiques à  */
+        /* l'œil, et il fallait toutes les ouvrir pour retrouver laquelle avait vu    */
+        /* changer les joints.                                                        */
+        /*                                                                           */
+        /* Trois changements :                                                        */
+        /*  — la ligne repliée porte maintenant l'essentiel : ce qui a été fait, et   */
+        /*    la date d'intervention quand elle diffère de la date d'ouverture ;      */
+        /*  — une révision cyclique n'est pas une panne : elle est en violet, avec sa */
+        /*    propre icône, au lieu du rouge des défauts ;                            */
+        /*  — dépliée, elle montre en plus la révision de vanne de la même année,     */
+        /*    relevée au banc d'essais (onglet « entretien vannes »).                 */
+        /* ========================================================================= */
+        window.estRevisionCyclique = function(t) {
+            return /r[ée]vision/i.test((t && t.defaut) || '');
+        };
+
+        // Ce qu'on met sur la ligne repliée : le geste, à défaut la cause, à défaut la remarque.
+        window.resumeTicket = function(t) {
+            const champ = function(noms) {
+                let d = (t.fullData || []).find(function(x) {
+                    let k = x.k.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+                    return noms.some(function(n) { return k.indexOf(n) !== -1; });
+                });
+                return d && d.v ? d.v.toString().trim() : '';
+            };
+            let txt = champ(['intervention']) || champ(['cause']) || champ(['remarque']) || champ(['piece']);
+            if (!txt) return '';
+            return txt.length > 70 ? txt.slice(0, 68).trim() + '…' : txt;
+        };
+
+        // La révision de vanne de la même année, relevée au banc d'essais.
+        window.revisionVanneDeLAnnee = function(canonId, dateTicket) {
+            if (window.scriptSansHistoVannes || !window.histoVanneLignes) return null;
+            let an = (String(dateTicket || '').match(/(\d{4})/) || [])[1];
+            if (!an) return null;
+            return window.histoVanneLignes(canonId).find(function(l) { return String(l.annee).trim() === an; }) || null;
+        };
+
+        window.ligneHistoriqueHtml = function(t, canonId) {
+            const ech = function(x) { return window.prodEsc ? window.prodEsc(x) : String(x == null ? '' : x); };
+            let dateStr = window.frDateLabel(t.date);
+            let cyclique = window.estRevisionCyclique(t);
+            let couleur = cyclique ? '#8e44ad' : '#e74c3c';
+            let icone = cyclique ? 'fa-rotate' : 'fa-triangle-exclamation';
+            let titre = cyclique ? 'Révision cyclique' : t.defaut;
+            let resume = window.resumeTicket(t);
+            let inter = (t.dateInter || '').toString().trim();
+            let quand = (inter && inter !== (t.date || '').toString().trim()) ? ' · faite le ' + ech(inter) : '';
+
+            let details = (t.fullData || []).filter(function(d) { return d.v && d.v.toString().trim() !== ''; })
+                                            .map(function(d) { return window.renderTicketField(d); }).join('');
+
+            // Pour une révision cyclique, on rapproche la fiche de vanne de la même année.
+            if (cyclique) {
+                let rv = window.revisionVanneDeLAnnee(canonId, t.date);
+                if (rv) {
+                    let champs = rv.champs.filter(function(c) {
+                        let k = c.k.toLowerCase();
+                        return k !== 'id' && k.indexOf('archiv') === -1 && k.indexOf('n° de vanne') === -1 && k.indexOf('ann') !== 0;
+                    });
+                    details += '<div style="margin-top:8px; padding-top:7px; border-top:1px dashed #e1e8ed;">'
+                             + '<div style="font-weight:bold; color:#8e44ad; font-size:10.5px; margin-bottom:4px;">'
+                             + '<i class="fa-solid fa-toolbox"></i> AU BANC D’ESSAIS, ' + ech(rv.annee) + '</div>'
+                             + '<div class="histo-vanne-corps" style="padding:0;">'
+                             + champs.map(function(c) {
+                                 let coul = /fuite|hs|nok|non ok/i.test(c.v) ? '#c0392b' : /^ok$/i.test(c.v) ? '#1e8449' : '#2c3e50';
+                                 return '<div><span>' + ech(c.k) + '</span><b style="color:' + coul + ';">' + ech(c.v) + '</b></div>';
+                               }).join('')
+                             + '</div></div>';
+                }
+            }
+
+            return '<li style="margin-bottom:8px; list-style:none;">'
+                 + '<details style="background:#fff; border:1px solid #e1e8ed; border-radius:4px; padding:8px; cursor:pointer;">'
+                 + '<summary style="font-size:11.5px; font-weight:bold; outline:none; display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">'
+                 + '<span style="min-width:0;">' + ech(dateStr) + ' — <span style="color:' + couleur + ';">'
+                 + '<i class="fa-solid ' + icone + '" style="font-size:10px;"></i> ' + ech(titre) + '</span>'
+                 + (resume || quand
+                     ? '<small style="display:block; font-weight:normal; color:#7f8c8d; font-size:10.5px; margin-top:2px; line-height:1.3;">'
+                       + ech(resume) + quand + '</small>'
+                     : '')
+                 + '</span>'
+                 + '<span style="color:#bdc3c7; font-size:10px; flex:none;">▼ Détails</span>'
+                 + '</summary>'
+                 + '<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:11px; cursor:default;">'
+                 + details + '</div></details></li>';
+        };
+
         window.buildTicketHistoryHtml = function(canonId) {
             let history = window.getHistoryTickets(canonId); if (history.length === 0) return "";
             let histHtml = `<details class="ticket-history" style="margin-top:15px; font-size:12px; background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #e1e8ed;"><summary style="cursor:pointer; font-weight:600; color:#34495e;"><i class="fa-solid fa-folder-open"></i> Historique d'interventions (${history.length})</summary><ul style="padding-left:15px; margin-top:10px;">`;
-            history.forEach(t => {
-                let dateStr = window.frDateLabel(t.date);
-                let ticketDetails = t.fullData.filter(d => d.v && d.v.toString().trim() !== "").map(d => window.renderTicketField(d)).join('');
-                histHtml += `<li style="margin-bottom:8px; list-style:none;"><details style="background:#fff; border:1px solid #e1e8ed; border-radius:4px; padding:8px; cursor:pointer;"><summary style="font-size:11.5px; font-weight:bold; outline:none; display:flex; justify-content:space-between; align-items:center;"><span>${dateStr} - <span style="color:#e74c3c;">${t.defaut}</span></span><span style="color:#bdc3c7; font-size:10px;">▼ Détails</span></summary><div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:11px; cursor:default;">${ticketDetails}</div></details></li>`;
-            });
+            history.forEach(t => { histHtml += window.ligneHistoriqueHtml(t, canonId); });
             histHtml += `</ul></details>`;
             return histHtml;
         };
@@ -10270,7 +10346,10 @@
 
                 let hist = window.getHistoryTickets(idCanon); let histHtml = `<div style="padding:10px; background:#fff; font-size:12px;">`;
                 if(hist.length === 0) histHtml += `<span style="color:#7f8c8d; font-style:italic;">Aucune panne enregistrée.</span>`;
-                else hist.forEach(t => { histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${window.frDateLabel(t.date)}</b> : <span style="color:#e74c3c;">${t.defaut}</span></div>`; });
+                else hist.forEach(t => {
+                    let cyc = window.estRevisionCyclique(t), res = window.resumeTicket(t);
+                    histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${window.frDateLabel(t.date)}</b> : <span style="color:${cyc ? '#8e44ad' : '#e74c3c'};">${cyc ? 'Révision cyclique' : t.defaut}</span>${res ? `<br><span style="color:#7f8c8d; font-size:10.5px;">${res}</span>` : ''}</div>`;
+                });
                 histHtml += `</div>`;
 
                 let formHtml = `
