@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.29.0";
+        window.APP_VERSION = "5.30.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -962,6 +962,21 @@
         .radio-card{font-weight:600;font-size:12.5px;padding:10px 11px;}
         .radio-card:hover{border-color:#cfd9e1;}
 
+        /* CHAPITRE 2.C.13 : HISTORIQUE D'UNE VANNE DANS LE BANC D'ESSAIS */
+        .histo-pastille{background:#16a085;color:#fff;font-size:9px;font-weight:bold;padding:2px 6px;
+            border-radius:10px;margin-left:6px;line-height:1.2;}
+        details.histo-vanne{border:1px solid #e1e8ed;border-radius:6px;margin-bottom:6px;background:#fff;}
+        details.histo-vanne > summary{cursor:pointer;padding:7px 10px;font-size:12px;color:#2c3e50;
+            display:flex;justify-content:space-between;align-items:center;list-style:none;}
+        details.histo-vanne > summary::-webkit-details-marker{display:none;}
+        details.histo-vanne > summary span{font-size:10px;color:#95a5a6;font-weight:normal;}
+        details.histo-vanne[open] > summary{border-bottom:1px solid #eef2f5;}
+        .histo-vanne-corps{padding:6px 10px 9px;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:2px 14px;}
+        .histo-vanne-corps > div{display:flex;justify-content:space-between;gap:10px;font-size:11px;
+            border-bottom:1px dotted #eef2f5;padding:3px 0;}
+        .histo-vanne-corps span{color:#7f8c8d;}
+        .histo-vanne-corps b{text-align:right;}
+
         @media print {
             #topbar, #mobile-dock, #sidebar, #right-sidebar, #print-panel, #loading-overlay, #pdf-modal, #settings-panel, #route-qr-plein, #qr-scan, #production-panel, #bi-meteo-modal, #compare-modal, #meteo-history-modal, #calendar-modal, .resizer, .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
             body, html { overflow: visible !important; height: auto !important; }
@@ -1725,6 +1740,7 @@
         // colonne d'identifiant du formulaire d'édition (utilisés par startEdit / saveEditData, chapitre 4).
         window.keyPiste = ""; window.keyType = ""; window.keyRep = ""; window.keyTransfo = ""; window.keyXY = ""; window.keyId = ""; window.localDB = null;
         window.bootAttempt = 0; window.tempTicketPayloads = {}; window.suiviEntretienData = []; window.rawAtelier = []; window.rawStock = [];
+        window.rawEntretienVannes = [];
         window.drivePdfsData = {}; window.driveKmzData = {}; window.drivePhotos = {}; window.driveIcons = {};
         window.rawCalendarEvents = []; window.calendarEvents = []; window.calendarViewDate = new Date();
         window.rawProduction = []; window.productionRows = []; window.prodSheetHeaders = []; window.prodEditingId = null;
@@ -5502,7 +5518,7 @@
         window.QUEUEABLE_ACTIONS = ["update_general", "add_ticket", "update_ticket", "update_suivi_multi",
             "save_atelier", "add_stock_item", "update_stock_item", "delete_stock_item", "update_webcam",
             "add_event", "update_event", "delete_event", "add_production", "update_production",
-            "delete_production", "upload_photo", "save_plan_priorites", "save_reseau"];
+            "delete_production", "upload_photo", "save_plan_priorites", "save_reseau", "archive_entretien_vanne"];
         window.ACTION_LABELS = {
             update_general: "Fiche canon", add_ticket: "Nouveau ticket", update_ticket: "Ticket modifié",
             update_suivi_multi: "Suivi d'entretien", save_atelier: "Banc d'essais", add_stock_item: "Stock : ajout",
@@ -5511,7 +5527,7 @@
             delete_event: "Calendrier : suppression", add_production: "Production : ajout",
             update_production: "Production : modification", delete_production: "Production : suppression",
             upload_photo: "Photo de panne", save_plan_priorites: "Priorités d'enneigement",
-            save_reseau: "Réseau de dialogue"
+            save_reseau: "Réseau de dialogue", archive_entretien_vanne: "Révision de vanne archivée"
         };
         window.MAX_OUTBOX_TRIES = 3;
         window.outboxCount = 0; window.outboxFailed = 0; window.outboxFlushing = false;
@@ -9607,7 +9623,9 @@
 
             window.rawGeneral = data.general || []; window.rawHistorique = data.historique || []; window.rawTicketsSheet = data.tickets || [];
             window.meteoHistData = window.lignesClasseur(data.meteo_hist || []); window.meteoFroidData = data.meteo_froid || []; window.suiviEntretienData = data.suivi || [];
-            window.rawAtelier = data.atelier || []; window.rawStock = data.stock || []; window.drivePhotos = data.drivePhotos || {};
+            window.rawAtelier = data.atelier || []; window.rawStock = data.stock || [];
+            // Historique des révisions de vanne (une ligne par vanne et par année).
+            window.rawEntretienVannes = window.lignesClasseur(data.entretien_vannes || []); window.drivePhotos = data.drivePhotos || {};
             window.driveIcons = data.driveIcons || {}; window.drivePdfsData = data.drivePdfs || {}; window.driveKmzData = data.driveKmz || {};
             // Un calque modifié sur un autre poste depuis la dernière ouverture : on reprend sa version.
             if (window.calquesVerifierVersions) setTimeout(window.calquesVerifierVersions, 0);
@@ -10361,6 +10379,8 @@
                     </div>
                 `;
 
+                let nbHisto = window.histoVanneLignes(idCanon).length;
+
                 let card = document.createElement('details');
                 card.className = "atelier-card";
                 if (estValide) { card.style.borderLeftColor = "#27ae60"; card.style.background = "#f4fdf7"; }
@@ -10379,10 +10399,148 @@
                         </details>
                         <details class="atelier-sub-details" style="margin-bottom:6px;"><summary><i class="fa-solid fa-clock"></i> 2. Rapports d'anomalies (Tickets)</summary>${histHtml}</details>
                         <details class="atelier-sub-details" open><summary><i class="fa-solid fa-pen-to-square"></i> 3. Fiche d'Essai d'étanchéité & Hydraulique</summary>${formHtml}</details>
+                        <details class="atelier-sub-details"><summary><i class="fa-solid fa-clock-rotate-left"></i> 4. Historique des révisions${nbHisto ? ` <span class="histo-pastille">${nbHisto}</span>` : ''}</summary>
+                            <div id="histo-vanne-${safeId}">${window.histoVanneHtml(idCanon)}</div>
+                            <div style="padding:4px 10px 10px;">
+                                <button onclick="window.archiverEntretienVanne('${idCanon}', this)" style="width:100%; background:#16a085; color:white; border:none; padding:9px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">
+                                    <i class="fa-solid fa-box-archive"></i> Ranger cette fiche dans l'historique
+                                </button>
+                            </div>
+                        </details>
                     </div>
                 `;
                 ws.appendChild(card);
             });
+        };
+
+        /* ========================================================================= */
+        /* CHAPITRE 7.B.2 : HISTORIQUE DES RÉVISIONS D'UNE VANNE                     */
+        /* ------------------------------------------------------------------------- */
+        /* Le Banc d'essais ne tient qu'UNE ligne par vanne : la révision en cours.   */
+        /* À la révision suivante elle est réécrite, et ce qui avait été fait l'année */
+        /* d'avant disparaissait. L'onglet « entretien vannes » du classeur garde,    */
+        /* lui, une ligne par vanne et par année — il n'était simplement pas lu.      */
+        /*                                                                           */
+        /* La fiche d'atelier affiche donc maintenant les révisions passées de la     */
+        /* vanne, et un bouton range la fiche terminée dans cet historique.           */
+        /* Le lien entre les deux se fait sur le NUMÉRO DE CANON : c'est la colonne   */
+        /* « id » côté atelier et « N° de vanne » côté historique (la colonne         */
+        /* « N° de vanne » de l'atelier vaut « N/A » presque partout).                */
+        /* ========================================================================= */
+        window.histoVanneLignes = function(idCanon) {
+            let t = window.rawEntretienVannes;
+            if (!t || t.length < 2) return [];
+            let head = t[0].map(function(h) { return (h == null ? '' : h).toString().trim(); });
+            let bas = head.map(function(h) { return h.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); });
+            let iV = bas.findIndex(function(h) { return h.indexOf('n° de vanne') !== -1 || h === 'vanne'; });
+            if (iV === -1) iV = bas.indexOf('id');
+            if (iV === -1) return [];
+            let iA = bas.findIndex(function(h) { return h === 'annee' || h.indexOf('annee') !== -1; });
+            let cible = String(idCanon).trim();
+            let out = [];
+            for (let i = 1; i < t.length; i++) {
+                let r = t[i]; if (!r) continue;
+                let v = r[iV]; if (v == null || String(v).trim() !== cible) continue;
+                let champs = [];
+                head.forEach(function(h, j) {
+                    if (!h) return;
+                    let val = r[j]; if (val == null || String(val).trim() === '') return;
+                    champs.push({ k: h, v: String(val).trim() });
+                });
+                out.push({ annee: iA > -1 && r[iA] != null ? String(r[iA]).trim() : '', champs: champs });
+            }
+            // La plus récente en haut : c'est celle qu'on vient comparer à la fiche en cours.
+            out.sort(function(a, b) { return String(b.annee).localeCompare(String(a.annee), 'fr', { numeric: true }); });
+            return out;
+        };
+
+        window.histoVanneHtml = function(idCanon) {
+            let lignes = window.histoVanneLignes(idCanon);
+            if (!lignes.length) {
+                return '<div style="padding:12px; font-size:12px; color:#7f8c8d;">Aucune révision archivée pour cette vanne.'
+                     + ' Le bouton ci-dessous rangera la fiche en cours dans l’historique.</div>';
+            }
+            const ech = function(t) { return window.prodEsc ? window.prodEsc(t) : String(t == null ? '' : t); };
+            let h = '<div style="padding:8px 10px 2px;">';
+            lignes.forEach(function(l, n) {
+                h += '<details class="histo-vanne"' + (n === 0 ? ' open' : '') + '>'
+                   + '<summary><b>' + ech(l.annee || 'année inconnue') + '</b>'
+                   + '<span>' + l.champs.length + ' renseignement' + (l.champs.length > 1 ? 's' : '') + '</span></summary>'
+                   + '<div class="histo-vanne-corps">';
+                l.champs.forEach(function(c) {
+                    let cl = c.k.toLowerCase();
+                    if (cl === 'id' || cl.indexOf('archiv') !== -1) return;
+                    let coul = /fuite|hs|nok|non ok/i.test(c.v) ? '#c0392b' : /^ok$/i.test(c.v) ? '#1e8449' : '#2c3e50';
+                    h += '<div><span>' + ech(c.k) + '</span><b style="color:' + coul + ';">' + ech(c.v) + '</b></div>';
+                });
+                h += '</div></details>';
+            });
+            return h + '</div>';
+        };
+
+        /* Range la fiche d'atelier TELLE QU'ELLE EST ENREGISTRÉE dans l'historique. On part
+           volontairement de la ligne du classeur et non des champs à l'écran : on archive ce
+           qui a été validé, pas une saisie en cours. */
+        window.archiverEntretienVanne = async function(idCanon, btn) {
+            let t = window.rawAtelier;
+            if (!t || t.length < 2) { alert("Le banc d'essais n'a encore rien enregistré."); return; }
+            let head = t[0].map(function(h) { return (h == null ? '' : h).toString().trim(); });
+            let iId = head.findIndex(function(h) { return h.toLowerCase().trim() === 'id'; });
+            if (iId === -1) iId = 0;
+            let row = null;
+            for (let i = 1; i < t.length; i++) {
+                if (t[i] && t[i][iId] != null && String(t[i][iId]).trim() === String(idCanon).trim()) { row = t[i]; break; }
+            }
+            if (!row) { alert("Enregistrez d'abord le rapport de banc d'essais : il n'y a rien à archiver."); return; }
+
+            let champs = {};
+            head.forEach(function(h, j) {
+                if (!h || h.toLowerCase() === 'id') return;
+                let v = row[j];
+                if (v !== null && v !== undefined && String(v).trim() !== '') champs[h] = String(v).trim();
+            });
+            champs['N° de vanne'] = String(idCanon);
+            // L'« année » de l'atelier est une date de passage : on n'en garde que l'année.
+            let brut = String(champs['année'] || champs['annee'] || '');
+            let an = (brut.match(/(\d{4})/) || [])[1] || String(new Date().getFullYear());
+            champs['année'] = an;
+
+            let dejaLa = window.histoVanneLignes(idCanon).some(function(l) { return String(l.annee) === an; });
+            if (!confirm(dejaLa
+                ? 'La vanne ' + idCanon + ' a déjà une révision archivée pour ' + an + '.\nElle sera remplacée par la fiche actuelle. Continuer ?'
+                : 'Ranger la fiche de la vanne ' + idCanon + ' dans l’historique, à l’année ' + an + ' ?')) return;
+
+            let texte = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.innerHTML = 'Archivage…'; }
+            try {
+                let res = await window.apiPost({ action: 'archive_entretien_vanne', idCanon: String(idCanon), fields: champs });
+                let r = await res.json();
+                if (r.status !== 'success') throw new Error(r.msg || 'refus du serveur');
+                // Copie locale, pour que l'historique se remplisse sans attendre un rechargement.
+                if (!window.rawEntretienVannes || !window.rawEntretienVannes.length) {
+                    window.rawEntretienVannes = [Object.keys(champs)];
+                }
+                let hv = window.rawEntretienVannes[0].map(function(x) { return (x == null ? '' : x).toString().trim(); });
+                Object.keys(champs).forEach(function(k) { if (hv.indexOf(k) === -1) { hv.push(k); window.rawEntretienVannes[0].push(k); } });
+                let ligne = new Array(hv.length).fill('');
+                Object.keys(champs).forEach(function(k) { ligne[hv.indexOf(k)] = champs[k]; });
+                let iVl = hv.findIndex(function(h) { return h.toLowerCase().indexOf('n° de vanne') !== -1; });
+                let iAl = hv.findIndex(function(h) { return h.toLowerCase().indexOf('ann') === 0; });
+                let remplacee = false;
+                for (let i = 1; i < window.rawEntretienVannes.length; i++) {
+                    let e = window.rawEntretienVannes[i];
+                    if (iVl > -1 && String(e[iVl] || '').trim() === String(idCanon) && (iAl === -1 || String(e[iAl] || '').trim() === an)) {
+                        window.rawEntretienVannes[i] = ligne; remplacee = true; break;
+                    }
+                }
+                if (!remplacee) window.rawEntretienVannes.push(ligne);
+                if (btn) { btn.innerHTML = r.queued ? 'En attente de réseau' : 'Archivé'; btn.style.background = '#27ae60'; }
+                let boite = document.getElementById('histo-vanne-' + String(idCanon).replace(/[^a-zA-Z0-9]/g, ''));
+                if (boite) boite.innerHTML = window.histoVanneHtml(idCanon);
+            } catch (e) {
+                if (btn) { btn.disabled = false; btn.innerHTML = texte; }
+                alert("L'archivage n'a pas abouti : " + (e.message || e));
+            }
         };
 
         window.filterAtelierCanons = function(val) {
