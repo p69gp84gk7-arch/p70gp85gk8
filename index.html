@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.33.1";
+        window.APP_VERSION = "5.34.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -1011,6 +1011,17 @@
             letter-spacing:.3px;margin-bottom:3px;}
         .rev-pieces ul{margin:0;padding-left:16px;}
         .rev-pieces li{font-size:11px;color:#2c3e50;line-height:1.45;}
+        .rev-banc{margin-top:8px;padding-top:7px;border-top:1px dashed #e1e8ed;}
+        .rev-banc-titre{font-weight:bold;color:#8e44ad;font-size:10.5px;margin-bottom:5px;}
+        .rev-banc-pretes{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px;}
+        .rev-banc-note{font-size:11px;color:#2c3e50;line-height:1.45;margin-bottom:3px;}
+        .rev-banc-note > span{display:block;font-size:9px;font-weight:bold;color:#95a5a6;
+            text-transform:uppercase;letter-spacing:.3px;}
+        .rev-banc-lien{font-size:10px;color:#95a5a6;font-style:italic;margin-top:5px;}
+        details.histo-toutes{margin-bottom:5px;}
+        details.histo-toutes > summary b{font-weight:bold;}
+        .histo-toutes-corps:empty{display:none;}
+        .histo-toutes-bloc > summary{font-weight:600;}
 
         @media print {
             #topbar, #mobile-dock, #sidebar, #right-sidebar, #print-panel, #loading-overlay, #pdf-modal, #settings-panel, #route-qr-plein, #qr-scan, #production-panel, #bi-meteo-modal, #compare-modal, #meteo-history-modal, #calendar-modal, .resizer, .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
@@ -5345,23 +5356,45 @@
                                          .map(function(d) { return window.renderTicketField(d); }).join('');
 
             // Pour une révision cyclique, on rapproche la fiche de vanne de la même année.
-            // Les colonnes de pièces en sont retirées : elles sont déjà listées au-dessus.
+            // On n'en tire que trois choses — « le résultat final, une éventuelle remarque,
+            // et quelles pièces on a changées ». Le reste de la fiche (essais n°1, tests
+            // électriques, comptes de joints calculés d'après le type de vanne) n'a rien à
+            // faire dans un historique de panne : il est au banc d'essais, en entier.
             if (rv) {
-                let champs = rv.champs.filter(function(c) {
-                    let k = c.k.toLowerCase();
-                    return k !== 'id' && k.indexOf('archiv') === -1 && k.indexOf('n° de vanne') === -1
-                           && k.indexOf('ann') !== 0 && window.cleSansAccent(k).indexOf('piece') === -1;
+                const lit = function(nom) {
+                    let c = (rv.champs || []).find(function(x) { return window.cleSansAccent(x.k) === nom; });
+                    return c ? String(c.v).trim() : '';
+                };
+                let pretes = [['prete', 'Vanne'], ['v2000 prete', 'V2000'],
+                              ['var (1) prete', 'VAR 1'], ['var (2) prete', 'VAR 2']]
+                    .map(function(p) { return { nom: p[1], v: lit(p[0]) }; })
+                    .filter(function(p) { return p.v !== ''; });
+                let notes = [['maintenance effectue', 'Ce qui a été fait'],
+                             ['commentaire', 'Remarque'], ['commentaire v2000', 'Remarque V2000']]
+                    .map(function(p) { return { nom: p[1], v: lit(p[0]) }; })
+                    .filter(function(p) { return p.v !== ''; });
+
+                let corps = '';
+                if (pretes.length) {
+                    corps += '<div class="rev-banc-pretes">' + pretes.map(function(p) {
+                        let ok = /^(oui|ok|prete|prête)\b/i.test(p.v);
+                        return '<span class="rev-m ' + (ok ? 'rev-m-ok' : 'rev-m-ko') + '">'
+                             + '<i class="fa-solid ' + (ok ? 'fa-circle-check' : 'fa-circle-xmark') + '"></i> '
+                             + ech(p.nom) + ' : ' + ech(p.v) + '</span>';
+                    }).join('') + '</div>';
+                }
+                notes.forEach(function(p) {
+                    corps += '<div class="rev-banc-note"><span>' + ech(p.nom) + '</span>'
+                           + ech(p.v) + '</div>';
                 });
-                details += '<div style="margin-top:8px; padding-top:7px; border-top:1px dashed #e1e8ed;">'
-                         + '<div style="font-weight:bold; color:#8e44ad; font-size:10.5px; margin-bottom:4px;">'
-                         + '<i class="fa-solid fa-toolbox"></i> AU BANC D’ESSAIS, ' + ech(rv.annee) + '</div>'
-                         + '<div class="histo-vanne-corps" style="padding:0;">'
-                         + champs.map(function(c) {
-                             let etat = window.etatEssai(c.v);
-                             let coul = etat === 'fuite' ? '#c0392b' : etat === 'ok' ? '#1e8449' : '#2c3e50';
-                             return '<div><span>' + ech(c.k) + '</span><b style="color:' + coul + ';">' + ech(c.v) + '</b></div>';
-                           }).join('')
-                         + '</div></div>';
+                if (!corps) corps = '<div class="rev-banc-note"><i>Rien de noté sur la fiche de vanne.</i></div>';
+
+                details += '<div class="rev-banc">'
+                         + '<div class="rev-banc-titre"><i class="fa-solid fa-toolbox"></i> AU BANC D’ESSAIS, '
+                         + ech(rv.annee) + '</div>' + corps
+                         + '<div class="rev-banc-lien">La fiche complète de cette vanne est dans le '
+                         + 'Banc d’essais, à « Historique des révisions ».</div>'
+                         + '</div>';
             }
 
             return '<li style="margin-bottom:8px; list-style:none;">'
@@ -10426,11 +10459,30 @@
             listeValidee.sort((a, b) => parseInt(a) - parseInt(b));
             let orderedCanons = [...listeAFaire, ...listeValidee];
 
+            let nbFiches = (window.rawEntretienVannes && window.rawEntretienVannes.length > 1)
+                           ? window.rawEntretienVannes.length - 1 : 0;
+            let nbVannes = window.histoVanneParVanne ? window.histoVanneParVanne().length : 0;
+
             ws.innerHTML += `
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:13px; color:#555; background:#eaf2f8; padding:10px; border-radius:4px; border-left:4px solid #3498db;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px; color:#555; background:#eaf2f8; padding:10px; border-radius:4px; border-left:4px solid #3498db;">
                     <b>${canonsEnAtelier.length} canon(s) au banc d'essai.</b>
                     <span style="color:#27ae60; font-weight:bold;">${listeValidee.length} archivé(s) (en bas de liste)</span>
-                </div>`;
+                </div>
+                <details class="atelier-sub-details histo-toutes-bloc" id="histo-toutes-bloc" style="margin-bottom:15px;">
+                    <summary><i class="fa-solid fa-clock-rotate-left"></i> Historique des révisions — toutes les vannes${nbFiches ? ` <span class="histo-pastille">${nbFiches} fiche${nbFiches > 1 ? 's' : ''} · ${nbVannes} vanne${nbVannes > 1 ? 's' : ''}</span>` : ''}</summary>
+                    <div style="padding:8px 10px 2px;">
+                        <input type="text" id="histo-toutes-rech" class="edit-input" placeholder="N° de vanne…"
+                               oninput="window.histoVanneToutesFiltrer(this.value)"
+                               style="margin:0 0 8px 0; padding:7px; font-size:12px; height:30px; max-width:220px;">
+                    </div>
+                    <div id="histo-toutes-liste" style="padding:0 10px 10px;"></div>
+                </details>`;
+
+            // Cent vingt fiches de trente-neuf colonnes : on ne les dessine qu'à l'ouverture.
+            let blocHisto = document.getElementById('histo-toutes-bloc');
+            if (blocHisto) blocHisto.addEventListener('toggle', function() {
+                if (blocHisto.open) window.histoVanneToutesRemplir(document.getElementById('histo-toutes-liste'));
+            });
 
             orderedCanons.forEach(idCanon => {
                 let feature = window.snowCannons.features.find(f => f.properties.id == idCanon); if(!feature) return;
@@ -10721,6 +10773,78 @@
             // La plus récente en haut : c'est celle qu'on vient comparer à la fiche en cours.
             out.sort(function(a, b) { return String(b.annee).localeCompare(String(a.annee), 'fr', { numeric: true }); });
             return out;
+        };
+
+        /* ========================================================================= */
+        /* CHAPITRE 7.B.3 : L'HISTORIQUE DE TOUTES LES VANNES, ET PAS SEULEMENT       */
+        /* DE CELLES POSÉES SUR L'ÉTABLI AUJOURD'HUI                                 */
+        /*                                                                           */
+        /* La section « Historique des révisions » d'une fiche ne s'ouvre que pour un */
+        /* canon marqué « préventif à l'usine » : deux ou trois à la fois. Les cent   */
+        /* vingt fiches déjà archivées n'étaient donc consultables nulle part.        */
+        /* Ce bloc les ouvre toutes, vanne par vanne, avec le détail complet.         */
+        /*                                                                           */
+        /* Il se construit à l'ouverture et pas au chargement de l'onglet : cent      */
+        /* vingt fiches de trente-neuf colonnes font quatre mille lignes à dessiner,  */
+        /* et personne ne les regarde en arrivant.                                    */
+        /* ========================================================================= */
+        window.histoVanneParVanne = function() {
+            let t = window.rawEntretienVannes;
+            if (!t || t.length < 2) return [];
+            let bas = t[0].map(function(h) { return window.cleSansAccent(h); });
+            let iV = bas.findIndex(function(h) { return h.indexOf('n° de vanne') !== -1 || h === 'vanne'; });
+            if (iV === -1) iV = bas.indexOf('id');
+            if (iV === -1) return [];
+            let vus = {};
+            for (let i = 1; i < t.length; i++) {
+                let r = t[i]; if (!r) continue;
+                let v = r[iV]; if (v == null || String(v).trim() === '') continue;
+                vus[String(v).trim()] = true;
+            }
+            return Object.keys(vus).sort(function(a, b) {
+                let na = parseInt(a, 10), nb = parseInt(b, 10);
+                if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+                return a.localeCompare(b, 'fr', { numeric: true });
+            });
+        };
+
+        window.histoVanneToutesRemplir = function(boite) {
+            if (!boite || boite.dataset.rempli === '1') return;
+            boite.dataset.rempli = '1';
+            const ech = function(x) { return window.prodEsc ? window.prodEsc(x) : String(x == null ? '' : x); };
+            let vannes = window.histoVanneParVanne();
+            if (!vannes.length) {
+                boite.innerHTML = '<div style="padding:12px; font-size:12px; color:#7f8c8d;">'
+                                + 'Aucune fiche de vanne archivée pour l’instant.</div>';
+                return;
+            }
+            boite.innerHTML = vannes.map(function(id) {
+                let lignes = window.histoVanneLignes(id);
+                let annees = lignes.map(function(l) { return l.annee || '?'; }).join(', ');
+                return '<details class="histo-vanne histo-toutes" data-vanne="' + ech(id) + '">'
+                     + '<summary><b>Vanne ' + ech(id) + '</b><span>' + lignes.length
+                     + (lignes.length > 1 ? ' révisions · ' : ' révision · ') + ech(annees) + '</span></summary>'
+                     + '<div class="histo-toutes-corps" data-pour="' + ech(id) + '"></div>'
+                     + '</details>';
+            }).join('');
+            // Le détail d'une vanne n'est dessiné qu'au moment où on la déplie.
+            [].forEach.call(boite.querySelectorAll('details.histo-toutes'), function(d) {
+                d.addEventListener('toggle', function() {
+                    if (!d.open) return;
+                    let corps = d.querySelector('.histo-toutes-corps');
+                    if (!corps || corps.dataset.rempli === '1') return;
+                    corps.dataset.rempli = '1';
+                    corps.innerHTML = window.histoVanneHtml(corps.getAttribute('data-pour'));
+                });
+            });
+        };
+
+        window.histoVanneToutesFiltrer = function(txt) {
+            let q = String(txt || '').trim().toLowerCase();
+            [].forEach.call(document.querySelectorAll('details.histo-toutes'), function(d) {
+                let v = (d.getAttribute('data-vanne') || '').toLowerCase();
+                d.style.display = (!q || v.indexOf(q) !== -1) ? '' : 'none';
+            });
         };
 
         window.histoVanneHtml = function(idCanon) {
