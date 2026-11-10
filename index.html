@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.28.0";
+        window.APP_VERSION = "5.29.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -923,6 +923,13 @@
         .mc-btn.mc-rouge:hover{background:#fdf0ed; border-color:#c0392b; color:#c0392b;}
         .mc-btn.mc-vert{border-color:#c8e6d0; color:#1e8449;} .mc-btn.mc-vert i{color:#1e8449;}
         .mc-btn small{display:block; font-weight:normal; font-size:10px; color:#95a5a6; margin-top:1px;}
+        .mc-plus-btn{color:#7f8c8d; border-style:dashed;}
+        .mc-plus-btn .mc-chev{margin-left:auto; font-size:10px; transition:transform .15s;}
+        .mc-plus-btn.ouvert{border-style:solid; color:#2c3e50;}
+        .mc-plus-btn.ouvert .mc-chev{transform:rotate(180deg);}
+        .mc-plus{display:flex; flex-direction:column; gap:6px; padding-top:6px; margin-top:2px;
+            border-top:1px dashed #e1e8ed;}
+        .mc-plus[hidden]{display:none;}
         @media (max-width:768px){
             .menu-canon-popup .leaflet-popup-content{width:214px !important;}
             .mc-btn{font-size:13px; padding:12px 10px;}
@@ -940,7 +947,16 @@
         .theme-cat{margin-bottom:15px;}
         .theme-cat:last-child{margin-bottom:2px;}
         .theme-cat-titre{font-size:10px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;
-            color:#a9b4bd;padding:0 3px 7px;display:flex;align-items:baseline;gap:7px;line-height:1.2;}
+            color:#a9b4bd;padding:5px 3px 7px;display:flex;align-items:baseline;gap:7px;line-height:1.2;
+            cursor:pointer;user-select:none;border-radius:4px;}
+        .theme-cat-titre:hover{color:#7f8c8d;background:#f6f8fa;}
+        .theme-cat-titre .chev{margin-left:auto;font-size:9px;color:#c3cbd1;transition:transform .15s;
+            transform:rotate(0deg);align-self:center;}
+        .theme-cat.repliee .theme-cat-titre .chev{transform:rotate(-90deg);}
+        .theme-cat.repliee .theme-block{display:none !important;}
+        .theme-cat-titre .compte{font-size:9px;font-weight:700;color:#aeb8c0;background:#eef2f5;
+            border-radius:9px;padding:1px 6px;letter-spacing:0;display:none;}
+        .theme-cat.repliee .theme-cat-titre .compte{display:inline-block;}
         .theme-cat-titre span{font-size:10px;font-weight:400;letter-spacing:0;text-transform:none;color:#c3cbd1;}
         .radio-card i{color:#7f8c8d;font-size:13px;width:16px;text-align:center;flex:none;transition:color .12s;}
         .radio-card{font-weight:600;font-size:12.5px;padding:10px 11px;}
@@ -1470,7 +1486,7 @@
             <details class="panel-section" data-sec="theme" open><summary>Thème & Légende</summary>
                 <div class="section-content" style="padding-top: 6px;">
                     <div class="theme-cat" data-catbox="diagnostic">
-                        <div class="theme-cat-titre">Diagnostic<span>Ce qui ne va pas</span></div>
+                        <div class="theme-cat-titre" role="button" tabindex="0" aria-expanded="true" onclick="window.replierFamille('diagnostic')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.replierFamille('diagnostic');}">Diagnostic<span>Ce qui ne va pas</span><span class="compte"></span><i class="fa-solid fa-chevron-down chev"></i></div>
                     <div class="theme-block" data-tb="defauts" data-cat="diagnostic"><label class="radio-card" id="lbl-defauts"><input type="radio" name="main_theme" value="defauts" checked> <i class="fa-solid fa-triangle-exclamation"></i> Tickets & Pannes</label><div class="theme-details" id="details-defauts" style="display:block;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="defauts"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Statuts actuels <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('defauts')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-defauts" style="display:none;margin-bottom:8px;"></div><div id="legend-defauts"></div></div></div>
                     <div class="theme-block" data-tb="reseau" data-cat="diagnostic"><label class="radio-card" id="lbl-reseau"><input type="radio" name="main_theme" value="reseau"> <i class="fa-solid fa-diagram-project"></i> Réseau dialogue</label><div class="theme-details" id="details-reseau" style="display:none;border-color:#16a085;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Dialogue et courant des enneigeurs</div><div id="sim-menu-etat" style="font-size:11px;color:#7f8c8d;line-height:1.45;">Plan du réseau : couper un canon, un câble ou un départ pour voir qui perd le dialogue.</div><button class="btn-action-primary" style="margin:10px 0 0; background:#16a085;" onclick="if(window.SimDialogue) window.SimDialogue.ouvrirHistorique()"><i class="fa-solid fa-clock-rotate-left"></i> Enregistrements du réseau</button></div></div>
                     <div class="theme-block" data-tb="repeteur" data-cat="diagnostic"><label class="radio-card" id="lbl-repeteur"><input type="radio" name="main_theme" value="repeteur"> <i class="fa-solid fa-satellite-dish"></i> Répéteurs</label><div class="theme-details" id="details-repeteur" style="display:none;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="repeteur"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Répéteurs <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('repeteur')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-repeteur" style="display:none;margin-bottom:8px;"></div><div id="legend-repeteur"></div></div></div>
@@ -1480,14 +1496,14 @@
                          Production. Les commandes vivent DANS le plan, aux couleurs de la GMAO. -->
                     </div>
                     <div class="theme-cat" data-catbox="maintenance">
-                        <div class="theme-cat-titre">Maintenance<span>Ce qui est à faire</span></div>
+                        <div class="theme-cat-titre" role="button" tabindex="0" aria-expanded="true" onclick="window.replierFamille('maintenance')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.replierFamille('maintenance');}">Maintenance<span>Ce qui est à faire</span><span class="compte"></span><i class="fa-solid fa-chevron-down chev"></i></div>
                     <div class="theme-block" data-tb="suivi_entretien" data-cat="maintenance"><label class="radio-card" id="lbl-suivi_entretien"><input type="radio" name="main_theme" value="suivi_entretien"> <i class="fa-solid fa-screwdriver-wrench"></i> Suivi Entretien</label><div class="theme-details" id="details-suivi_entretien" style="display:none;border-color:#27ae60;"><div class="view-toggle-wrap" data-vt="suivi_entretien"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Vannes <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('suivi_entretien')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-suivi_entretien" style="display:none;margin-bottom:8px;"></div><div id="legend-suivi_entretien"></div></div></div>
                     <div class="theme-block" data-tb="entretien_tete" data-cat="maintenance"><label class="radio-card" id="lbl-entretien_tete"><input type="radio" name="main_theme" value="entretien_tete"> <i class="fa-solid fa-shower"></i> Entretien Tête Canon</label><div class="theme-details" id="details-entretien_tete" style="display:none;border-color:#e67e22;"><div class="view-toggle-wrap" data-vt="entretien_tete"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Buses <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('entretien_tete')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-entretien_tete" style="display:none;margin-bottom:8px;"></div><div id="legend-entretien_tete"></div><button onclick="window.resetEntretienBuses()" style="width:100%;margin-top:10px;background:#c0392b;color:white;border:none;padding:8px;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;"><i class="fa-solid fa-rotate-left"></i> RAZ</button></div></div>
                     <div class="theme-block" data-tb="atelier" data-cat="maintenance"><label class="radio-card" id="lbl-atelier"><input type="radio" name="main_theme" value="atelier"> <i class="fa-solid fa-toolbox"></i> Banc d'essais</label><div class="theme-details" id="details-atelier" style="display:none;border-color:#8e44ad;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Banc de test usine</div></div></div>
                     <div class="theme-block" data-tb="stock" data-cat="maintenance"><label class="radio-card" id="lbl-stock"><input type="radio" name="main_theme" value="stock"> <i class="fa-solid fa-boxes-stacked"></i> Gestion du Stock</label><div class="theme-details" id="details-stock" style="display:none;border-color:#16a085;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Inventaire</div></div></div>
                     </div>
                     <div class="theme-cat" data-catbox="production">
-                        <div class="theme-cat-titre">Production<span>Ce qui est produit</span></div>
+                        <div class="theme-cat-titre" role="button" tabindex="0" aria-expanded="true" onclick="window.replierFamille('production')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.replierFamille('production');}">Production<span>Ce qui est produit</span><span class="compte"></span><i class="fa-solid fa-chevron-down chev"></i></div>
                     <div class="theme-block" data-tb="production" data-cat="production"><label class="radio-card" id="lbl-production"><input type="radio" name="main_theme" value="production"> <i class="fa-solid fa-industry"></i> Production</label><div class="theme-details" id="details-production" style="display:none;border-color:#2980b9;"><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Suivi de production neige</div><div class="edit-label" style="font-size:10px;">Saison affichée</div><select id="prod-season-select" class="edit-input" style="margin-bottom:8px;" onchange="window.setProductionSeason(this.value)"></select><button class="btn-action-primary" style="margin:0; background:#2980b9;" onclick="window.openProductionForm()"><i class="fa-solid fa-plus"></i> Nouvelle production</button></div></div>
                     <div class="theme-block" data-tb="planneige" data-cat="production"><label class="radio-card" id="lbl-planneige"><input type="radio" name="main_theme" value="planneige"> <i class="fa-solid fa-snowflake"></i> Plan d'Enneigement</label><div class="theme-details" id="details-planneige" style="display:none;border-color:#0072ff;"><div class="view-toggle-wrap" data-vt="planneige"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;">Priorité de production</div><div id="legend-planneige"></div><div id="plan-resume-menu" style="font-size:11px; color:#7f8c8d; margin-top:10px;"></div><button class="btn-action-primary" style="margin:10px 0 0; background:#0072ff;" onclick="window.openPlanNeige()"><i class="fa-solid fa-sliders"></i> Ouvrir l'outil complet</button></div></div>
                     <div class="theme-block" data-tb="historique" data-cat="production"><label class="radio-card" id="lbl-historique"><input type="radio" name="main_theme" value="historique"> <i class="fa-solid fa-chart-column"></i> Historique Volumes</label><div class="theme-details-hist" id="details-historique" style="display:none;">
@@ -1499,7 +1515,7 @@
                     </div></div>
                     </div>
                     <div class="theme-cat" data-catbox="parc">
-                        <div class="theme-cat-titre">Le parc<span>Ce qui est installé</span></div>
+                        <div class="theme-cat-titre" role="button" tabindex="0" aria-expanded="true" onclick="window.replierFamille('parc')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.replierFamille('parc');}">Le parc<span>Ce qui est installé</span><span class="compte"></span><i class="fa-solid fa-chevron-down chev"></i></div>
                     <div class="theme-block" data-tb="type" data-cat="parc"><label class="radio-card" id="lbl-type"><input type="radio" name="main_theme" value="type"> <i class="fa-solid fa-snowflake"></i> Type de canon</label><div class="theme-details" id="details-type" style="display:none;border-color:#3498db;"><div class="view-toggle-wrap" data-vt="type"></div><div style="font-size:11px;font-weight:bold;color:#7f8c8d;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">Modèles <button class="legend-cfg-btn" onclick="window.toggleLegendEditor('type')"><i class="fa-solid fa-sliders"></i> Légende</button></div><div id="legend-cfg-type" style="display:none;margin-bottom:8px;"></div><div id="legend-type"></div></div></div>
                     </div>
                 </div>
@@ -1734,7 +1750,7 @@
             viewMode: { defauts: 'map', suivi_entretien: 'map', entretien_tete: 'map', type: 'map', repeteur: 'map', transfo: 'map' },
             legendConfig: {}, dashPrefs: {},
             prodSettings: { prixKwh: 0.15, saison: '2026-2027', decimales: 2, devise: '€' },
-            sidebarOrder: [], sidebarHidden: [], themeOrder: [], themeHidden: [],
+            sidebarOrder: [], sidebarHidden: [], themeOrder: [], themeHidden: [], famillesRepliees: [],
             printMargins: { top: 10, right: 10, bottom: 10, left: 10 },
             meteo: { secteurs: [], seuilTH: -2.5, seuilBon: -5, jours: 3, ongletDefaut: 'production' }
         };
@@ -2527,7 +2543,38 @@
                     boite.style.display = visibles.length ? '' : 'none';
                 });
                 if (window.majIconesThemes) window.majIconesThemes();
+                if (window.appliquerRepliFamilles) window.appliquerRepliFamilles();
             }
+        };
+
+        /* CHAPITRE 2.C.12 — Les familles se replient. Celle qui contient le thème affiché
+           reste toujours ouverte : la replier masquerait sa légende, et l'on se retrouverait
+           devant une carte colorée sans savoir ce que les couleurs veulent dire. */
+        window.replierFamille = function(cle) {
+            let s = window.appSettings;
+            if (!Array.isArray(s.famillesRepliees)) s.famillesRepliees = [];
+            let i = s.famillesRepliees.indexOf(cle);
+            if (i > -1) s.famillesRepliees.splice(i, 1); else s.famillesRepliees.push(cle);
+            window.appliquerRepliFamilles();
+            try { window.persisterReglages(); } catch (e) {}
+        };
+
+        window.appliquerRepliFamilles = function() {
+            let replies = (window.appSettings && window.appSettings.famillesRepliees) || [];
+            document.querySelectorAll('#sidebar .theme-cat[data-catbox]').forEach(function(boite) {
+                let cle = boite.getAttribute('data-catbox');
+                let blocs = boite.querySelectorAll('.theme-block[data-tb]');
+                let contientActif = Array.prototype.some.call(blocs, function(b) {
+                    let r = b.querySelector('input[name="main_theme"]'); return r && r.checked;
+                });
+                let visibles = Array.prototype.filter.call(blocs, function(b) { return b.style.display !== 'none'; });
+                boite.classList.toggle('repliee', replies.indexOf(cle) > -1 && !contientActif);
+                let t = boite.querySelector('.theme-cat-titre');
+                if (t) {
+                    let c = t.querySelector('.compte'); if (c) c.textContent = visibles.length;
+                    t.setAttribute('aria-expanded', boite.classList.contains('repliee') ? 'false' : 'true');
+                }
+            });
         };
 
         // Gris pour tous, bleu pour celui qui est choisi. En JavaScript plutôt qu'en CSS :
@@ -4362,8 +4409,9 @@
                  + (detail ? '<small>' + detail + '</small>' : '') + '</span></button>';
         };
 
-        window.menuCanonOuvrir = function(id, layer) {
-            if (!window.map || typeof L === 'undefined' || !L.popup) return;
+        window.menuCanonEtat = { id: null, layer: null, plus: false };
+
+        window.menuCanonHtml = function(id, layer, plusOuvert) {
             const ech = function(t) { return (window.prodEsc ? window.prodEsc(t) : String(t == null ? '' : t)); };
             const idJs = String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             let f = (layer && layer.feature) ? layer.feature
@@ -4374,6 +4422,12 @@
             let actifs = window.getActiveTickets ? window.getActiveTickets(id) : [];
             let dansTrajet = (window.routeSelection || []).indexOf(id) > -1;
             let rang = dansTrajet ? (window.routeSelection.indexOf(id) + 1) : ((window.routeSelection || []).length + 1);
+
+            // État du suivi d'entretien, pour que le bouton dise déjà où en est ce canon.
+            let suivi = (window.suiviEntretienData || []).find(function(r) { return r[0] == id; }) || [];
+            const oui = function(v) { return v && v.toString().toLowerCase().trim() === 'oui'; };
+            let auBanc = oui(suivi[3]), deconnecte = oui(suivi[2]), correctif = oui(suivi[4]);
+            let motSuivi = auBanc ? 'au banc d’essais' : correctif ? 'vanne en correctif' : deconnecte ? 'déconnecté' : '';
 
             let h = '<div class="mc-tete"><div class="mc-titre">Canon ' + ech(id) + '</div>';
             let sous = [piste, modele].filter(function(x) { return x; }).join(' · ');
@@ -4387,19 +4441,47 @@
             h += '</div><div class="mc-corps">';
             h += window.menuCanonBouton('mc-rouge', 'fa-triangle-exclamation', 'Déclarer une panne', '', "window.menuCanonPanne('" + idJs + "')");
             h += window.menuCanonBouton('', 'fa-circle-info', 'Fiche complète', actifs.length ? 'Tickets, historique, photos' : '', "window.menuCanonFiche('" + idJs + "')");
+            h += window.menuCanonBouton('', 'fa-screwdriver-wrench', 'Suivi entretien', motSuivi ? ech(motSuivi) : 'Déconnexion, usine, vanne', "window.menuCanonSuivi('" + idJs + "')");
             h += window.menuCanonBouton('', 'fa-pen-to-square', 'Modifier la fiche', '', "window.menuCanonModifier('" + idJs + "')");
+
+            /* CHAPITRE 4.B.9.b — Les gestes rares passent derrière « Plus d'options ». Le
+               deuxième étage s'ouvre DANS la bulle, pas dans une deuxième bulle : sur
+               téléphone, un menu qui en ouvre un autre se perd vite de vue. */
+            h += '<button type="button" class="mc-btn mc-plus-btn' + (plusOuvert ? ' ouvert' : '') + '" id="mc-plus-btn" onclick="window.menuCanonPlus()">'
+               + '<i class="fa-solid fa-ellipsis"></i><span>Plus d’options</span>'
+               + '<i class="fa-solid fa-chevron-down mc-chev"></i></button>';
+            h += '<div class="mc-plus" id="mc-plus"' + (plusOuvert ? '' : ' hidden') + '>';
             h += window.menuCanonBouton(dansTrajet ? 'mc-vert' : '', 'fa-route', dansTrajet ? 'Au trajet n°' + rang : 'Ajouter au trajet', '', "window.menuCanonTrajet('" + idJs + "')");
             h += window.menuCanonBouton('', 'fa-diagram-project', 'Voir le dialogue', 'Plan du réseau', "window.menuCanonReseau('" + idJs + "')");
-            h += '</div>';
+            h += window.menuCanonBouton(auBanc ? 'mc-vert' : '', 'fa-toolbox', 'Banc d’essais', auBanc ? 'Ce canon y est' : 'Fiche de la vanne', "window.menuCanonAtelier('" + idJs + "')");
+            h += '</div></div>';
 
+            return h;
+        };
+
+        window.menuCanonOuvrir = function(id, layer) {
+            if (!window.map || typeof L === 'undefined' || !L.popup) return;
+            let f = (layer && layer.feature) ? layer.feature
+                  : ((window.snowCannons && window.snowCannons.features) || []).find(function(x) { return x.properties.id === id; });
             let ll = (layer && layer.getLatLng) ? layer.getLatLng()
                    : (f && f.geometry ? L.latLng(f.geometry.coordinates[1], f.geometry.coordinates[0]) : null);
             if (!ll) return;
             window.menuCanonFermer();
+            window.menuCanonEtat = { id: id, layer: layer, plus: false };
             window.menuCanonPopup = L.popup({
                 className: 'menu-canon-popup', maxWidth: 240, minWidth: 214, closeButton: true,
                 autoPan: true, autoPanPadding: [16, 70], offset: [0, -6], keepInView: true
-            }).setLatLng(ll).setContent(h).openOn(window.map);
+            }).setLatLng(ll).setContent(window.menuCanonHtml(id, layer, false)).openOn(window.map);
+        };
+
+        // Déplie ou replie le deuxième étage. On redonne à la bulle un contenu COMPLET au
+        // lieu de modifier le DOM : Leaflet le reconstruit depuis la chaîne enregistrée à
+        // chaque replacement, et la modification aurait disparu aussitôt.
+        window.menuCanonPlus = function() {
+            let e = window.menuCanonEtat;
+            if (!e || !e.id || !window.menuCanonPopup) return;
+            e.plus = !e.plus;
+            window.menuCanonPopup.setContent(window.menuCanonHtml(e.id, e.layer, e.plus));
         };
 
         /* ----- où mène chaque bouton ---------------------------------------- */
@@ -4428,9 +4510,36 @@
             }, 120);
         };
 
+        /* Le suivi d'entretien n'a de sens que dans son thème : c'est lui qui affiche les
+           cases « déconnexion », « préventif à l'usine » et « vanne en correctif ». On y
+           bascule, et on ne garde que ce canon — le thème accumule les sélections, et l'on
+           se serait retrouvé avec les canons cochés d'une session précédente. */
+        window.menuCanonSuivi = function(id) {
+            window.menuCanonFermer();
+            let r = document.querySelector('input[name="main_theme"][value="suivi_entretien"]');
+            if (r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change')); }
+            setTimeout(function() {
+                if (window.selectedCannonsMap) window.selectedCannonsMap.clear();
+                if (window.focusCannon) window.focusCannon(id);
+            }, 70);
+        };
+
         window.menuCanonTrajet = function(id) {
             window.menuCanonFermer();
             if (window.routeAjouterDepuisTicket) window.routeAjouterDepuisTicket(id);
+        };
+
+        // Banc d'essais : on bascule sur l'atelier et on filtre sur ce canon, pour tomber
+        // directement sur sa fiche de vanne au lieu de la chercher dans la liste.
+        window.menuCanonAtelier = function(id) {
+            window.menuCanonFermer();
+            let r = document.querySelector('input[name="main_theme"][value="atelier"]');
+            if (!r) return;
+            r.checked = true; r.dispatchEvent(new Event('change'));
+            setTimeout(function() {
+                let champ = document.getElementById('search-atelier');
+                if (champ) { champ.value = String(id); if (window.filterAtelierCanons) window.filterAtelierCanons(String(id)); }
+            }, 150);
         };
 
         // Le plan du réseau de dialogue se place sur ce canon. On passe par sa barre de
@@ -9877,6 +9986,7 @@
                     else if(window.mainTheme === 'production') { if(listWsEl) listWsEl.style.display = 'none'; document.getElementById('map').style.display = 'none'; document.getElementById('atelier-workspace').style.display = 'none'; document.getElementById('stock-workspace').style.display = 'none'; if(prodWsEl) prodWsEl.style.display = 'block'; window.closeRightSidebar(); if(window.renderProductionWorkspace) window.renderProductionWorkspace(); }
                     else { document.getElementById('atelier-workspace').style.display = 'none'; document.getElementById('stock-workspace').style.display = 'none'; if(window.mainTheme === 'historique') window.calculateMaxes(); window.updateLegend(); window.updateMap(); window.applyThemeViewMode(); if (window.selectedCannonsMap.size > 0) { window.renderSelectionPanel(); } else { window.triggerGlobalFilterChart(); } }
                     if(window.majIconesThemes) window.majIconesThemes();
+                    if(window.appliquerRepliFamilles) window.appliquerRepliFamilles();
                     if(window.renderViewToggles) window.renderViewToggles();
                     // Repli automatique du menu à chaque choix de thème (mobile ET PC)
                     document.getElementById('sidebar').classList.add('collapsed');
