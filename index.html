@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.31.1";
+        window.APP_VERSION = "5.33.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -600,9 +600,21 @@
             #compare-modal, #meteo-history-modal { width: 98%; height: 95vh; top: 2%; left: 1%; transform: none; min-width: 0; box-sizing: border-box; }
             #bi-meteo-modal { box-sizing: border-box; }
 
+            /* Calendrier : la fenêtre gardait un « min-width: 500px » hérité du bureau. Sur un
+               téléphone de 390 px elle débordait donc de 110 px vers la droite : le bout des
+               champs, la flèche du menu Type et le bouton Enregistrer tombaient hors de l'écran,
+               sans moyen d'y accéder puisque la page, elle, ne défile pas latéralement.
+               Au téléphone elle prend tout l'écran, comme les autres fenêtres. */
+            #calendar-modal-inner { width: 100%; max-width: none; min-width: 0; height: 100%;
+                min-height: 0; top: 0; left: 0; transform: none; border-radius: 0; }
+            #calendar-modal-inner .resize-handle { display: none; }
             /* Calendrier : grille au-dessus, détail du jour en dessous plutôt que côte à côte */
             .cal-body { flex-direction: column; overflow-y: auto; }
-            #calendar-day-panel { width: 100% !important; border-left: none; border-top: 2px solid #3498db; max-height: none; padding-bottom: 30px; }
+            /* « largeur 100 % » + 15 px de marge intérieure de chaque côté, en content-box :
+               le panneau mesurait 30 px de plus que l'écran et le bouton Enregistrer sortait
+               par la droite. En border-box, la marge est comprise dans les 100 %. */
+            #calendar-day-panel { width: 100% !important; box-sizing: border-box; border-left: none;
+                border-top: 2px solid #3498db; max-height: none; padding-bottom: 30px; }
             #calendar-grid { grid-template-columns: 30px repeat(7, 1fr); grid-auto-rows: 64px; grid-template-rows: auto; flex: none; }
             .cal-weeknum { font-size: 9px; }
             .cal-bar { font-size: 8px; line-height: 15px; }
@@ -976,6 +988,29 @@
             border-bottom:1px dotted #eef2f5;padding:3px 0;}
         .histo-vanne-corps span{color:#7f8c8d;}
         .histo-vanne-corps b{text-align:right;}
+
+        /* CHAPITRE 2.C.14 : CE QU'UNE RÉVISION CYCLIQUE DIT SANS QU'ON LA DÉPLIE     */
+        /* Les pastilles de l'essai n°2 (eau / air) et la liste des pièces changées.  */
+        /* Mêmes verts, rouges et violets que le reste de l'application.              */
+        .rev-marques{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:4px;}
+        .rev-m-titre{font-size:9px;font-weight:bold;color:#95a5a6;text-transform:uppercase;
+            letter-spacing:.3px;}
+        .rev-m{display:inline-flex;align-items:center;gap:4px;max-width:100%;min-width:0;
+            font-size:9.5px;font-weight:bold;line-height:1.25;padding:2px 7px;border-radius:10px;
+            border:1px solid transparent;}
+        .rev-m i{font-size:9px;flex:none;}
+        .rev-m-ok{background:#eafaf1;border-color:#abebc6;color:#1e8449;}
+        .rev-m-ko{background:#fdedec;border-color:#f5b7b1;color:#c0392b;}
+        .rev-m-autre{background:#f4f6f7;border-color:#d5dbdb;color:#5d6d7e;}
+        .rev-m-piece{background:#f5eef8;border-color:#d7bde2;color:#6c3483;font-weight:normal;}
+        .rev-m-piece > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .rev-m-piece > b{flex:none;}
+        .rev-pieces{background:#f5eef8;border:1px solid #e8daef;border-radius:5px;
+            padding:6px 8px;margin-bottom:8px;}
+        .rev-pieces-titre{font-size:10px;font-weight:bold;color:#6c3483;text-transform:uppercase;
+            letter-spacing:.3px;margin-bottom:3px;}
+        .rev-pieces ul{margin:0;padding-left:16px;}
+        .rev-pieces li{font-size:11px;color:#2c3e50;line-height:1.45;}
 
         @media print {
             #topbar, #mobile-dock, #sidebar, #right-sidebar, #print-panel, #loading-overlay, #pdf-modal, #settings-panel, #route-qr-plein, #qr-scan, #production-panel, #bi-meteo-modal, #compare-modal, #meteo-history-modal, #calendar-modal, .resizer, .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
@@ -2763,9 +2798,19 @@
         /* Une cellule d'heure seule part de 1899 dans le tableur : on la rend en     */
         /* HH:mm plutôt qu'en « 30/12/1899 ».                                         */
         /* ========================================================================= */
+        /* Une cellule en erreur n'est pas une donnee : #VALUE!, #REF!, #N/A, #DIV/0!,
+           #NAME?, #NUM!, #NULL!, #ERROR!. Le classeur les calcule, l'application ne doit
+           jamais les montrer comme un releve ni les recopier dans un champ de saisie —
+           sans quoi enregistrer la fiche ecrirait « #VALUE! » dans le classeur.
+           Vu sur « entretien vannes » : la formule des joints rend le texte « *** » quand
+           le type de vanne n'est pas renseigne, et « *** + 0 » donne #VALUE!. */
+        window.celluleEnErreur = function(v) {
+            return typeof v === 'string' && /^#(VALUE|REF|N\/A|DIV\/0|NAME|NUM|NULL|ERROR)[!?]?$/i.test(v.trim());
+        };
         window.valeurClasseur = function(v) {
             if (v === null || v === undefined) return "";
             if (typeof v !== 'string') return v.toString();
+            if (window.celluleEnErreur(v)) return "";
             if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return v;
             let d = new Date(v);
             if (isNaN(d.getTime())) return v;
@@ -5164,7 +5209,8 @@
                 });
                 return d && d.v ? d.v.toString().trim() : '';
             };
-            let txt = champ(['intervention']) || champ(['cause']) || champ(['remarque']) || champ(['piece']);
+            // Plus de repli sur les pieces : elles sont affichees a part (CHAPITRE 4.E.3.b).
+            let txt = champ(['intervention']) || champ(['cause']) || champ(['remarque']);
             if (!txt) return '';
             return txt.length > 70 ? txt.slice(0, 68).trim() + '…' : txt;
         };
@@ -5175,6 +5221,100 @@
             let an = (String(dateTicket || '').match(/(\d{4})/) || [])[1];
             if (!an) return null;
             return window.histoVanneLignes(canonId).find(function(l) { return String(l.annee).trim() === an; }) || null;
+        };
+
+        /* ========================================================================= */
+        /* CHAPITRE 4.E.3.b : LES DEUX RENSEIGNEMENTS QU'ON CHERCHAIT                 */
+        /*                                                                           */
+        /* « Je veux surtout les pièces qui ont été changées, et savoir si la vanne   */
+        /* était fuyarde dans l'air ou en eau à l'essai numéro deux. » Les deux       */
+        /* étaient déjà dans le classeur, mais il fallait déplier la ligne puis lire  */
+        /* trente-neuf colonnes pour les trouver. Ils sont maintenant portés par la   */
+        /* ligne repliée, en pastilles.                                              */
+        /*                                                                           */
+        /* L'essai n°1 se fait AVANT l'intervention et l'essai n°2 APRÈS : c'est     */
+        /* donc le n°2, et lui seul, qui dit si la vanne fuit encore en sortant de    */
+        /* l'atelier. Les pièces sont cherchées des DEUX côtés — le ticket et la      */
+        /* fiche du banc d'essais — parce que selon l'année elles sont notées sur     */
+        /* l'un ou sur l'autre, jamais aux deux endroits à la fois.                   */
+        /* ========================================================================= */
+        window.cleSansAccent = function(s) {
+            return String(s == null ? '' : s).toLowerCase().normalize('NFD')
+                   .replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+        };
+
+        // « [68220006] moteur v2000 x1 , joint yb r3 » → ['moteur v2000 x1', 'joint yb r3'].
+        // La référence de stock entre crochets ne dit rien à l'œil : elle part.
+        window.nomsPieces = function(txt) {
+            return String(txt == null ? '' : txt).split(/\s*,\s*/)
+                .map(function(s) { return s.replace(/^\[[^\]]*\]\s*/, '').trim(); })
+                .filter(function(s) { return s !== '' && !/^(non|n[ée]ant|ras|aucune?|rien)$/i.test(s); });
+        };
+
+        // Toutes les pièces d'une intervention, sans doublon, ticket et banc d'essais réunis.
+        window.piecesRevision = function(t, rv) {
+            let out = [], vus = {};
+            const ajoute = function(v) {
+                window.nomsPieces(v).forEach(function(n) {
+                    let cle = n.toLowerCase().replace(/\s*x\s*\d+$/, '').trim();
+                    if (cle && !vus[cle]) { vus[cle] = 1; out.push(n); }
+                });
+            };
+            ((t && t.fullData) || []).forEach(function(d) {
+                if (window.cleSansAccent(d.k).indexOf('piece') !== -1) ajoute(d.v);
+            });
+            ((rv && rv.champs) || []).forEach(function(c) {
+                if (window.cleSansAccent(c.k).indexOf('piece') !== -1) ajoute(c.v);
+            });
+            return out;
+        };
+
+        // « OK », « Fuite importante », ou autre chose : on ne devine pas, on classe en trois.
+        window.etatEssai = function(v) {
+            let s = String(v == null ? '' : v).trim();
+            if (s === '') return 'vide';
+            if (/fuit|fuy|fuite|goutte|nok|non ?ok|\bhs\b|mauvais/i.test(s)) return 'fuite';
+            if (/^(ok|oui|bon|rien|ras|[ée]tanche)\b/i.test(s)) return 'ok';
+            return 'autre';
+        };
+
+        // L'essai n°2 de la vanne principale : en eau et en air, tel qu'écrit au banc.
+        window.essaiDeuxVanne = function(rv) {
+            if (!rv) return null;
+            const lit = function(mot) {
+                let c = (rv.champs || []).find(function(x) {
+                    return window.cleSansAccent(x.k) === 'test pression ' + mot + ' 2';
+                });
+                return c ? String(c.v).trim() : '';
+            };
+            let eau = lit('eau'), air = lit('air');
+            if (eau === '' && air === '') return null;
+            return { eau: eau, air: air };
+        };
+
+        window.marquesRevisionHtml = function(t, rv, pieces) {
+            const ech = function(x) { return window.prodEsc ? window.prodEsc(x) : String(x == null ? '' : x); };
+            let m = '', e2 = window.essaiDeuxVanne(rv);
+            if (e2) {
+                let pastilles = '';
+                [['eau', 'fa-droplet', e2.eau], ['air', 'fa-wind', e2.air]].forEach(function(p) {
+                    let etat = window.etatEssai(p[2]);
+                    if (etat === 'vide') return;
+                    let classe = etat === 'fuite' ? 'rev-m-ko' : etat === 'ok' ? 'rev-m-ok' : 'rev-m-autre';
+                    let mot = etat === 'fuite' ? 'fuyarde' : etat === 'ok' ? 'étanche' : p[2];
+                    pastilles += '<span class="rev-m ' + classe + '" title="Essai n°2, après intervention — '
+                              + p[0] + ' : ' + ech(p[2]) + '">'
+                              + '<i class="fa-solid ' + p[1] + '"></i> ' + p[0] + ' : ' + ech(mot) + '</span>';
+                });
+                if (pastilles) m += '<span class="rev-m-titre">Essai n°2</span>' + pastilles;
+            }
+            if (pieces && pieces.length) {
+                let court = pieces.slice(0, 2).join(', ');
+                m += '<span class="rev-m rev-m-piece" title="Pièces changées : ' + ech(pieces.join(', ')) + '">'
+                   + '<i class="fa-solid fa-screwdriver-wrench"></i> <span>' + ech(court) + '</span>'
+                   + (pieces.length > 2 ? '<b>+' + (pieces.length - 2) + '</b>' : '') + '</span>';
+            }
+            return m ? '<div class="rev-marques">' + m + '</div>' : '';
         };
 
         window.ligneHistoriqueHtml = function(t, canonId) {
@@ -5188,27 +5328,40 @@
             let inter = (t.dateInter || '').toString().trim();
             let quand = (inter && inter !== (t.date || '').toString().trim()) ? ' · faite le ' + ech(inter) : '';
 
-            let details = (t.fullData || []).filter(function(d) { return d.v && d.v.toString().trim() !== ''; })
-                                            .map(function(d) { return window.renderTicketField(d); }).join('');
+            // La fiche de vanne porte l'année de l'archivage : on cherche sur l'année de
+            // l'intervention d'abord, car un ticket ouvert en décembre est fait en janvier.
+            let rv = cyclique ? (window.revisionVanneDeLAnnee(canonId, inter)
+                                 || window.revisionVanneDeLAnnee(canonId, t.date)) : null;
+            let pieces = window.piecesRevision(t, rv);
+
+            let details = '';
+            if (pieces.length) {
+                details += '<div class="rev-pieces"><div class="rev-pieces-titre">'
+                         + '<i class="fa-solid fa-screwdriver-wrench"></i> Pièces changées (' + pieces.length + ')'
+                         + '</div><ul>' + pieces.map(function(n) { return '<li>' + ech(n) + '</li>'; }).join('')
+                         + '</ul></div>';
+            }
+            details += (t.fullData || []).filter(function(d) { return d.v && d.v.toString().trim() !== ''; })
+                                         .map(function(d) { return window.renderTicketField(d); }).join('');
 
             // Pour une révision cyclique, on rapproche la fiche de vanne de la même année.
-            if (cyclique) {
-                let rv = window.revisionVanneDeLAnnee(canonId, t.date);
-                if (rv) {
-                    let champs = rv.champs.filter(function(c) {
-                        let k = c.k.toLowerCase();
-                        return k !== 'id' && k.indexOf('archiv') === -1 && k.indexOf('n° de vanne') === -1 && k.indexOf('ann') !== 0;
-                    });
-                    details += '<div style="margin-top:8px; padding-top:7px; border-top:1px dashed #e1e8ed;">'
-                             + '<div style="font-weight:bold; color:#8e44ad; font-size:10.5px; margin-bottom:4px;">'
-                             + '<i class="fa-solid fa-toolbox"></i> AU BANC D’ESSAIS, ' + ech(rv.annee) + '</div>'
-                             + '<div class="histo-vanne-corps" style="padding:0;">'
-                             + champs.map(function(c) {
-                                 let coul = /fuite|hs|nok|non ok/i.test(c.v) ? '#c0392b' : /^ok$/i.test(c.v) ? '#1e8449' : '#2c3e50';
-                                 return '<div><span>' + ech(c.k) + '</span><b style="color:' + coul + ';">' + ech(c.v) + '</b></div>';
-                               }).join('')
-                             + '</div></div>';
-                }
+            // Les colonnes de pièces en sont retirées : elles sont déjà listées au-dessus.
+            if (rv) {
+                let champs = rv.champs.filter(function(c) {
+                    let k = c.k.toLowerCase();
+                    return k !== 'id' && k.indexOf('archiv') === -1 && k.indexOf('n° de vanne') === -1
+                           && k.indexOf('ann') !== 0 && window.cleSansAccent(k).indexOf('piece') === -1;
+                });
+                details += '<div style="margin-top:8px; padding-top:7px; border-top:1px dashed #e1e8ed;">'
+                         + '<div style="font-weight:bold; color:#8e44ad; font-size:10.5px; margin-bottom:4px;">'
+                         + '<i class="fa-solid fa-toolbox"></i> AU BANC D’ESSAIS, ' + ech(rv.annee) + '</div>'
+                         + '<div class="histo-vanne-corps" style="padding:0;">'
+                         + champs.map(function(c) {
+                             let etat = window.etatEssai(c.v);
+                             let coul = etat === 'fuite' ? '#c0392b' : etat === 'ok' ? '#1e8449' : '#2c3e50';
+                             return '<div><span>' + ech(c.k) + '</span><b style="color:' + coul + ';">' + ech(c.v) + '</b></div>';
+                           }).join('')
+                         + '</div></div>';
             }
 
             return '<li style="margin-bottom:8px; list-style:none;">'
@@ -5220,6 +5373,7 @@
                      ? '<small style="display:block; font-weight:normal; color:#7f8c8d; font-size:10.5px; margin-top:2px; line-height:1.3;">'
                        + ech(resume) + quand + '</small>'
                      : '')
+                 + window.marquesRevisionHtml(t, rv, pieces)
                  + '</span>'
                  + '<span style="color:#bdc3c7; font-size:10px; flex:none;">▼ Détails</span>'
                  + '</summary>'
@@ -10296,11 +10450,15 @@
 
                 const getVal = (col) => {
                     let colLow = col.toLowerCase().trim();
-                    if (existingData[colLow] !== undefined) return existingData[colLow];
+                    if (existingData[colLow] !== undefined) {
+                        return window.celluleEnErreur(existingData[colLow]) ? "" : existingData[colLow];
+                    }
                     let fuzzyCol = colLow.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
                     for (let key in existingData) {
                         let fuzzyKey = key.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
-                        if (fuzzyKey === fuzzyCol) return existingData[key];
+                        if (fuzzyKey === fuzzyCol) {
+                            return window.celluleEnErreur(existingData[key]) ? "" : existingData[key];
+                        }
                     }
                     return "";
                 };
@@ -10349,7 +10507,12 @@
                     calcR11Nitrile = 6 * multiplicateur; calcR11Ptfe = 2 * multiplicateur; calcPtfeVar = 2 * multiplicateur;
                 }
 
-                const getConsommable = (col, autoCalc) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : (autoCalc > 0 ? autoCalc : "");
+                // Une case en erreur retombe sur le compte calcule, jamais sur « #VALUE! ».
+                const getConsommable = function(col, autoCalc) {
+                    let v = existingData[col.toLowerCase().trim()];
+                    if (v === undefined || window.celluleEnErreur(v)) return autoCalc > 0 ? autoCalc : "";
+                    return v;
+                };
 
                 let headersGen = window.rawGeneral[0] || []; let techHtml = "";
                 headersGen.forEach(h => {
@@ -10362,7 +10525,12 @@
                 if(hist.length === 0) histHtml += `<span style="color:#7f8c8d; font-style:italic;">Aucune panne enregistrée.</span>`;
                 else hist.forEach(t => {
                     let cyc = window.estRevisionCyclique(t), res = window.resumeTicket(t);
-                    histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${window.frDateLabel(t.date)}</b> : <span style="color:${cyc ? '#8e44ad' : '#e74c3c'};">${cyc ? 'Révision cyclique' : t.defaut}</span>${res ? `<br><span style="color:#7f8c8d; font-size:10.5px;">${res}</span>` : ''}</div>`;
+                    // Memes pastilles que dans la fiche du canon (CHAPITRE 4.E.3.b).
+                    let inter = (t.dateInter || '').toString().trim();
+                    let rvh = cyc ? (window.revisionVanneDeLAnnee(idCanon, inter)
+                                     || window.revisionVanneDeLAnnee(idCanon, t.date)) : null;
+                    let marq = window.marquesRevisionHtml(t, rvh, window.piecesRevision(t, rvh));
+                    histHtml += `<div style="padding:4px 0; border-bottom:1px solid #eee;"><b>${window.frDateLabel(t.date)}</b> : <span style="color:${cyc ? '#8e44ad' : '#e74c3c'};">${cyc ? 'Révision cyclique' : t.defaut}</span>${res ? `<br><span style="color:#7f8c8d; font-size:10.5px;">${res}</span>` : ''}${marq}</div>`;
                 });
                 histHtml += `</div>`;
 
@@ -13354,7 +13522,15 @@
                 gmaoNums = new Set();
                 ((window.snowCannons && window.snowCannons.features) || []).forEach(f => {
                     const i = f.properties && f.properties.id;
-                    if (i !== null && i !== undefined && i !== '') gmaoNums.add(String(i).trim());
+                    if (i === null || i === undefined || i === '') return;
+                    // La salle des machines est dans le Tableau Général au même titre que les
+                    // enneigeurs : pompes 1001-1005, compresseurs 1011-1015, variateurs
+                    // 1021-1025 et 2021-2022, SDM1 et SDM2. Elles ne parlent pas le dialogue
+                    // des enneigeurs et n'ont jamais eu de place dans ce plan ; les compter
+                    // comme « absentes » faisait crier l'alerte sur 21 machines qui vont bien.
+                    const piste = window.getV ? window.getV(f.properties, window.keyPiste) : '';
+                    if (String(piste || '').trim().toLowerCase() === 'sdm') return;
+                    gmaoNums.add(String(i).trim());
                 });
                 const boite = Q('alerte'), menu = document.getElementById('sim-menu-etat');
                 const resume = canons.length + ' enneigeurs au plan, ' + edges.size + ' liaisons, ' + eedges.size + ' câbles.';
@@ -16900,7 +17076,9 @@
             if (!evs.rdv.length && !evs.periode.length && !evs.ticketsAFaire.length && !evs.ticketsFaits.length) html += `<p style="color:#999; font-size:12px;">Aucun événement ce jour.</p>`;
             html += `<button class="btn-action-primary" style="margin-top:10px; background:#3498db; padding:14px;" onclick="window.openCalendarEventForm(null, '${dateStr}')"><i class="fa-solid fa-plus"></i> Ajouter un événement</button>`;
             panel.innerHTML = html; panel.style.display = 'block';
-            if (window.innerWidth <= 768) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Au telephone le panneau est sous la grille : on l'amene en haut de l'ecran, sans
+            // quoi il s'ouvre hors de vue et l'on croit qu'il ne s'est rien passe.
+            if (window.innerWidth <= 768) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
         window.closeCalendarDayPanel = function() { let panel = document.getElementById('calendar-day-panel'); if (panel) panel.style.display = 'none'; };
 
@@ -16927,10 +17105,13 @@
                     <input type="color" id="cal-ev-couleur" value="${curColor}" style="width:42px; height:32px; padding:0; border:1px solid #ddd; border-radius:5px; cursor:pointer;">
                     ${window.calPalette.map(c => `<button type="button" title="${c}" onclick="document.getElementById('cal-ev-couleur').value='${c}'" style="width:24px; height:24px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #ddd; background:${c}; cursor:pointer; padding:0;"></button>`).join('')}
                 </div>
+                <!-- min-width:0 : sans lui, un champ de date garde sa largeur naturelle et refuse
+                     de retrecir, meme en flex:1. Les deux colonnes debordaient donc de l'ecran
+                     d'un telephone, emportant le bord droit du champ hors de vue. -->
                 <div style="display:flex; gap:8px;">
-                    <div style="flex:1;"><div class="edit-label">Date début</div><input type="date" id="cal-ev-debut" class="edit-input" value="${dIso}"></div>
-                    <div style="flex:1;" id="cal-ev-heure-wrap"><div class="edit-label">Heure</div><input type="time" id="cal-ev-heure" class="edit-input" value="${ev ? ev.heure : ''}"></div>
-                    <div style="flex:1; display:none;" id="cal-ev-fin-wrap"><div class="edit-label">Date fin</div><input type="date" id="cal-ev-fin" class="edit-input" value="${fIso}"></div>
+                    <div style="flex:1; min-width:0;"><div class="edit-label">Date début</div><input type="date" id="cal-ev-debut" class="edit-input" value="${dIso}"></div>
+                    <div style="flex:1; min-width:0;" id="cal-ev-heure-wrap"><div class="edit-label">Heure</div><input type="time" id="cal-ev-heure" class="edit-input" value="${ev ? ev.heure : ''}"></div>
+                    <div style="flex:1; min-width:0; display:none;" id="cal-ev-fin-wrap"><div class="edit-label">Date fin</div><input type="date" id="cal-ev-fin" class="edit-input" value="${fIso}"></div>
                 </div>
                 <div class="edit-label">Canon lié (optionnel)</div>
                 <input type="text" id="cal-ev-canon" class="edit-input" list="dl-canon-ids" value="${ev ? ev.canon : ''}" placeholder="N° canon">
@@ -16942,7 +17123,9 @@
                 </div>
             `;
             panel.style.display = 'block';
-            if (window.innerWidth <= 768) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Au telephone le panneau est sous la grille : on l'amene en haut de l'ecran, sans
+            // quoi il s'ouvre hors de vue et l'on croit qu'il ne s'est rien passe.
+            if (window.innerWidth <= 768) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             window.toggleCalendarEventFields();
         };
 
