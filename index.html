@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.32.0";
+        window.APP_VERSION = "5.33.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -600,9 +600,21 @@
             #compare-modal, #meteo-history-modal { width: 98%; height: 95vh; top: 2%; left: 1%; transform: none; min-width: 0; box-sizing: border-box; }
             #bi-meteo-modal { box-sizing: border-box; }
 
+            /* Calendrier : la fenêtre gardait un « min-width: 500px » hérité du bureau. Sur un
+               téléphone de 390 px elle débordait donc de 110 px vers la droite : le bout des
+               champs, la flèche du menu Type et le bouton Enregistrer tombaient hors de l'écran,
+               sans moyen d'y accéder puisque la page, elle, ne défile pas latéralement.
+               Au téléphone elle prend tout l'écran, comme les autres fenêtres. */
+            #calendar-modal-inner { width: 100%; max-width: none; min-width: 0; height: 100%;
+                min-height: 0; top: 0; left: 0; transform: none; border-radius: 0; }
+            #calendar-modal-inner .resize-handle { display: none; }
             /* Calendrier : grille au-dessus, détail du jour en dessous plutôt que côte à côte */
             .cal-body { flex-direction: column; overflow-y: auto; }
-            #calendar-day-panel { width: 100% !important; border-left: none; border-top: 2px solid #3498db; max-height: none; padding-bottom: 30px; }
+            /* « largeur 100 % » + 15 px de marge intérieure de chaque côté, en content-box :
+               le panneau mesurait 30 px de plus que l'écran et le bouton Enregistrer sortait
+               par la droite. En border-box, la marge est comprise dans les 100 %. */
+            #calendar-day-panel { width: 100% !important; box-sizing: border-box; border-left: none;
+                border-top: 2px solid #3498db; max-height: none; padding-bottom: 30px; }
             #calendar-grid { grid-template-columns: 30px repeat(7, 1fr); grid-auto-rows: 64px; grid-template-rows: auto; flex: none; }
             .cal-weeknum { font-size: 9px; }
             .cal-bar { font-size: 8px; line-height: 15px; }
@@ -2786,9 +2798,19 @@
         /* Une cellule d'heure seule part de 1899 dans le tableur : on la rend en     */
         /* HH:mm plutôt qu'en « 30/12/1899 ».                                         */
         /* ========================================================================= */
+        /* Une cellule en erreur n'est pas une donnee : #VALUE!, #REF!, #N/A, #DIV/0!,
+           #NAME?, #NUM!, #NULL!, #ERROR!. Le classeur les calcule, l'application ne doit
+           jamais les montrer comme un releve ni les recopier dans un champ de saisie —
+           sans quoi enregistrer la fiche ecrirait « #VALUE! » dans le classeur.
+           Vu sur « entretien vannes » : la formule des joints rend le texte « *** » quand
+           le type de vanne n'est pas renseigne, et « *** + 0 » donne #VALUE!. */
+        window.celluleEnErreur = function(v) {
+            return typeof v === 'string' && /^#(VALUE|REF|N\/A|DIV\/0|NAME|NUM|NULL|ERROR)[!?]?$/i.test(v.trim());
+        };
         window.valeurClasseur = function(v) {
             if (v === null || v === undefined) return "";
             if (typeof v !== 'string') return v.toString();
+            if (window.celluleEnErreur(v)) return "";
             if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return v;
             let d = new Date(v);
             if (isNaN(d.getTime())) return v;
@@ -10428,11 +10450,15 @@
 
                 const getVal = (col) => {
                     let colLow = col.toLowerCase().trim();
-                    if (existingData[colLow] !== undefined) return existingData[colLow];
+                    if (existingData[colLow] !== undefined) {
+                        return window.celluleEnErreur(existingData[colLow]) ? "" : existingData[colLow];
+                    }
                     let fuzzyCol = colLow.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
                     for (let key in existingData) {
                         let fuzzyKey = key.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, '').replace(/utilis(ees|es|ee|e)?/g, 'utilis');
-                        if (fuzzyKey === fuzzyCol) return existingData[key];
+                        if (fuzzyKey === fuzzyCol) {
+                            return window.celluleEnErreur(existingData[key]) ? "" : existingData[key];
+                        }
                     }
                     return "";
                 };
@@ -10481,7 +10507,12 @@
                     calcR11Nitrile = 6 * multiplicateur; calcR11Ptfe = 2 * multiplicateur; calcPtfeVar = 2 * multiplicateur;
                 }
 
-                const getConsommable = (col, autoCalc) => existingData[col.toLowerCase().trim()] !== undefined ? existingData[col.toLowerCase().trim()] : (autoCalc > 0 ? autoCalc : "");
+                // Une case en erreur retombe sur le compte calcule, jamais sur « #VALUE! ».
+                const getConsommable = function(col, autoCalc) {
+                    let v = existingData[col.toLowerCase().trim()];
+                    if (v === undefined || window.celluleEnErreur(v)) return autoCalc > 0 ? autoCalc : "";
+                    return v;
+                };
 
                 let headersGen = window.rawGeneral[0] || []; let techHtml = "";
                 headersGen.forEach(h => {
@@ -13491,7 +13522,15 @@
                 gmaoNums = new Set();
                 ((window.snowCannons && window.snowCannons.features) || []).forEach(f => {
                     const i = f.properties && f.properties.id;
-                    if (i !== null && i !== undefined && i !== '') gmaoNums.add(String(i).trim());
+                    if (i === null || i === undefined || i === '') return;
+                    // La salle des machines est dans le Tableau Général au même titre que les
+                    // enneigeurs : pompes 1001-1005, compresseurs 1011-1015, variateurs
+                    // 1021-1025 et 2021-2022, SDM1 et SDM2. Elles ne parlent pas le dialogue
+                    // des enneigeurs et n'ont jamais eu de place dans ce plan ; les compter
+                    // comme « absentes » faisait crier l'alerte sur 21 machines qui vont bien.
+                    const piste = window.getV ? window.getV(f.properties, window.keyPiste) : '';
+                    if (String(piste || '').trim().toLowerCase() === 'sdm') return;
+                    gmaoNums.add(String(i).trim());
                 });
                 const boite = Q('alerte'), menu = document.getElementById('sim-menu-etat');
                 const resume = canons.length + ' enneigeurs au plan, ' + edges.size + ' liaisons, ' + eedges.size + ' câbles.';
@@ -17037,7 +17076,9 @@
             if (!evs.rdv.length && !evs.periode.length && !evs.ticketsAFaire.length && !evs.ticketsFaits.length) html += `<p style="color:#999; font-size:12px;">Aucun événement ce jour.</p>`;
             html += `<button class="btn-action-primary" style="margin-top:10px; background:#3498db; padding:14px;" onclick="window.openCalendarEventForm(null, '${dateStr}')"><i class="fa-solid fa-plus"></i> Ajouter un événement</button>`;
             panel.innerHTML = html; panel.style.display = 'block';
-            if (window.innerWidth <= 768) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Au telephone le panneau est sous la grille : on l'amene en haut de l'ecran, sans
+            // quoi il s'ouvre hors de vue et l'on croit qu'il ne s'est rien passe.
+            if (window.innerWidth <= 768) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
         window.closeCalendarDayPanel = function() { let panel = document.getElementById('calendar-day-panel'); if (panel) panel.style.display = 'none'; };
 
@@ -17064,10 +17105,13 @@
                     <input type="color" id="cal-ev-couleur" value="${curColor}" style="width:42px; height:32px; padding:0; border:1px solid #ddd; border-radius:5px; cursor:pointer;">
                     ${window.calPalette.map(c => `<button type="button" title="${c}" onclick="document.getElementById('cal-ev-couleur').value='${c}'" style="width:24px; height:24px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #ddd; background:${c}; cursor:pointer; padding:0;"></button>`).join('')}
                 </div>
+                <!-- min-width:0 : sans lui, un champ de date garde sa largeur naturelle et refuse
+                     de retrecir, meme en flex:1. Les deux colonnes debordaient donc de l'ecran
+                     d'un telephone, emportant le bord droit du champ hors de vue. -->
                 <div style="display:flex; gap:8px;">
-                    <div style="flex:1;"><div class="edit-label">Date début</div><input type="date" id="cal-ev-debut" class="edit-input" value="${dIso}"></div>
-                    <div style="flex:1;" id="cal-ev-heure-wrap"><div class="edit-label">Heure</div><input type="time" id="cal-ev-heure" class="edit-input" value="${ev ? ev.heure : ''}"></div>
-                    <div style="flex:1; display:none;" id="cal-ev-fin-wrap"><div class="edit-label">Date fin</div><input type="date" id="cal-ev-fin" class="edit-input" value="${fIso}"></div>
+                    <div style="flex:1; min-width:0;"><div class="edit-label">Date début</div><input type="date" id="cal-ev-debut" class="edit-input" value="${dIso}"></div>
+                    <div style="flex:1; min-width:0;" id="cal-ev-heure-wrap"><div class="edit-label">Heure</div><input type="time" id="cal-ev-heure" class="edit-input" value="${ev ? ev.heure : ''}"></div>
+                    <div style="flex:1; min-width:0; display:none;" id="cal-ev-fin-wrap"><div class="edit-label">Date fin</div><input type="date" id="cal-ev-fin" class="edit-input" value="${fIso}"></div>
                 </div>
                 <div class="edit-label">Canon lié (optionnel)</div>
                 <input type="text" id="cal-ev-canon" class="edit-input" list="dl-canon-ids" value="${ev ? ev.canon : ''}" placeholder="N° canon">
@@ -17079,7 +17123,9 @@
                 </div>
             `;
             panel.style.display = 'block';
-            if (window.innerWidth <= 768) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Au telephone le panneau est sous la grille : on l'amene en haut de l'ecran, sans
+            // quoi il s'ouvre hors de vue et l'on croit qu'il ne s'est rien passe.
+            if (window.innerWidth <= 768) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             window.toggleCalendarEventFields();
         };
 
