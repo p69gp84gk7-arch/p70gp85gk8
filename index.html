@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.30.0";
+        window.APP_VERSION = "5.30.2";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -4463,7 +4463,7 @@
             /* CHAPITRE 4.B.9.b — Les gestes rares passent derrière « Plus d'options ». Le
                deuxième étage s'ouvre DANS la bulle, pas dans une deuxième bulle : sur
                téléphone, un menu qui en ouvre un autre se perd vite de vue. */
-            h += '<button type="button" class="mc-btn mc-plus-btn' + (plusOuvert ? ' ouvert' : '') + '" id="mc-plus-btn" onclick="window.menuCanonPlus()">'
+            h += '<button type="button" class="mc-btn mc-plus-btn' + (plusOuvert ? ' ouvert' : '') + '" id="mc-plus-btn" onclick="window.menuCanonPlus(event)">'
                + '<i class="fa-solid fa-ellipsis"></i><span>Plus d’options</span>'
                + '<i class="fa-solid fa-chevron-down mc-chev"></i></button>';
             h += '<div class="mc-plus" id="mc-plus"' + (plusOuvert ? '' : ' hidden') + '>';
@@ -4493,7 +4493,11 @@
         // Déplie ou replie le deuxième étage. On redonne à la bulle un contenu COMPLET au
         // lieu de modifier le DOM : Leaflet le reconstruit depuis la chaîne enregistrée à
         // chaque replacement, et la modification aurait disparu aussitôt.
-        window.menuCanonPlus = function() {
+        window.menuCanonPlus = function(ev) {
+            // Sans cet arrêt, le clic atteint la carte et la carte referme la bulle : le
+            // bouton disparaît du document au moment où l'on remplace le contenu, donc le
+            // clic ne traverse plus la bulle, où Leaflet l'aurait bloqué.
+            if (ev) { if (ev.stopPropagation) ev.stopPropagation(); if (ev.preventDefault) ev.preventDefault(); }
             let e = window.menuCanonEtat;
             if (!e || !e.id || !window.menuCanonPopup) return;
             e.plus = !e.plus;
@@ -9625,6 +9629,10 @@
             window.meteoHistData = window.lignesClasseur(data.meteo_hist || []); window.meteoFroidData = data.meteo_froid || []; window.suiviEntretienData = data.suivi || [];
             window.rawAtelier = data.atelier || []; window.rawStock = data.stock || [];
             // Historique des révisions de vanne (une ligne par vanne et par année).
+            // Un champ ABSENT (et non vide) veut dire que le script du classeur n'a pas
+            // encore reçu le chapitre 1.F : ce n'est pas la même chose qu'un onglet vide,
+            // et l'écran doit le dire au lieu de laisser croire qu'il n'y a rien à montrer.
+            window.scriptSansHistoVannes = (data.entretien_vannes === undefined);
             window.rawEntretienVannes = window.lignesClasseur(data.entretien_vannes || []); window.drivePhotos = data.drivePhotos || {};
             window.driveIcons = data.driveIcons || {}; window.drivePdfsData = data.drivePdfs || {}; window.driveKmzData = data.driveKmz || {};
             // Un calque modifié sur un autre poste depuis la dernière ouverture : on reprend sa version.
@@ -10456,6 +10464,14 @@
 
         window.histoVanneHtml = function(idCanon) {
             let lignes = window.histoVanneLignes(idCanon);
+            if (window.scriptSansHistoVannes) {
+                return '<div style="padding:12px; font-size:12px; color:#935116; background:#fef5e7;'
+                     + ' border:1px solid #f5cba7; border-radius:6px; margin:8px 10px; line-height:1.45;">'
+                     + '<b>Le script du classeur n’est pas encore à jour.</b><br>'
+                     + 'L’onglet « entretien vannes » existe, mais le script ne l’envoie pas encore à '
+                     + 'l’application : l’historique restera vide et l’archivage sera refusé tant que '
+                     + 'les chapitres 1.F et 2.M n’auront pas été recopiés dans Apps Script.</div>';
+            }
             if (!lignes.length) {
                 return '<div style="padding:12px; font-size:12px; color:#7f8c8d;">Aucune révision archivée pour cette vanne.'
                      + ' Le bouton ci-dessous rangera la fiche en cours dans l’historique.</div>';
@@ -10482,6 +10498,12 @@
            volontairement de la ligne du classeur et non des champs à l'écran : on archive ce
            qui a été validé, pas une saisie en cours. */
         window.archiverEntretienVanne = async function(idCanon, btn) {
+            if (window.scriptSansHistoVannes) {
+                alert("Le script du classeur n'est pas encore à jour : il ne sait pas encore ranger "
+                    + "une fiche dans l'historique.\n\nRecopiez les chapitres 1.F et 2.M de Code.gs "
+                    + "dans l'éditeur Apps Script, puis redéployez.");
+                return;
+            }
             let t = window.rawAtelier;
             if (!t || t.length < 2) { alert("Le banc d'essais n'a encore rien enregistré."); return; }
             let head = t[0].map(function(h) { return (h == null ? '' : h).toString().trim(); });
@@ -10539,7 +10561,13 @@
                 if (boite) boite.innerHTML = window.histoVanneHtml(idCanon);
             } catch (e) {
                 if (btn) { btn.disabled = false; btn.innerHTML = texte; }
-                alert("L'archivage n'a pas abouti : " + (e.message || e));
+                let m = (e && e.message) ? e.message : String(e);
+                if (m.indexOf('Action inconnue') !== -1) {
+                    window.scriptSansHistoVannes = true;
+                    m = "le script du classeur ne connaît pas encore cette opération. Recopiez les "
+                      + "chapitres 1.F et 2.M de Code.gs dans l'éditeur Apps Script, puis redéployez.";
+                }
+                alert("L'archivage n'a pas abouti : " + m);
             }
         };
 
