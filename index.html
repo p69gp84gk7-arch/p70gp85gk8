@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.26.0";
+        window.APP_VERSION = "5.27.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -895,6 +895,38 @@
         }
         @media (prefers-reduced-motion:reduce){ #sim-root *{transition:none !important;} }
 
+        /* ===================================================================== */
+        /* CHAPITRE 2.C.10 : MENU RAPIDE AU CLIC SUR UN ENNEIGEUR                 */
+        /* --------------------------------------------------------------------- */
+        /* Une bulle de boutons en colonne, posée sur le canon. Elle évite d'avoir */
+        /* à ouvrir la fiche puis à y chercher le bon formulaire : chaque bouton   */
+        /* mène directement là où l'on voulait aller. Les boutons sont hauts et    */
+        /* pleine largeur — on s'en sert avec des gants, sur un téléphone.         */
+        /* ===================================================================== */
+        .menu-canon-popup .leaflet-popup-content-wrapper{border-radius:10px; padding:0; box-shadow:0 6px 24px rgba(0,0,0,0.25);}
+        .menu-canon-popup .leaflet-popup-content{margin:0; width:232px !important; font-family:inherit;}
+        .menu-canon-popup .leaflet-popup-tip{box-shadow:0 6px 24px rgba(0,0,0,0.2);}
+        .menu-canon-popup .leaflet-popup-close-button{color:#95a5a6; font-size:22px; padding:6px 8px 0 0; width:28px; height:28px;}
+        .mc-tete{padding:10px 12px 8px; border-bottom:1px solid #eef2f5;}
+        .mc-titre{font-size:15px; font-weight:bold; color:#2c3e50; line-height:1.2; padding-right:18px;}
+        .mc-sous{font-size:11px; color:#7f8c8d; margin-top:2px; line-height:1.3;}
+        .mc-alerte{display:block; width:100%; text-align:left; margin-top:7px; background:#fdf0ed; border:1px solid #f5c6c0;
+            color:#c0392b; font:inherit; font-size:11px; font-weight:bold; border-radius:5px; padding:6px 8px; cursor:pointer;}
+        .mc-corps{padding:8px; display:flex; flex-direction:column; gap:6px;}
+        .mc-btn{display:flex; align-items:center; gap:9px; width:100%; text-align:left; font:inherit; font-size:13px;
+            font-weight:bold; color:#2c3e50; background:#fff; border:1px solid #e1e8ed; border-radius:7px;
+            padding:11px 10px; cursor:pointer; transition:0.12s;}
+        .mc-btn:hover{border-color:#3498db; color:#3498db; background:#f7fbfe;}
+        .mc-btn i{width:17px; text-align:center; font-size:14px; color:#7f8c8d; flex:none;}
+        .mc-btn:hover i{color:#3498db;}
+        .mc-btn.mc-rouge{border-color:#f5c6c0; color:#c0392b;} .mc-btn.mc-rouge i{color:#c0392b;}
+        .mc-btn.mc-rouge:hover{background:#fdf0ed; border-color:#c0392b; color:#c0392b;}
+        .mc-btn.mc-vert{border-color:#c8e6d0; color:#1e8449;} .mc-btn.mc-vert i{color:#1e8449;}
+        .mc-btn small{display:block; font-weight:normal; font-size:10px; color:#95a5a6; margin-top:1px;}
+        @media (max-width:768px){
+            .menu-canon-popup .leaflet-popup-content{width:214px !important;}
+            .mc-btn{font-size:13px; padding:12px 10px;}
+        }
         @media print {
             #topbar, #mobile-dock, #sidebar, #right-sidebar, #print-panel, #loading-overlay, #pdf-modal, #settings-panel, #route-qr-plein, #qr-scan, #production-panel, #bi-meteo-modal, #compare-modal, #meteo-history-modal, #calendar-modal, .resizer, .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
             body, html { overflow: visible !important; height: auto !important; }
@@ -4037,7 +4069,7 @@
 
         window.buildPanneFormHtml = function(p) {
             return `
-                <details style="background:#fdf0ed; padding:10px; border-radius:6px; border:1px solid #fadbd8; font-size:12px; margin-top:12px;">
+                <details class="panne-form" style="background:#fdf0ed; padding:10px; border-radius:6px; border:1px solid #fadbd8; font-size:12px; margin-top:12px;">
                     <summary style="cursor:pointer; font-weight:bold; color:#c0392b; outline:none;"><i class="fa-solid fa-triangle-exclamation"></i> Signaler un défaut (Ticket complet)</summary>
                     <div style="margin-top:10px;">
                         <div style="display:flex; gap:5px;">
@@ -4239,6 +4271,132 @@
             window.renderPisteComparChart(canvasId, window.getV(p, window.keyPiste), saisonB, window.histMetric, id);
         };
 
+        /* ========================================================================= */
+        /* CHAPITRE 4.B.9 : MENU RAPIDE AU CLIC SUR UN ENNEIGEUR                     */
+        /* ------------------------------------------------------------------------- */
+        /* Un clic sur un canon ouvrait la fiche complète dans le panneau de droite,  */
+        /* où il fallait ensuite CHERCHER le bon formulaire : déplier « Signaler un   */
+        /* défaut », ou trouver le bouton « Modifier ». Une bulle de boutons en       */
+        /* colonne se pose maintenant sur le canon et mène droit au but.             */
+        /*                                                                           */
+        /* Elle ne s'affiche pas quand le clic sert déjà à autre chose : sélection    */
+        /* multiple, suivi d'entretien (où l'on coche plusieurs canons d'affilée) et  */
+        /* composition d'une tournée gardent exactement leur comportement.           */
+        /*                                                                           */
+        /* C'est une bulle Leaflet, pas un panneau à nous : elle se replace seule     */
+        /* quand le canon est au bord de l'écran, se ferme au clic ailleurs, et suit  */
+        /* la carte quand on la déplace.                                              */
+        /* ========================================================================= */
+        window.menuCanonPopup = null;
+
+        window.menuCanonFermer = function() {
+            if (window.menuCanonPopup && window.map) { try { window.map.closePopup(window.menuCanonPopup); } catch (e) {} }
+            window.menuCanonPopup = null;
+        };
+
+        // Le menu rapide n'a pas lieu d'être quand le clic compose déjà une sélection.
+        window.menuCanonActif = function() {
+            return !window.isMultiSelect && window.mainTheme !== 'suivi_entretien'
+                && !(window.routeDessinActif && window.routeDessinActif());
+        };
+
+        window.menuCanonBouton = function(classe, icone, titre, detail, action) {
+            return '<button type="button" class="mc-btn ' + classe + '" onclick="' + action + '">'
+                 + '<i class="fa-solid ' + icone + '"></i><span>' + titre
+                 + (detail ? '<small>' + detail + '</small>' : '') + '</span></button>';
+        };
+
+        window.menuCanonOuvrir = function(id, layer) {
+            if (!window.map || typeof L === 'undefined' || !L.popup) return;
+            const ech = function(t) { return (window.prodEsc ? window.prodEsc(t) : String(t == null ? '' : t)); };
+            const idJs = String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            let f = (layer && layer.feature) ? layer.feature
+                  : ((window.snowCannons && window.snowCannons.features) || []).find(function(x) { return x.properties.id === id; });
+            let p = f ? f.properties : { id: id };
+            let piste = (window.keyPiste && window.getV) ? window.getV(p, window.keyPiste) : ''; if (piste === 'N/A') piste = '';
+            let modele = (window.keyType && window.getV) ? window.getV(p, window.keyType) : ''; if (modele === 'N/A') modele = '';
+            let actifs = window.getActiveTickets ? window.getActiveTickets(id) : [];
+            let dansTrajet = (window.routeSelection || []).indexOf(id) > -1;
+            let rang = dansTrajet ? (window.routeSelection.indexOf(id) + 1) : ((window.routeSelection || []).length + 1);
+
+            let h = '<div class="mc-tete"><div class="mc-titre">Canon ' + ech(id) + '</div>';
+            let sous = [piste, modele].filter(function(x) { return x; }).join(' · ');
+            if (sous) h += '<div class="mc-sous">' + ech(sous) + '</div>';
+            if (actifs.length) {
+                h += '<button type="button" class="mc-alerte" onclick="window.menuCanonFiche(\'' + idJs + '\')">'
+                   + '<i class="fa-solid fa-triangle-exclamation"></i> ' + actifs.length + ' ticket'
+                   + (actifs.length > 1 ? 's' : '') + ' en cours — ' + ech(actifs[0].defaut)
+                   + (actifs.length > 1 ? '…' : '') + '</button>';
+            }
+            h += '</div><div class="mc-corps">';
+            h += window.menuCanonBouton('mc-rouge', 'fa-triangle-exclamation', 'Déclarer une panne', '', "window.menuCanonPanne('" + idJs + "')");
+            h += window.menuCanonBouton('', 'fa-circle-info', 'Fiche complète', actifs.length ? 'Tickets, historique, photos' : '', "window.menuCanonFiche('" + idJs + "')");
+            h += window.menuCanonBouton('', 'fa-pen-to-square', 'Modifier la fiche', '', "window.menuCanonModifier('" + idJs + "')");
+            h += window.menuCanonBouton(dansTrajet ? 'mc-vert' : '', 'fa-route', dansTrajet ? 'Au trajet n°' + rang : 'Ajouter au trajet', '', "window.menuCanonTrajet('" + idJs + "')");
+            h += window.menuCanonBouton('', 'fa-diagram-project', 'Voir le dialogue', 'Plan du réseau', "window.menuCanonReseau('" + idJs + "')");
+            h += '</div>';
+
+            let ll = (layer && layer.getLatLng) ? layer.getLatLng()
+                   : (f && f.geometry ? L.latLng(f.geometry.coordinates[1], f.geometry.coordinates[0]) : null);
+            if (!ll) return;
+            window.menuCanonFermer();
+            window.menuCanonPopup = L.popup({
+                className: 'menu-canon-popup', maxWidth: 240, minWidth: 214, closeButton: true,
+                autoPan: true, autoPanPadding: [16, 70], offset: [0, -6], keepInView: true
+            }).setLatLng(ll).setContent(h).openOn(window.map);
+        };
+
+        /* ----- où mène chaque bouton ---------------------------------------- */
+        // Base commune : le canon est choisi, la fiche est construite, le panneau s'ouvre.
+        window.menuCanonFiche = function(id) {
+            window.menuCanonFermer();
+            if (window.focusCannon) window.focusCannon(id);
+        };
+
+        window.menuCanonModifier = function(id) {
+            window.menuCanonFiche(id);
+            if (window.startEdit) setTimeout(function() { window.startEdit(id); }, 60);
+        };
+
+        // « Déclarer une panne » ouvre la fiche PUIS déplie le formulaire de défaut et l'amène
+        // sous les yeux : c'est le geste le plus fréquent, il ne doit plus se chercher.
+        window.menuCanonPanne = function(id) {
+            window.menuCanonFiche(id);
+            setTimeout(function() {
+                let sb = document.getElementById('right-sidebar'); if (!sb) return;
+                let d = sb.querySelector('details.panne-form'); if (!d) return;
+                d.open = true;
+                try { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { d.scrollIntoView(); }
+                let champ = d.querySelector('input, select, textarea');
+                if (champ && window.innerWidth > 768) setTimeout(function() { try { champ.focus(); } catch (e) {} }, 350);
+            }, 120);
+        };
+
+        window.menuCanonTrajet = function(id) {
+            window.menuCanonFermer();
+            if (window.routeAjouterDepuisTicket) window.routeAjouterDepuisTicket(id);
+        };
+
+        // Le plan du réseau de dialogue se place sur ce canon. On passe par sa barre de
+        // recherche, la seule porte publique du module (tout le reste y est cloisonné).
+        window.menuCanonReseau = function(id) {
+            window.menuCanonFermer();
+            let r = document.querySelector('input[name="main_theme"][value="reseau"]');
+            if (!r) { alert("L'onglet Réseau dialogue n'est pas disponible."); return; }
+            r.checked = true; r.dispatchEvent(new Event('change'));
+            let essais = 0;
+            let attendre = setInterval(function() {
+                essais++;
+                let pret = window.SimDialogue && window.SimDialogue.estPret && window.SimDialogue.estPret();
+                let champ = document.getElementById('sim-find');
+                if (pret && champ) {
+                    clearInterval(attendre);
+                    champ.value = String(id);
+                    let form = document.getElementById('sim-findForm');
+                    if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                } else if (essais > 60) { clearInterval(attendre); }
+            }, 150);
+        };
         window.startEdit = function(id) {
             let layer = window.selectedCannonsMap.get(id);
             if (!layer) { window.geojsonLayer.eachLayer(l => { if(l.feature.properties.id === id) layer = l; }); }
@@ -9609,6 +9767,18 @@
                         // Mode « modifier le trajet » : le clic sert à composer la tournée et rien
                         // d'autre, sinon la fiche canon remplacerait le panneau à chaque ajout.
                         if (window.routeClicCanon && window.routeClicCanon(id)) return;
+                        // CHAPITRE 4.B.9 — Un seul canon à la fois : la bulle de boutons remplace
+                        // l'ouverture directe du panneau. En sélection multiple et en suivi
+                        // d'entretien, on coche des canons les uns après les autres : le clic
+                        // garde alors son ancien rôle, sans bulle.
+                        if (window.menuCanonActif && window.menuCanonActif()) {
+                            window.selectedCannonsMap.clear();
+                            window.selectedCannonsMap.set(id, layer);
+                            if (window.map) window.centrerSurPoint(layer.getLatLng(), 17);
+                            window.updateMap(); window.renderSelectionPanel();
+                            window.menuCanonOuvrir(id, layer);
+                            return;
+                        }
                         if (window.selectedCannonsMap.has(id)) { window.selectedCannonsMap.delete(id); } else { window.selectedCannonsMap.set(id, layer); }
                         if(window.map) window.centrerSurPoint(layer.getLatLng(), 17);
                         window.updateMap(); window.renderSelectionPanel(); let sb = document.getElementById('right-sidebar'); if (window.selectedCannonsMap.size > 0 && sb) sb.classList.add('open');
