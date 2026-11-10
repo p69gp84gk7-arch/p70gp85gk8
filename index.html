@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.34.0";
+        window.APP_VERSION = "5.34.1";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -10434,6 +10434,32 @@
                     <input type="text" id="search-atelier" placeholder="N° Canon..." onkeyup="window.filterAtelierCanons(this.value)" style="padding:8px; border-radius:6px; border:1px solid #ccc; outline:none; width:120px; font-weight:bold;">
                 </div>`;
 
+            /* L'historique des révisions se pose AVANT le test ci-dessous. Il ne dépend pas
+               de ce qui est sur l'établi aujourd'hui : quand aucun canon n'est marqué
+               « préventif à l'usine » — c'est le cas la moitié de l'année — la fonction
+               sortait sur son message et les cent vingt fiches archivées restaient
+               invisibles. C'était exactement le défaut qu'il s'agissait de corriger. */
+            let nbFiches = (window.rawEntretienVannes && window.rawEntretienVannes.length > 1)
+                           ? window.rawEntretienVannes.length - 1 : 0;
+            let nbVannes = window.histoVanneParVanne ? window.histoVanneParVanne().length : 0;
+
+            ws.innerHTML += `
+                <details class="atelier-sub-details histo-toutes-bloc" id="histo-toutes-bloc" style="margin-bottom:15px;"
+                         ontoggle="if (this.open) window.histoVanneToutesRemplir(document.getElementById('histo-toutes-liste'));">
+                    <summary><i class="fa-solid fa-clock-rotate-left"></i> Historique des révisions — toutes les vannes${nbFiches ? ` <span class="histo-pastille">${nbFiches} fiche${nbFiches > 1 ? 's' : ''} · ${nbVannes} vanne${nbVannes > 1 ? 's' : ''}</span>` : ''}</summary>
+                    <div style="padding:8px 10px 2px;">
+                        <input type="text" id="histo-toutes-rech" class="edit-input" placeholder="N° de vanne…"
+                               oninput="window.histoVanneToutesFiltrer(this.value)"
+                               style="margin:0 0 8px 0; padding:7px; font-size:12px; height:30px; max-width:220px;">
+                    </div>
+                    <div id="histo-toutes-liste" style="padding:0 10px 10px;"></div>
+                </details>`;
+
+            /* Le « on ne dessine qu'à l'ouverture » passe par un attribut ontoggle et non par
+               addEventListener : les lignes suivantes font encore des « ws.innerHTML += »,
+               qui re-sérialisent tout le panneau et jettent au passage les écouteurs posés
+               en JavaScript. L'attribut, lui, est relu à chaque analyse du HTML. */
+
             let canonsEnAtelier = window.suiviEntretienData.filter(row => row[3] && row[3].toString().toLowerCase().trim() === "oui").map(r => r[0].toString());
 
             if(canonsEnAtelier.length === 0) {
@@ -10459,30 +10485,11 @@
             listeValidee.sort((a, b) => parseInt(a) - parseInt(b));
             let orderedCanons = [...listeAFaire, ...listeValidee];
 
-            let nbFiches = (window.rawEntretienVannes && window.rawEntretienVannes.length > 1)
-                           ? window.rawEntretienVannes.length - 1 : 0;
-            let nbVannes = window.histoVanneParVanne ? window.histoVanneParVanne().length : 0;
-
             ws.innerHTML += `
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px; color:#555; background:#eaf2f8; padding:10px; border-radius:4px; border-left:4px solid #3498db;">
                     <b>${canonsEnAtelier.length} canon(s) au banc d'essai.</b>
                     <span style="color:#27ae60; font-weight:bold;">${listeValidee.length} archivé(s) (en bas de liste)</span>
-                </div>
-                <details class="atelier-sub-details histo-toutes-bloc" id="histo-toutes-bloc" style="margin-bottom:15px;">
-                    <summary><i class="fa-solid fa-clock-rotate-left"></i> Historique des révisions — toutes les vannes${nbFiches ? ` <span class="histo-pastille">${nbFiches} fiche${nbFiches > 1 ? 's' : ''} · ${nbVannes} vanne${nbVannes > 1 ? 's' : ''}</span>` : ''}</summary>
-                    <div style="padding:8px 10px 2px;">
-                        <input type="text" id="histo-toutes-rech" class="edit-input" placeholder="N° de vanne…"
-                               oninput="window.histoVanneToutesFiltrer(this.value)"
-                               style="margin:0 0 8px 0; padding:7px; font-size:12px; height:30px; max-width:220px;">
-                    </div>
-                    <div id="histo-toutes-liste" style="padding:0 10px 10px;"></div>
-                </details>`;
-
-            // Cent vingt fiches de trente-neuf colonnes : on ne les dessine qu'à l'ouverture.
-            let blocHisto = document.getElementById('histo-toutes-bloc');
-            if (blocHisto) blocHisto.addEventListener('toggle', function() {
-                if (blocHisto.open) window.histoVanneToutesRemplir(document.getElementById('histo-toutes-liste'));
-            });
+                </div>`;
 
             orderedCanons.forEach(idCanon => {
                 let feature = window.snowCannons.features.find(f => f.properties.id == idCanon); if(!feature) return;
@@ -10814,8 +10821,10 @@
             const ech = function(x) { return window.prodEsc ? window.prodEsc(x) : String(x == null ? '' : x); };
             let vannes = window.histoVanneParVanne();
             if (!vannes.length) {
-                boite.innerHTML = '<div style="padding:12px; font-size:12px; color:#7f8c8d;">'
-                                + 'Aucune fiche de vanne archivée pour l’instant.</div>';
+                boite.innerHTML = window.scriptSansHistoVannes
+                    ? window.histoVanneHtml('')
+                    : '<div style="padding:12px; font-size:12px; color:#7f8c8d;">'
+                      + 'Aucune fiche de vanne archivée pour l’instant.</div>';
                 return;
             }
             boite.innerHTML = vannes.map(function(id) {
