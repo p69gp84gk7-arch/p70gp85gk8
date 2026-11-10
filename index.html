@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.25.0";
+        window.APP_VERSION = "5.26.0";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -1331,6 +1331,9 @@
                 <div style="flex:1;"><div class="edit-label">Type de graphique</div><select id="meteo-chart-type" class="edit-input" style="margin:0;" onchange="window.renderMeteoHistoryChart()"><option value="line"><i class="fa-solid fa-arrow-trend-up"></i> Courbe</option><option value="bar"><i class="fa-solid fa-chart-column"></i> Histogramme</option></select></div>
             </div>
             <div class="comp-chart-box" style="height:380px; position:relative; background:#fff; padding:10px;"><canvas id="meteo-history-canvas"></canvas></div>
+            <!-- D'où viennent les points tracés, et combien ont été écartés. Sans cette ligne, un
+                 graphique tracé sur le mauvais onglet du classeur passe pour la vérité. -->
+            <div id="meteo-hist-source" style="padding:4px 14px 10px; font-size:11px; color:#7f8c8d; line-height:1.4;"></div>
         </div>
         <div class="resize-handle"></div>
     </div>
@@ -2589,6 +2592,43 @@
         };
         window.todayIso = function() { let d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
         window.isoToFr = function(iso) { if(!iso) return ""; let m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return iso; return m[3] + '/' + m[2] + '/' + m[1]; };
+
+        /* ========================================================================= */
+        /* CHAPITRE 4.A.9 : UNE DATE DU CLASSEUR N'ARRIVE PAS EN FRANÇAIS            */
+        /* ------------------------------------------------------------------------- */
+        /* Dans le classeur, « date », « date d'inter », « date_debut », « date_fin » */
+        /* et la date de l'historique météo sont de VRAIES cellules de date, pas du   */
+        /* texte. Apps Script les rend donc en objets Date, que l'envoi en JSON       */
+        /* transforme en « 2021-08-24T22:00:00.000Z ». L'application, elle, parle le  */
+        /* jj/mm/aaaa d'ici. D'où trois dégâts constatés :                            */
+        /*   — le champ « date d'inter » d'un ticket s'affichait VIDE (frToIso ne     */
+        /*     reconnaît pas ce format) et l'enregistrement effaçait alors la date ;  */
+        /*   — la date de création s'affichait telle quelle, horodatage compris ;     */
+        /*   — le calendrier recevait des dates qu'il ne savait pas replacer.         */
+        /*                                                                           */
+        /* On traduit donc une seule fois, à l'entrée. Les parties utilisées sont     */
+        /* les parties LOCALES : le script tourne à l'heure de Paris comme l'appareil */
+        /* qui lit, sinon minuit du 29 (soit 22 h UTC le 28) s'afficherait le 28.     */
+        /* Une cellule d'heure seule part de 1899 dans le tableur : on la rend en     */
+        /* HH:mm plutôt qu'en « 30/12/1899 ».                                         */
+        /* ========================================================================= */
+        window.valeurClasseur = function(v) {
+            if (v === null || v === undefined) return "";
+            if (typeof v !== 'string') return v.toString();
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return v;
+            let d = new Date(v);
+            if (isNaN(d.getTime())) return v;
+            let hh = String(d.getHours()).padStart(2, '0'), mn = String(d.getMinutes()).padStart(2, '0');
+            if (d.getFullYear() <= 1900) return hh + ':' + mn;
+            let jour = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+            return (hh === '00' && mn === '00') ? jour : jour + ' ' + hh + ':' + mn;
+        };
+        // Même traduction sur un tableau de lignes reçu du classeur (en-tête comprise : elle ne
+        // contient pas de date, la traduction la laisse donc intacte).
+        window.lignesClasseur = function(rows) {
+            if (!Array.isArray(rows)) return rows;
+            return rows.map(function(r) { return Array.isArray(r) ? r.map(window.valeurClasseur) : r; });
+        };
         window.frToIso = function(fr) { if(!fr) return ""; let m = fr.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/); if(!m) return ""; return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0'); };
         window.getTicketsForCanon = function(id) { return window.rawTickets.filter(t => t.idCanon === id); };
         /* Composer la tournée depuis un ticket de panne : on est en train de lire le défaut, c'est
@@ -4315,7 +4355,18 @@
                 diffHtml += `<div style="margin-bottom:5px; font-size:12px; border-bottom:1px dotted #ccc; padding-bottom:3px;"><span style="color:#555; font-weight:bold;">Photos :</span> <span style="color:#27ae60; font-weight:bold;">${nbPhotosNouvelles} nouvelle(s) à déposer sur le Drive</span></div>`;
             }
             if (!hasChanges) { alert("Aucune modification."); window.renderSelectionPanel(); return; }
-            window.tempTicketPayloads[idDiv] = { payload: { action: "update_ticket", idCanon: canonId, defaut: defaut, id: ticket.id || "", fields: fieldsObj }, newStatut: newStatutForLocal, piecesAdded: piecesAddedStr };
+            /* CHAPITRE 4.C.2 — ON N'ENVOIE QUE CE QUI A CHANGÉ
+               Le formulaire renvoyait les dix-sept colonnes du ticket à chaque modification, même
+               celles auxquelles personne n'avait touché. Deux ennuis : la cellule de date était
+               réécrite en texte « 12/03/2025 », que le tableur réinterprète selon sa langue ; et une
+               colonne modifiée entre-temps depuis un autre poste était écrasée par la valeur qu'on
+               avait à l'écran. On n'envoie donc que les champs réellement modifiés. */
+            let fieldsModifies = {};
+            ticket.fullData.forEach(d => {
+                if (fieldsObj[d.k] === undefined) return;
+                if (fieldsObj[d.k].trim() !== d.v.toString().trim()) fieldsModifies[d.k] = fieldsObj[d.k];
+            });
+            window.tempTicketPayloads[idDiv] = { payload: { action: "update_ticket", idCanon: canonId, defaut: defaut, id: ticket.id || "", fields: fieldsModifies }, newStatut: newStatutForLocal, piecesAdded: piecesAddedStr };
             let el = document.getElementById(idDiv);
             if(el) { el.innerHTML = `<div style="background:#fff3cd; padding:15px; border-radius:6px; border:2px solid #f39c12; margin-top:10px;"><div style="font-size:14px; font-weight:bold; color:#d35400; margin-bottom:15px; text-transform:uppercase;"><i class="fa-solid fa-triangle-exclamation"></i> Vérification :</div>${diffHtml}<div style="display:flex; gap:10px; margin-top:20px;"><button onclick="window.editFullTicket('${canonId}', '${defaut.replace(/'/g, "\\'")}')" style="flex:1; padding:10px; background:#bdc3c7; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Annuler</button><button onclick="window.confirmSaveTicket('${canonId}', '${defaut.replace(/'/g, "\\'")}', '${idDiv}')" style="flex:2; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Envoyer <i class="fa-solid fa-rocket"></i></button></div></div>`; }
         };
@@ -4323,7 +4374,11 @@
         window.confirmSaveTicket = async function(canonId, defaut, idDiv) {
             let temp = window.tempTicketPayloads[idDiv]; if(!temp) return; let el = document.getElementById(idDiv); if(el) el.innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#3498db; font-size:14px;">Enregistrement Google... <i class="fa-solid fa-hourglass-half"></i></div>`;
             try {
-                const response = await window.apiPost(temp.payload); const result = await response.json();
+                // Rien de changé sauf des photos : le serveur refuserait une écriture sans colonne.
+                // Les photos, elles, sont rattachées à la ligne par le serveur au moment du dépôt.
+                let sansChamp = Object.keys(temp.payload.fields).length === 0;
+                const response = sansChamp ? window.fakeResponse({ status: "success" }) : await window.apiPost(temp.payload);
+                const result = await response.json();
                 if(result.status === "success") {
                     if (temp.piecesAdded && temp.piecesAdded !== "" && typeof window.deduireStockLocalEtServeur === "function") { window.deduireStockLocalEtServeur(temp.piecesAdded); }
                     let ticketPourPhoto = window.rawTickets.find(t => t.idCanon == canonId && t.defaut == defaut);
@@ -9228,7 +9283,7 @@
             }
 
             window.rawGeneral = data.general || []; window.rawHistorique = data.historique || []; window.rawTicketsSheet = data.tickets || [];
-            window.meteoHistData = data.meteo_hist || []; window.meteoFroidData = data.meteo_froid || []; window.suiviEntretienData = data.suivi || [];
+            window.meteoHistData = window.lignesClasseur(data.meteo_hist || []); window.meteoFroidData = data.meteo_froid || []; window.suiviEntretienData = data.suivi || [];
             window.rawAtelier = data.atelier || []; window.rawStock = data.stock || []; window.drivePhotos = data.drivePhotos || {};
             window.driveIcons = data.driveIcons || {}; window.drivePdfsData = data.drivePdfs || {}; window.driveKmzData = data.driveKmz || {};
             // Un calque modifié sur un autre poste depuis la dernière ouverture : on reprend sa version.
@@ -9277,7 +9332,7 @@
                 let idRaw = row[idxId]; if (idRaw == null || idRaw === "") return; let id = idRaw.toString().replace(/^YA\s*/i, '').trim(); if (!id) return;
                 let lat = 0, lng = 0;
                 if (row[idxXY]) { let txt = String(row[idxXY]).replace(/,/g, '.'); let matches = txt.match(/-?\d+(?:\.\d+)?/g); if (matches && matches.length >= 2) { lat = parseFloat(matches[0]); lng = parseFloat(matches[1]); if (lat < 20 && lng > 30) { let temp = lat; lat = lng; lng = temp; } } }
-                let fullData = []; originalHeaders.forEach((head, i) => { if(head.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullData.push({k: head, v: val}); if(val !== "" && window.columnValuesSets[head]) window.columnValuesSets[head].add(val.trim()); } });
+                let fullData = []; originalHeaders.forEach((head, i) => { if(head.trim() !== "") { let val = (i < row.length && row[i] != null) ? window.valeurClasseur(row[i]) : ""; fullData.push({k: head, v: val}); if(val !== "" && window.columnValuesSets[head]) window.columnValuesSets[head].add(val.trim()); } });
                 dictGeneral[id] = { id: id, lat: lat, lng: lng, fullData: fullData, historique: {} };
             });
 
@@ -9297,8 +9352,10 @@
                 const idxTDateInter = tHeaders.findIndex(h => h.includes("date d'inter") || h.includes('date dinter') || (h.includes('date') && h.includes('inter')));
                 if(idxTRegard > -1) {
                     window.rawTickets = data.tickets.slice(1).map(row => {
-                        let fullTData = []; originalTHeaders.forEach((h, i) => { if(h.trim() !== "") { let val = (i < row.length && row[i] != null) ? row[i].toString() : ""; fullTData.push({k: h, v: val}); } });
-                        return { statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""), date: (idxTDate>-1 && row[idxTDate] != null ? row[idxTDate] : ""), dateInter: (idxTDateInter>-1 && row[idxTDateInter] != null ? row[idxTDateInter].toString() : ""), idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/^YA\s*/i, '').trim() : ""), defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Défaut non spécifié"), id: (idxTId>-1 && row[idxTId] != null ? row[idxTId].toString() : ""), fullData: fullTData };
+                        // Les dates arrivent du classeur en format machine : on les repasse en
+                        // jj/mm/aaaa ici (CHAPITRE 4.A.9), avant que quoi que ce soit les lise.
+                        let fullTData = []; originalTHeaders.forEach((h, i) => { if(h.trim() !== "") { let val = (i < row.length && row[i] != null) ? window.valeurClasseur(row[i]) : ""; fullTData.push({k: h, v: val}); } });
+                        return { statut: (idxTEtat>-1 && row[idxTEtat] != null ? row[idxTEtat].toString().toLowerCase().trim() : ""), date: (idxTDate>-1 && row[idxTDate] != null ? window.valeurClasseur(row[idxTDate]) : ""), dateInter: (idxTDateInter>-1 && row[idxTDateInter] != null ? window.valeurClasseur(row[idxTDateInter]) : ""), idCanon: (row[idxTRegard] != null ? row[idxTRegard].toString().replace(/^YA\s*/i, '').trim() : ""), defaut: (idxTDefaut>-1 && row[idxTDefaut] ? row[idxTDefaut].toString() : "Défaut non spécifié"), id: (idxTId>-1 && row[idxTId] != null ? row[idxTId].toString() : ""), fullData: fullTData };
                     });
                 }
             }
@@ -9327,9 +9384,12 @@
                     id: idxCId > -1 && row[idxCId] != null ? row[idxCId].toString() : "",
                     type: idxCType > -1 && row[idxCType] != null ? row[idxCType].toString().toLowerCase().trim() : "rendez-vous",
                     titre: idxCTitre > -1 && row[idxCTitre] != null ? row[idxCTitre].toString() : "",
-                    dateDebut: idxCDebut > -1 && row[idxCDebut] != null ? row[idxCDebut].toString() : "",
-                    heure: idxCHeure > -1 && row[idxCHeure] != null ? row[idxCHeure].toString() : "",
-                    dateFin: idxCFin > -1 && row[idxCFin] != null ? row[idxCFin].toString() : "",
+                    // Les deux colonnes de date du calendrier sont de vraies dates dans le
+                    // classeur : sans cette traduction (CHAPITRE 4.A.9), elles arrivaient en
+                    // « 2026-07-01T22:00:00.000Z » et le calendrier ne savait pas où les poser.
+                    dateDebut: idxCDebut > -1 && row[idxCDebut] != null ? window.valeurClasseur(row[idxCDebut]) : "",
+                    heure: idxCHeure > -1 && row[idxCHeure] != null ? window.valeurClasseur(row[idxCHeure]) : "",
+                    dateFin: idxCFin > -1 && row[idxCFin] != null ? window.valeurClasseur(row[idxCFin]) : "",
                     canon: idxCCanon > -1 && row[idxCCanon] != null ? row[idxCCanon].toString() : "",
                     remarque: idxCRemarque > -1 && row[idxCRemarque] != null ? row[idxCRemarque].toString() : "",
                     couleur: idxCCouleur > -1 && row[idxCCouleur] != null ? row[idxCCouleur].toString().trim() : ""
@@ -9367,6 +9427,10 @@
              * Le test est simple : au moins une ligne du suivi doit porter, en première colonne,
              * un numéro d'enneigeur existant. Sinon l'onglet reçu n'est pas le bon. */
             window.suiviFeuilleNom = (data.feuilles && data.feuilles["suivi entretient webapp"]) || "";
+            // Nom réel de l'onglet d'où vient l'historique météo : affiché sous le graphique.
+            // C'est ce qui a permis de voir que l'application traçait l'onglet « Météo »
+            // (prévisions à cinq jours) au lieu de « Historique meteo ».
+            window.meteoFeuilleNom = (data.feuilles && data.feuilles["historique meteo"]) || "";
             window.suiviFeuilleSuspecte = false; window.suiviConcordances = 0;
             try {
                 let lignesSuivi = window.suiviEntretienData || [];
@@ -15276,9 +15340,154 @@
             window.chartInstances['global-compare'] = new Chart(canvas.getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [ { label: `Saison ${s1}`, data: dataS1, backgroundColor: colorS1, borderRadius: 4 }, { label: `Saison ${s2}`, data: dataS2, backgroundColor: colorS2, borderRadius: 4 } ] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { font: { size: 13, weight: 'bold' } } }, title: { display: true, text: `Comparatif ${metricLabel} | ${selPiste === 'all' ? 'Toutes les pistes' : 'Piste : ' + selPiste}`, font: { size: 14 } }, zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } }, scales: { x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45, font: {size: 10} } }, y: { beginAtZero: true } } } });
         };
 
-        window.openMeteoHistoryModal = function(show) { let m = document.getElementById('meteo-history-modal'); if(!m) return; if(!show) { m.style.display = 'none'; return; } m.style.display = 'flex'; let selectMetric = document.getElementById('meteo-metric'); if(selectMetric) { let data = window.meteoHistData; if(data && data.length > 0) { let headers = data[0]; let optionsHTML = ""; headers.forEach((h, i) => { let cleanH = h.toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim(); if (cleanH !== 'date' && !cleanH.includes('heure') && !cleanH.includes('time') && cleanH !== "") { optionsHTML += `<option value="${i}">${h}</option>`; } }); if (optionsHTML === "") { optionsHTML = `<option value="">-- Aucune colonne de données trouvée --</option>`; } selectMetric.innerHTML = optionsHTML; } else { selectMetric.innerHTML = `<option value="">-- Onglet météo vide ou introuvable --</option>`; } } window.renderMeteoHistoryChart(); };
+        /* La liste des données proposées ne retient que les colonnes qui contiennent vraiment
+           des nombres. L'onglet d'historique porte aussi une description, une icône et des
+           coordonnées : les tracer donnait une courbe plate à zéro, sans dire pourquoi. */
+        window.openMeteoHistoryModal = function(show) {
+            let m = document.getElementById('meteo-history-modal'); if (!m) return;
+            if (!show) { m.style.display = 'none'; return; }
+            m.style.display = 'flex';
+            let selectMetric = document.getElementById('meteo-metric');
+            if (selectMetric) {
+                let data = window.meteoHistData;
+                if (data && data.length > 1) {
+                    let cols = window.meteoHistColonnes(data[0]);
+                    let echantillon = data.slice(1, 60);
+                    let optionsHTML = "";
+                    data[0].forEach(function(h, i) {
+                        if (i === cols.date || i === cols.heure) return;
+                        let nom = (h == null ? "" : h.toString()).trim();
+                        if (nom === "") return;
+                        let propre = nom.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+                        if (propre === 'id' || propre.indexOf('icon') !== -1 || propre.indexOf('lat') !== -1) return;
+                        let chiffre = echantillon.some(function(r) {
+                            let v = r && r[i]; if (v == null || String(v).trim() === "") return false;
+                            let p = String(v).replace(',', '.').replace(/[^0-9.\-]/g, '');
+                            return p !== "" && isFinite(parseFloat(p));
+                        });
+                        if (chiffre) optionsHTML += '<option value="' + i + '">' + nom + '</option>';
+                    });
+                    selectMetric.innerHTML = optionsHTML || '<option value="">-- Aucune colonne chiffrée dans cet onglet --</option>';
+                } else {
+                    selectMetric.innerHTML = '<option value="">-- Onglet météo vide ou introuvable --</option>';
+                }
+            }
+            window.renderMeteoHistoryChart();
+        };
 
-        window.renderMeteoHistoryChart = function() { let data = window.meteoHistData; let canvasBox = document.getElementById('meteo-history-canvas'); if(!canvasBox) return; let ctx = canvasBox.getContext('2d'); if(!data || data.length < 2) { ctx.clearRect(0, 0, canvasBox.width, canvasBox.height); ctx.font = "bold 14px sans-serif"; ctx.fillStyle = "#e74c3c"; ctx.fillText("Aucune donnée reçue de l'onglet météo.", 20, 50); return; } let metricIdx = parseInt(document.getElementById('meteo-metric').value); if(isNaN(metricIdx)) { ctx.clearRect(0, 0, canvasBox.width, canvasBox.height); ctx.font = "bold 14px sans-serif"; ctx.fillStyle = "#e74c3c"; ctx.fillText("Veuillez sélectionner une donnée à analyser.", 20, 50); return; } let chartType = document.getElementById('meteo-chart-type').value || 'line'; let metricLabel = data[0][metricIdx]; let headersList = data[0].map(h => h.toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim()); let dateIdx = headersList.findIndex(h => h === 'date' || h.includes('date') || h.includes('heure') || h.includes('time')); if (dateIdx === -1) dateIdx = 0; let labels = []; let values = []; for(let i = 1; i < data.length; i++) { let rawDate = data[i][dateIdx]; let rawVal = data[i][metricIdx]; if(rawDate == null || rawDate === "") continue; let rawStr = String(rawDate).trim(); let displayLabel = rawStr; let matchFr = rawStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2})[:hH](\d{1,2})(?::(\d{1,2}))?)?/); if (matchFr) { let day = parseInt(matchFr[1], 10); let month = parseInt(matchFr[2], 10); let year = parseInt(matchFr[3], 10); let hr = matchFr[4] ? parseInt(matchFr[4], 10) : null; let min = matchFr[5] ? parseInt(matchFr[5], 10) : null; let formattedDate = String(day).padStart(2, '0') + '/' + String(month).padStart(2, '0') + '/' + year; if (hr !== null && min !== null) { let formattedTime = String(hr).padStart(2, '0') + ':' + String(min).padStart(2, '0'); displayLabel = [formattedDate, formattedTime]; } else { displayLabel = formattedDate; } } else { let parsedDate = new Date(rawDate); if (!isNaN(parsedDate.getTime()) && parsedDate.getFullYear() > 1970) { let d = parsedDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year:'numeric' }); let t = parsedDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute:'2-digit' }); if(t === "00:00") displayLabel = d; else displayLabel = [d, t]; } } labels.push(displayLabel); let cleanVal = String(rawVal).replace(',', '.').replace(/[^0-9.-]/g, ''); values.push(parseFloat(cleanVal) || 0); } if(window.chartInstances['meteo-hist-chart']) window.chartInstances['meteo-hist-chart'].destroy(); window.chartInstances['meteo-hist-chart'] = new Chart(ctx, { type: chartType, data: { labels: labels, datasets: [{ label: metricLabel, data: values, backgroundColor: chartType === 'line' ? 'rgba(52, 152, 219, 0.2)' : '#3498db', borderColor: '#2980b9', borderWidth: 2, fill: chartType === 'line', tension: 0.3, pointRadius: labels.length > 80 ? 0 : 3, pointHoverRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 15 }, grid: { display: false } }, y: { type: 'linear', display: true, ticks: { font: { size: 10 } } } }, plugins: { legend: { position: 'top', labels: { font: { size: 12, weight: 'bold' } } }, zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } } } }); };
+        /* ========================================================================= */
+        /* CHAPITRE 8.B.1 : GRAPHIQUE DE L'HISTORIQUE MÉTÉO                          */
+        /* ------------------------------------------------------------------------- */
+        /* Trois défauts corrigés ici, qui donnaient une courbe fausse :              */
+        /*                                                                           */
+        /* 1. L'axe du temps retombait sur la PREMIÈRE colonne quand aucune ne        */
+        /*    s'appelait « date ». Avec le mauvais onglet, cette colonne était un     */
+        /*    identifiant : l'axe portait « 1724450400 » en guise de dates. On ne     */
+        /*    devine plus : sans colonne de date reconnue, on le dit et on s'arrête.  */
+        /*                                                                           */
+        /* 2. Une case vide ou non numérique devenait un ZÉRO (`|| 0`). Les trous de  */
+        /*    relevé tiraient donc la courbe jusqu'au bas du graphique, comme s'il    */
+        /*    avait fait 0 °C. Un trou reste maintenant un trou (null) : la courbe    */
+        /*    l'enjambe, et le nombre de cases écartées est annoncé sous le dessin.   */
+        /*                                                                           */
+        /* 3. Les relevés étaient tracés dans l'ordre des lignes du classeur. Un      */
+        /*    ajout fait après coup remontait le temps au milieu de la courbe. Les    */
+        /*    points sont désormais remis en ordre chronologique.                     */
+        /*                                                                           */
+        /* L'heure vit dans sa propre colonne : elle est recollée à la date pour      */
+        /* l'étiquette, sinon quatre relevés du même jour portent quatre fois la      */
+        /* même date et on ne lit plus rien.                                          */
+        /* ========================================================================= */
+        window.meteoHistColonnes = function(entetes) {
+            let propre = entetes.map(h => (h == null ? "" : h.toString()).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim());
+            let iDate = propre.findIndex(h => h === 'date');
+            if (iDate === -1) iDate = propre.findIndex(h => h.indexOf('date') !== -1 || h.indexOf('jour') !== -1);
+            let iHeure = propre.findIndex(h => h === 'heure' || h === 'time' || h.indexOf('heure') !== -1);
+            return { date: iDate, heure: iHeure, propre: propre };
+        };
+
+        // Rend un instant comparable (millisecondes) à partir de « jj/mm/aaaa » et « HH:mm ».
+        window.meteoHistInstant = function(dateTxt, heureTxt) {
+            let m = String(dateTxt || "").trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](\d{1,2})[:hH](\d{2}))?/);
+            if (!m) { let d = new Date(dateTxt); return isNaN(d.getTime()) ? null : d.getTime(); }
+            let hh = m[4] != null ? parseInt(m[4], 10) : 0, mn = m[5] != null ? parseInt(m[5], 10) : 0;
+            let h2 = String(heureTxt || "").trim().match(/^(\d{1,2})[:hH](\d{2})/);
+            if (h2) { hh = parseInt(h2[1], 10); mn = parseInt(h2[2], 10); }
+            return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10), hh, mn).getTime();
+        };
+
+        window.renderMeteoHistoryChart = function() {
+            let data = window.meteoHistData;
+            let canvasBox = document.getElementById('meteo-history-canvas'); if (!canvasBox) return;
+            let ctx = canvasBox.getContext('2d');
+            let note = document.getElementById('meteo-hist-source');
+            const efface = function(msg) {
+                if (window.chartInstances['meteo-hist-chart']) { window.chartInstances['meteo-hist-chart'].destroy(); delete window.chartInstances['meteo-hist-chart']; }
+                ctx.clearRect(0, 0, canvasBox.width, canvasBox.height);
+                ctx.font = "bold 14px sans-serif"; ctx.fillStyle = "#e74c3c"; ctx.fillText(msg, 20, 50);
+                if (note) note.textContent = "";
+            };
+            const origine = window.meteoFeuilleNom ? 'Onglet « ' + window.meteoFeuilleNom + ' » du classeur.' : '';
+
+            if (!data || data.length < 2) { efface("Aucune donnée reçue de l'onglet météo."); if (note) note.textContent = origine; return; }
+            let metricIdx = parseInt(document.getElementById('meteo-metric').value);
+            if (isNaN(metricIdx)) { efface("Choisissez une donnée à analyser."); return; }
+
+            let cols = window.meteoHistColonnes(data[0]);
+            if (cols.date === -1) {
+                efface("Aucune colonne de date dans cet onglet.");
+                if (note) note.innerHTML = origine + " Le graphique a besoin d'une colonne « date » pour placer les relevés dans le temps ; aucune n'a été trouvée. Colonnes reçues : " + data[0].map(h => '« ' + h + ' »').join(', ') + ".";
+                return;
+            }
+
+            let chartType = document.getElementById('meteo-chart-type').value || 'line';
+            let metricLabel = data[0][metricIdx];
+            let points = [], sansDate = 0, sansValeur = 0;
+            for (let i = 1; i < data.length; i++) {
+                let ligne = data[i]; if (!ligne) continue;
+                let dateTxt = ligne[cols.date];
+                if (dateTxt == null || String(dateTxt).trim() === "") { sansDate++; continue; }
+                let heureTxt = cols.heure > -1 ? ligne[cols.heure] : "";
+                let t = window.meteoHistInstant(dateTxt, heureTxt);
+                if (t === null) { sansDate++; continue; }
+                // Une case vide, un tiret ou un texte ne valent pas zéro : ils ne valent rien.
+                let brut = ligne[metricIdx];
+                let propre = String(brut == null ? "" : brut).replace(',', '.').replace(/[^0-9.\-]/g, '');
+                let val = (propre === "" || propre === "-" || propre === ".") ? null : parseFloat(propre);
+                if (val === null || !isFinite(val)) { val = null; sansValeur++; }
+                let jour = String(dateTxt).trim().split(' ')[0];
+                let heure = String(heureTxt || "").trim().slice(0, 5);
+                points.push({ t: t, label: heure ? [jour, heure] : jour, v: val });
+            }
+            points.sort((a, b) => a.t - b.t);
+
+            if (!points.length) { efface("Aucun relevé exploitable dans cet onglet."); if (note) note.textContent = origine; return; }
+            let avecValeur = points.length - sansValeur;
+            if (avecValeur === 0) {
+                efface("La colonne « " + metricLabel + " » ne contient aucun nombre.");
+                if (note) note.textContent = origine + " " + points.length + " relevés lus, aucune valeur numérique dans cette colonne.";
+                return;
+            }
+
+            if (note) {
+                let d1 = points[0].label, d2 = points[points.length - 1].label;
+                note.textContent = origine + " " + avecValeur + " relevés tracés du "
+                    + (Array.isArray(d1) ? d1.join(' ') : d1) + " au " + (Array.isArray(d2) ? d2.join(' ') : d2)
+                    + (sansValeur ? " · " + sansValeur + " sans valeur (laissés en blanc)" : "")
+                    + (sansDate ? " · " + sansDate + " sans date (écartés)" : "") + ".";
+            }
+
+            if (window.chartInstances['meteo-hist-chart']) window.chartInstances['meteo-hist-chart'].destroy();
+            window.chartInstances['meteo-hist-chart'] = new Chart(ctx, {
+                type: chartType,
+                data: { labels: points.map(p => p.label), datasets: [{ label: metricLabel, data: points.map(p => p.v), backgroundColor: chartType === 'line' ? 'rgba(52, 152, 219, 0.2)' : '#3498db', borderColor: '#2980b9', borderWidth: 2, fill: chartType === 'line', tension: 0.3, spanGaps: true, pointRadius: points.length > 80 ? 0 : 3, pointHoverRadius: 6 }] },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                    scales: { x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 15 }, grid: { display: false } },
+                              y: { type: 'linear', display: true, ticks: { font: { size: 10 } } } },
+                    plugins: { legend: { position: 'top', labels: { font: { size: 12, weight: 'bold' } } },
+                               zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } } }
+            });
+        };
 
         /* ========================================================================= */
         /* CHAPITRE 8.F : ANALYSE DU VENT (AÉROLOGIE DU DOMAINE)                      */
