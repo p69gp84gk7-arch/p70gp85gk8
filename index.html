@@ -51,7 +51,7 @@
         // principal. Sur un écran d'erreur, le nom et la version restent affichés — c'est l'information
         // la plus utile à transmettre en cas de bug ; seul le flocon animé disparaît.
         window.APP_NAME = "GMAO Neige";
-        window.APP_VERSION = "5.30.1";
+        window.APP_VERSION = "5.30.2";
         window.showCrash = function(msg, line) {
             let o = document.getElementById('loading-overlay');
             if (!o) { alert("CRASH : " + msg); return; }
@@ -4463,7 +4463,7 @@
             /* CHAPITRE 4.B.9.b — Les gestes rares passent derrière « Plus d'options ». Le
                deuxième étage s'ouvre DANS la bulle, pas dans une deuxième bulle : sur
                téléphone, un menu qui en ouvre un autre se perd vite de vue. */
-            h += '<button type="button" class="mc-btn mc-plus-btn' + (plusOuvert ? ' ouvert' : '') + '" id="mc-plus-btn" onclick="window.menuCanonPlus()">'
+            h += '<button type="button" class="mc-btn mc-plus-btn' + (plusOuvert ? ' ouvert' : '') + '" id="mc-plus-btn" onclick="window.menuCanonPlus(event)">'
                + '<i class="fa-solid fa-ellipsis"></i><span>Plus d’options</span>'
                + '<i class="fa-solid fa-chevron-down mc-chev"></i></button>';
             h += '<div class="mc-plus" id="mc-plus"' + (plusOuvert ? '' : ' hidden') + '>';
@@ -4493,7 +4493,11 @@
         // Déplie ou replie le deuxième étage. On redonne à la bulle un contenu COMPLET au
         // lieu de modifier le DOM : Leaflet le reconstruit depuis la chaîne enregistrée à
         // chaque replacement, et la modification aurait disparu aussitôt.
-        window.menuCanonPlus = function() {
+        window.menuCanonPlus = function(ev) {
+            // Sans cet arrêt, le clic atteint la carte et la carte referme la bulle : le
+            // bouton disparaît du document au moment où l'on remplace le contenu, donc le
+            // clic ne traverse plus la bulle, où Leaflet l'aurait bloqué.
+            if (ev) { if (ev.stopPropagation) ev.stopPropagation(); if (ev.preventDefault) ev.preventDefault(); }
             let e = window.menuCanonEtat;
             if (!e || !e.id || !window.menuCanonPopup) return;
             e.plus = !e.plus;
